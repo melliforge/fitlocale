@@ -33,3 +33,14 @@ test('transforms nested message files and flattens keys', () => {
   expect(pseudoMessages(m)).toEqual({ nav: { home: pseudoLong('Home') }, title: '⟦Šéttîñgš ~~~⟧' });
   expect(flattenKeys(m).sort()).toEqual(['nav.home', 'title']);
 });
+
+test('keeps i18next nesting, vue-i18n linked messages and HTML entities', () => {
+  expect(pseudoLong('See $t(common.more)')).toBe('⟦Šéé $t(common.more) ~⟧');
+  expect(pseudoLong('$t(a, {"count": 2}) left')).toContain('$t(a, {"count": 2}) léft');
+  expect(pseudoLong('Go to @:nav.home')).toBe('⟦Gö tö @:nav.home ~~⟧');
+  expect(pseudoLong('@.lower:common.save now')).toContain('@.lower:common.save ñöw');
+  expect(pseudoLong('@:(nav.home) page')).toContain('@:(nav.home) págé');
+  expect(pseudoLong('Terms &amp; conditions')).toContain('&amp;');
+  expect(pseudoLong('10&nbsp;items')).toContain('&nbsp;');
+  expect(pseudoLong('Copy&#123; &#x1F600;')).toContain('&#123; &#x1F600;');
+});

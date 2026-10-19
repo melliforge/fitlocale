@@ -16,15 +16,19 @@ const ACCENTS: Record<string, string> = {
 const ICU_HEAD = /^\s*\w+\s*,\s*(plural|select|selectordinal)\s*,/;
 const PRINTF = /^%(\d+\$)?[sdif@]/;
 const HTML_TAG = /^<\/?[a-zA-Z][^>]*>/;
+const HTML_ENTITY = /^&(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#[xX][0-9a-fA-F]+);/;
+/** vue-i18n linked messages: `@:key`, `@.lower:key`, `@:(key)`. */
+const VUE_LINKED = /^@(?:\.\w+)?:(?:\([\w\-:|./]+\)|[\w\-|./]+)/;
 
 interface Transformed { out: string; textLength: number }
 
-/** Index of the `}` closing the `{` at `start`, or -1. */
+/** Index of the bracket closing the one at `start` (`{` or `(`), or -1. */
 function matchingBrace(s: string, start: number): number {
+  const open = s[start], close = open === '(' ? ')' : '}';
   let depth = 0;
   for (let i = start; i < s.length; i++) {
-    if (s[i] === '{') depth++;
-    else if (s[i] === '}' && --depth === 0) return i;
+    if (s[i] === open) depth++;
+    else if (s[i] === close && --depth === 0) return i;
   }
   return -1;
 }
@@ -62,6 +66,13 @@ function transform(s: string): Transformed {
     } else if (rest.startsWith('${')) {
       const end = s.indexOf('}', i + 2);
       if (end !== -1) protectedLength = end + 1 - i;
+    } else if (rest.startsWith('$t(')) { // i18next nesting
+      const end = matchingBrace(s, i + 2);
+      if (end !== -1) protectedLength = end + 1 - i;
+    } else if (rest[0] === '@') {
+      protectedLength = VUE_LINKED.exec(rest)?.[0].length ?? 0;
+    } else if (rest[0] === '&') {
+      protectedLength = HTML_ENTITY.exec(rest)?.[0].length ?? 0;
     } else if (rest[0] === '%') {
       protectedLength = PRINTF.exec(rest)?.[0].length ?? 0;
     } else if (rest[0] === '<') {
@@ -93,7 +104,7 @@ function transform(s: string): Transformed {
   return { out, textLength };
 }
 
-/** Accent and lengthen `text`, keeping placeholders, ICU syntax and HTML tags intact. */
+/** Accent and lengthen `text`, keeping placeholders, ICU syntax, nested/linked messages, HTML tags and entities intact. */
 export function pseudoLong(text: string, opts: PseudoOptions = {}): string {
   if (text.trim() === '') return text;
   const expansion = opts.expansion ?? 0.4;
