@@ -4,7 +4,7 @@ import type { BoxRecord } from '../rules/mirror';
 /** The API the in-page bundle installs as `window.__fitlocale`. */
 export interface FitlocaleBrowserApi {
   version: string;
-  /** Set `data-fitlocale-key` (the element's DOM path) on every element under <body>. */
+  /** Remember every element's current DOM path as its key, so keys survive layout changes the check makes. */
   assignKeys(): void;
   /** Rewrite visible text nodes into pseudo-long text. Returns the number of nodes rewritten. */
   rewriteText(expansion: number, ignore: string[]): number;

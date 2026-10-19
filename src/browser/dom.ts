@@ -9,7 +9,6 @@ export const DEFAULT_IGNORE = [
 /** Elements that legitimately keep their position in right-to-left layouts. */
 export const DEFAULT_MIRROR_IGNORE = ['[class*="logo" i]', 'img[alt*="logo" i]', 'video', 'audio', 'code', 'pre'];
 
-const KEY_ATTR = 'data-fitlocale-key';
 const MAX_TEXT = 120;
 
 function validate(selectors: string[]): void {
@@ -92,13 +91,16 @@ export function domPath(el: Element): string {
   return parts.join('>');
 }
 
+/** Keys live outside the DOM, so the page is left exactly as it was. */
+let keys = new WeakMap<Element, string>();
+
 export function assignKeys(): void {
-  document.body.setAttribute(KEY_ATTR, 'body');
-  for (const el of document.body.querySelectorAll('*')) el.setAttribute(KEY_ATTR, domPath(el));
+  keys = new WeakMap([[document.body, 'body']]);
+  for (const el of document.body.querySelectorAll('*')) keys.set(el, domPath(el));
 }
 
 export function keyOf(el: Element): string {
-  return el.getAttribute(KEY_ATTR) ?? domPath(el);
+  return keys.get(el) ?? domPath(el);
 }
 
 export function selectorOf(el: Element): string {

@@ -140,3 +140,10 @@ test('waits for web fonts after rewriting text', async ({ page, localeCheck }) =
   const result = await localeCheck();
   expect(list(result)).toEqual(['overflow/clipped #s pseudo-long']);
 });
+
+test('the page is put back exactly as it was', async ({ page, localeCheck }) => {
+  await page.setContent(`<body style="margin:0">${CLIPPED}${BADGE}<p id=k>dashboard.welcome.title</p></body>`);
+  const before = await page.evaluate(() => document.documentElement.outerHTML);
+  await localeCheck();
+  expect(await page.evaluate(() => document.documentElement.outerHTML)).toBe(before);
+});
