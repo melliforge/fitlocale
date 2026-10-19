@@ -14,10 +14,16 @@ Each section becomes the notes of the matching GitHub Release.
   - pseudo-locale messages that were never loaded (`i18n/pseudo-not-loaded`).
 - `i18n/untranslated`: in a real locale, with `sourceMessages` set, text identical to a source-language message is reported.
 - `pseudoLocales` option (default `['en-XA', 'ar-XB']`).
+- Baseline file (`fitlocale-baseline.json`, `baseline` option): accepted issues stay in the report but no longer fail tests; only new issues do.
+- `fitlocale baseline` writes the baseline from one or more `results.json` files (one per shard).
+- `fitlocale summary` prints a Markdown summary of the new issues, for CI job summaries.
+- GitHub Action (`uses: melliforge/localization-layout-tester@v0.3.0`): writes the summary to the job summary and uploads the HTML report.
+- Every issue in `results.json` has a stable `id`, and accepted ones are marked `baselined`.
 - The npm package now includes `CHANGELOG.md`. The 0.2.1 notes said it already did, but it wasn't shipped.
 
 ### Changed
 
+- Without a baseline file, `localeCheck()` reports issues but no longer fails tests. Create the file with `npx fitlocale baseline`, or set `baseline: false` for the old behaviour.
 - Material icon-font ligatures (`material-icons`, `material-symbols-*`) are no longer checked: their text is an icon name, not words.
 
 ## [0.2.1] - 2026-10-19
