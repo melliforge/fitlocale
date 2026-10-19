@@ -28,6 +28,10 @@ export interface FitlocaleBrowserApi {
    */
   findNotMirrored(ignore: string[], mirrorIgnore: string[]): RawIssue[];
   findOverflow(ignore: string[]): RawIssue[];
+  /** Keep every icon's name, flip sign and drawing, to compare after switching direction. */
+  rememberIcons(ignore: string[], icons: Record<string, 'mirror' | 'invariant' | 'ignore'>): void;
+  /** Snapshot icons again and return directional icons that did not flip, and invariant icons that did. */
+  findIconIssues(ignore: string[], icons: Record<string, 'mirror' | 'invariant' | 'ignore'>): RawIssue[];
   /** Visible text grouped by block, with each block's inline links and buttons. */
   collectTextBlocks(ignore: string[]): TextBlock[];
   documentSize(): { width: number; height: number };

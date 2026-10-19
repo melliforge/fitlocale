@@ -4,10 +4,12 @@ import { documentDir, restoreText, rewriteText, setDir, unpseudoText } from './r
 import { scanLeaks, snapshotBoxes } from './boxes';
 import { findOverflow } from './overflow';
 import { collectTextBlocks } from './blocks';
+import { compareIcons, snapshotIcons, type IconRecord } from './icons';
 import { findNotMirrored } from '../rules/mirror';
 import type { BoxRecord } from '../rules/mirror';
 
 let remembered: BoxRecord[] | null = null;
+let rememberedIcons: IconRecord[] | null = null;
 
 const api: FitlocaleBrowserApi = {
   version: '0.1.0',
@@ -31,6 +33,14 @@ const api: FitlocaleBrowserApi = {
     remembered = null;
     const after = withLayoutCache(() => snapshotBoxes(ignore, mirrorIgnore));
     return findNotMirrored(before, after, { viewportWidth: document.documentElement.clientWidth });
+  },
+  rememberIcons: (ignore, icons) => {
+    rememberedIcons = withLayoutCache(() => snapshotIcons(ignore, icons));
+  },
+  findIconIssues: (ignore, icons) => {
+    const before = rememberedIcons ?? [];
+    rememberedIcons = null;
+    return compareIcons(before, withLayoutCache(() => snapshotIcons(ignore, icons)));
   },
   documentSize: () => ({
     width: document.documentElement.scrollWidth,
