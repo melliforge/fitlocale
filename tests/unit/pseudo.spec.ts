@@ -19,6 +19,10 @@ test('keeps ICU structure, accents branch text', () => {
   expect(out.endsWith('⟧')).toBe(true);
 });
 
+test('keeps surrounding whitespace outside the markers', () => {
+  expect(pseudoLong('\n  Save changes\n')).toBe('\n  ⟦Šávé çháñgéš ~~~~⟧\n');
+});
+
 test('leaves empty and whitespace strings alone', () => {
   expect(pseudoLong('')).toBe('');
   expect(pseudoLong('   ')).toBe('   ');

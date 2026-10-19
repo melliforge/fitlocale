@@ -35,6 +35,8 @@ export interface Screenshot { mode: Mode; viewport: Viewport; path: string; size
 
 export interface CheckResult {
   testTitle: string;
+  /** Playwright project name, when the run has projects (set by the reporter). */
+  project?: string;
   testFile: string;
   checkIndex: number;
   url: string;
@@ -69,6 +71,9 @@ export const MESSAGES: Record<RuleId, string> = {
   'rtl/not-mirrored': 'This element stayed in place when the page switched to right-to-left; it should usually move to the opposite side.',
   'rtl/skipped-already-rtl': 'The page is already right-to-left, so the RTL mirroring check was skipped.',
 };
+
+export const LOCALE_NOT_REFLECTED_MESSAGE =
+  'The page\'s lang attribute is "{actual}", not "{expected}", even right after switching locale. Update <html lang> or set the localeProbe option.';
 
 const GROW_FIX = 'Let the box grow with its text (min-width instead of width) or allow wrapping.';
 

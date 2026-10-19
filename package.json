@@ -9,16 +9,34 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./playwright": {
-      "types": "./dist/playwright.d.ts",
-      "import": "./dist/playwright.js"
+      "import": {
+        "types": "./dist/playwright.d.ts",
+        "default": "./dist/playwright.js"
+      },
+      "require": {
+        "types": "./dist/playwright.d.cts",
+        "default": "./dist/playwright.cjs"
+      }
     },
     "./reporter": {
-      "types": "./dist/reporter.d.ts",
-      "import": "./dist/reporter.js"
+      "import": {
+        "types": "./dist/reporter.d.ts",
+        "default": "./dist/reporter.js"
+      },
+      "require": {
+        "types": "./dist/reporter.d.cts",
+        "default": "./dist/reporter.cjs"
+      }
     }
   },
   "bin": {
@@ -30,7 +48,7 @@
   "scripts": {
     "build:browser": "node scripts/build-browser.mjs",
     "build": "npm run build:browser && tsup",
-    "test": "npm run build:browser && playwright test",
+    "test": "npm run build && playwright test",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
@@ -42,5 +60,8 @@
     "esbuild": "^0.28.2",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
-  }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts"
 }

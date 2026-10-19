@@ -1,12 +1,12 @@
 import type { RawIssue, RuleId } from '../types';
-import { clip, directText, directTextNodes, docBox, ignoreSelector, isVisible, keyOf, selectorOf } from './dom';
+import {
+  clip, clipRects, directText, directTextNodes, docBox, ignoreSelector, isVisible, keyOf, selectorOf, type Rect,
+} from './dom';
 import { textElements } from './boxes';
 
 const EPS = 1;
 const CLIPPING = new Set(['hidden', 'clip']);
 const INTERACTIVE = 'a[href], button, [role=button], input[type=button], input[type=submit], select';
-
-interface Rect { left: number; top: number; right: number; bottom: number }
 
 /** Union of the client rects of an element's own text nodes, or null when it has none. */
 function textRect(el: Element): Rect | null {
@@ -35,25 +35,9 @@ function contentRect(el: Element, style: CSSStyleDeclaration): Rect {
   };
 }
 
-/** Padding box of an element (the area its overflow is clipped to). */
-function paddingRect(el: Element): Rect {
-  const r = el.getBoundingClientRect();
-  const left = r.left + el.clientLeft;
-  const top = r.top + el.clientTop;
-  return { left, top, right: left + el.clientWidth, bottom: top + el.clientHeight };
-}
-
-const escapes = (inner: Rect, outer: Rect) =>
-  inner.left < outer.left - EPS || inner.top < outer.top - EPS || inner.right > outer.right + EPS || inner.bottom > outer.bottom + EPS;
-
-/** Nearest ancestor that hides its overflow (scrollable containers are not clipping). */
-function clippingAncestor(el: Element): Element | null {
-  for (let a = el.parentElement; a && a !== document.documentElement; a = a.parentElement) {
-    const s = getComputedStyle(a);
-    if (CLIPPING.has(s.overflowX) || CLIPPING.has(s.overflowY)) return a;
-  }
-  return null;
-}
+const escapesX = (inner: Rect, outer: Rect) => inner.left < outer.left - EPS || inner.right > outer.right + EPS;
+const escapesY = (inner: Rect, outer: Rect) => inner.top < outer.top - EPS || inner.bottom > outer.bottom + EPS;
+const escapes = (inner: Rect, outer: Rect) => escapesX(inner, outer) || escapesY(inner, outer);
 
 function ownOverflowRule(el: Element, s: CSSStyleDeclaration): RuleId | null {
   const wide = el.scrollWidth > el.clientWidth + EPS;
@@ -73,16 +57,20 @@ function issue(rule: RuleId, el: Element): RawIssue {
 function overlaps(ignoreSel: string): RawIssue[] {
   const controls = Array.from(document.body.querySelectorAll(INTERACTIVE))
     .filter(el => !(ignoreSel && el.closest(ignoreSel)) && isVisible(el));
-  const rects = controls.map(el => el.getBoundingClientRect());
+  // Per line fragment: a wrapped inline link's bounding box spans both lines and would "overlap" its neighbours.
+  const fragments = controls.map(el => Array.from(el.getClientRects()).filter(r => r.width > 0 && r.height > 0));
+  const touches = (as: DOMRect[], bs: DOMRect[]) => as.some(a => bs.some(b => {
+    const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+    const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+    return w > 0 && h > 0 && w * h >= 4;
+  }));
   const reported = new Set<Element>();
   const issues: RawIssue[] = [];
   for (let i = 0; i < controls.length; i++) {
     for (let j = i + 1; j < controls.length; j++) {
       const a = controls[i], b = controls[j];
       if (a.contains(b) || b.contains(a)) continue;
-      const w = Math.min(rects[i].right, rects[j].right) - Math.max(rects[i].left, rects[j].left);
-      const h = Math.min(rects[i].bottom, rects[j].bottom) - Math.max(rects[i].top, rects[j].top);
-      if (w > 0 && h > 0 && w * h >= 4 && !reported.has(a)) {
+      if (!reported.has(a) && touches(fragments[i], fragments[j])) {
         reported.add(a);
         issues.push(issue('overflow/overlap', a));
       }
@@ -107,8 +95,10 @@ export function findOverflow(ignore: string[]): RawIssue[] {
       issues.push(issue('overflow/escapes-box', el));
       continue;
     }
-    const ancestor = clippingAncestor(el);
-    if (ancestor && escapes(text, paddingRect(ancestor))) issues.push(issue('overflow/clipped', el));
+    const clipBy = clipRects(el);
+    if ((clipBy.x && escapesX(text, clipBy.x)) || (clipBy.y && escapesY(text, clipBy.y))) {
+      issues.push(issue('overflow/clipped', el));
+    }
   }
   return [...issues, ...overlaps(ignoreSel)];
 }

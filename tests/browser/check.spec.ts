@@ -41,15 +41,30 @@ test('already-RTL page skips mirroring', async ({ page, localeCheck }) => {
   expect(result.issues[0].severity).toBe('info');
 });
 
-test.describe('with a locale switcher', () => {
-  test.use({ fitlocale: { viewports: 'current', failOn: 'never', setLocale: async () => {} } });
+test.describe('with a locale switcher that updates lang', () => {
+  test.use({ fitlocale: { viewports: 'current', failOn: 'never',
+    setLocale: async (page, l) => { await page.evaluate(x => { document.documentElement.lang = x; }, l); } } });
 
   test('persistence', async ({ page, localeCheck, useLocale }) => {
     await page.setContent(`<html lang="de"><body>${CLIPPED}</body></html>`);
     await useLocale('fr');
+    await page.evaluate(() => { document.documentElement.lang = 'de'; });
     const result = await localeCheck();
     expect(list(result)).toEqual(['locale/persistence html source']);
     expect(result.issues[0].message).toBe('The page language changed back: expected "fr", found "de".');
+  });
+});
+
+test.describe('with a locale switcher that never updates lang', () => {
+  test.use({ fitlocale: { viewports: 'current', failOn: 'never', setLocale: async () => {} } });
+
+  test('persistence says lang never reflected the locale', async ({ page, localeCheck, useLocale }) => {
+    await page.setContent(`<html lang="en"><body><p>Hallo</p></body></html>`);
+    await useLocale('de');
+    const result = await localeCheck();
+    expect(list(result)).toEqual(['locale/persistence html source']);
+    expect(result.issues[0].message).toBe(
+      'The page\'s lang attribute is "en", not "de", even right after switching locale. Update <html lang> or set the localeProbe option.');
   });
 });
 
@@ -87,4 +102,24 @@ test('attachments are written', async ({ page, localeCheck }, testInfo) => {
   const shots = testInfo.attachments.filter(a => a.name === 'fitlocale:screenshot');
   expect(shots.length).toBeGreaterThan(0);
   expect(existsSync(shots[0].path!)).toBe(true);
+});
+
+test('body dir=rtl page skips mirroring with one info issue', async ({ page, localeCheck }) => {
+  await page.setContent(`<body dir="rtl" style="margin:0">${BADGE}<p style="width:200px">مرحبا</p><button>زر</button></body>`);
+  const result = await localeCheck();
+  expect(list(result)).toEqual(['rtl/skipped-already-rtl html pseudo-rtl']);
+});
+
+test('app root with dir=rtl is not flagged', async ({ page, localeCheck }) => {
+  await page.setContent(`<body style="margin:0"><div id=root dir="rtl" style="position:relative;height:100px">
+    <div style="position:absolute;right:16px">شارة</div><p style="width:200px">مرحبا</p><button>زر</button></div></body>`);
+  const result = await localeCheck();
+  expect(result.issues.filter(i => i.rule === 'rtl/not-mirrored')).toEqual([]);
+});
+
+test('config-level fitlocale options merge with test.use overrides', async ({ page, localeCheck }) => {
+  // playwright.config.ts sets fitlocale.ignore = ['.config-ignored'] for the browser project.
+  await page.setContent(`<p class="config-ignored">You have {count} messages</p>`);
+  const result = await localeCheck();
+  expect(result.issues).toEqual([]);
 });

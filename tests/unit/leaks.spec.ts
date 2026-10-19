@@ -10,6 +10,9 @@ test('raw keys', () => {
   expect(r('www.example.com')).toEqual([]);
   expect(r('report.final.pdf')).toEqual([]);
   expect(r('Version 1.2.3')).toEqual([]);
+  for (const t of ['workspace.notion.so', 'api.acme.ai', 'docker-compose.override.yml', 'image.min.webp', 'next.config.mjs']) {
+    expect(r(t), t).toEqual([]);
+  }
 });
 
 test('placeholders', () => {

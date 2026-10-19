@@ -9,7 +9,7 @@ export default defineConfig({
   },
   projects: [
     { name: 'unit', testDir: 'tests/unit' },
-    { name: 'browser', testDir: 'tests/browser' },
+    { name: 'browser', testDir: 'tests/browser', use: { fitlocale: { ignore: ['.config-ignored'] } } as object },
     {
       name: 'demo',
       testDir: 'tests/demo',

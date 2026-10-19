@@ -61,3 +61,28 @@ test('large page stays within budget', async ({ page }) => {
   });
   expect(ms).toBeLessThan(5000);
 });
+
+test('wrapped inline links do not count as overlapping', async ({ page }) => {
+  const links = ['Privacy policy', 'Terms of service', 'Cookie settings', 'Careers at Acme', 'Press kit', 'System status', 'Security center', 'Contact us']
+    .map(t => `<a href="#">${t}</a>`).join(', ');
+  await load(page, `<footer style="width:320px">${links}</footer>`);
+  await rewrite(page);
+  expect(await overflow(page)).toEqual([]);
+});
+
+test('numbers and symbols are not lengthened, so fixed-size badges stay clean', async ({ page }) => {
+  await load(page, `<span style="display:inline-block;width:24px;height:24px;overflow:hidden;white-space:nowrap">3</span>
+    <span style="display:inline-block;width:40px;overflow:hidden;white-space:nowrap">12.50</span>`);
+  await rewrite(page);
+  expect(await overflow(page)).toEqual([]);
+});
+
+const shell = (inner: string) => `<div style="height:300px;overflow:hidden">
+  <main style="height:300px;overflow-y:auto;overflow-x:hidden">${inner}</main></div>`;
+const paragraphs = Array.from({ length: 30 }, (_, i) => `<p>Paragraph ${i} of the dashboard</p>`).join('');
+
+test('app-shell scroller: text below the fold is not reported as clipped', async ({ page }) => {
+  await load(page, shell(paragraphs));
+  await rewrite(page);
+  expect(await overflow(page)).toEqual([]);
+});

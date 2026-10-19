@@ -1,15 +1,20 @@
 import { defineConfig } from 'tsup';
 
-export default defineConfig({
-  entry: {
-    index: 'src/index.ts',
-    playwright: 'src/playwright.ts',
-    reporter: 'src/reporter.ts',
-    cli: 'src/bin.ts',
+const shared = { dts: true, target: 'node20' as const, external: ['@playwright/test'] };
+
+export default defineConfig([
+  {
+    // Library entries ship as ESM and CommonJS: Playwright loads reporters with require(),
+    // and CommonJS projects compile test files to require() too.
+    ...shared,
+    entry: { index: 'src/index.ts', playwright: 'src/playwright.ts', reporter: 'src/reporter.ts' },
+    format: ['esm', 'cjs'],
+    clean: true,
   },
-  format: ['esm'],
-  dts: true,
-  clean: true,
-  target: 'node20',
-  external: ['@playwright/test'],
-});
+  {
+    ...shared,
+    entry: { cli: 'src/bin.ts' },
+    format: ['esm'],
+    dts: false,
+  },
+]);

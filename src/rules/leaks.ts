@@ -3,9 +3,17 @@
 export interface LeakMatch { rule: 'leak/raw-key' | 'leak/placeholder' | 'leak/bad-value'; match: string }
 
 const KEY_TOKEN = /^[A-Za-z_][\w-]*(\.[\w-]+)+$/;
+// Last segments that mean "hostname" or "file name", not a translation key.
 const NOT_KEY_SUFFIXES = new Set([
-  'com', 'org', 'net', 'io', 'dev', 'app', 'ca', 'fr', 'de', 'uk', 'co', 'tn',
-  'js', 'ts', 'json', 'pdf', 'png', 'jpg', 'jpeg', 'svg', 'html', 'css', 'txt', 'csv', 'zip',
+  // domains
+  'com', 'org', 'net', 'io', 'dev', 'app', 'ai', 'so', 'me', 'gg', 'tv', 'co', 'us', 'eu', 'uk', 'ca', 'fr', 'de',
+  'es', 'it', 'nl', 'be', 'ch', 'at', 'au', 'jp', 'cn', 'in', 'br', 'tn', 'ma', 'dz', 'ae', 'sa', 'xyz', 'cloud',
+  'info', 'biz', 'site', 'online', 'tech', 'store', 'shop', 'page', 'sh', 'ly', 'to', 'cc', 'gov', 'edu', 'local',
+  // files
+  'js', 'mjs', 'cjs', 'jsx', 'ts', 'tsx', 'json', 'yml', 'yaml', 'xml', 'toml', 'ini', 'env', 'md', 'mdx', 'txt',
+  'csv', 'log', 'lock', 'html', 'htm', 'css', 'scss', 'svg', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'ico',
+  'mp3', 'mp4', 'mov', 'webm', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'zip', 'gz', 'tgz', 'tar',
+  'exe', 'dmg', 'apk', 'py', 'rb', 'go', 'rs', 'java', 'kt', 'swift', 'php', 'sql', 'sh', 'bak',
 ]);
 
 const PLACEHOLDERS = [

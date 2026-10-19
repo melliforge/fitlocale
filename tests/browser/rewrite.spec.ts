@@ -48,3 +48,11 @@ test('invalid ignore selector gives a clear error', async ({ page }) => {
   await load(page, `<p>Hi</p>`);
   await expect(page.evaluate(() => window.__fitlocale.rewriteText(0.4, ['[[']))).rejects.toThrow('invalid ignore selector "[["');
 });
+
+test('text without letters is left alone', async ({ page }) => {
+  await load(page, `<span id=n>3</span><span id=p>12.50 €</span><span id=w>Hi</span>`);
+  await page.evaluate(() => window.__fitlocale.rewriteText(0.4, []));
+  await expect(page.locator('#n')).toHaveText('3');
+  await expect(page.locator('#p')).toHaveText('12.50 €');
+  await expect(page.locator('#w')).not.toHaveText('Hi');
+});

@@ -97,9 +97,10 @@ function transform(s: string): Transformed {
 export function pseudoLong(text: string, opts: PseudoOptions = {}): string {
   if (text.trim() === '') return text;
   const expansion = opts.expansion ?? 0.4;
-  const { out, textLength } = transform(text);
+  const [, lead, core, trail] = /^(\s*)([\s\S]*?)(\s*)$/.exec(text)!;
+  const { out, textLength } = transform(core);
   const pad = Math.max(2, Math.ceil(textLength * expansion));
-  return `${MARK_START}${out} ${'~'.repeat(pad - 1)}${MARK_END}`;
+  return `${lead}${MARK_START}${out} ${'~'.repeat(pad - 1)}${MARK_END}${trail}`;
 }
 
 /** Apply `pseudoLong` to every string in a (possibly nested) message file. */

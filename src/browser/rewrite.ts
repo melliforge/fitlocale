@@ -12,7 +12,8 @@ export function rewriteText(expansion: number, ignore: string[]): number {
   for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
     const original = node.nodeValue ?? '';
     const parent = node.parentElement;
-    if (!parent || original.trim() === '' || isIgnored(parent, ignoreSel)) continue;
+    // Translation never lengthens numbers, prices or symbols, so text without letters stays as it is.
+    if (!parent || !/\p{L}/u.test(original) || isIgnored(parent, ignoreSel)) continue;
     if (!visible.has(parent)) visible.set(parent, isVisible(parent));
     if (!visible.get(parent)) continue;
     const written = pseudoLong(original, { expansion });
@@ -43,6 +44,7 @@ export function setDir(dir: 'rtl' | null): void {
   savedDir = undefined;
 }
 
+/** Direction of the page content: `<body>` decides, since apps often set `dir` there rather than on `<html>`. */
 export function documentDir(): 'ltr' | 'rtl' {
-  return getComputedStyle(document.documentElement).direction === 'rtl' ? 'rtl' : 'ltr';
+  return getComputedStyle(document.body ?? document.documentElement).direction === 'rtl' ? 'rtl' : 'ltr';
 }

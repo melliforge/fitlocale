@@ -7,7 +7,7 @@ import { flattenKeys, type Messages } from './pseudo';
 import { findNotMirrored } from './rules/mirror';
 import { subtractSource } from './rules/noise';
 import {
-  FIXES, MESSAGES, SEVERITY, type CheckResult, type Issue, type Mode, type RawIssue, type Screenshot, type Viewport,
+  FIXES, LOCALE_NOT_REFLECTED_MESSAGE, MESSAGES, SEVERITY, type CheckResult, type Issue, type Mode, type RawIssue, type Screenshot, type Viewport,
 } from './types';
 import type { FitlocaleBrowserApi } from './browser/api';
 
@@ -15,6 +15,8 @@ export interface CheckContext {
   page: Page;
   options: FitlocaleOptions;
   expectedLocale: string | null;
+  /** What the locale probe read right after `useLocale()` switched, or null. */
+  probeAfterSwitch?: string | null;
   testInfo: TestInfo;
   checkIndex: number;
 }
@@ -35,6 +37,11 @@ function knownKeys(path: string | undefined): string[] {
 export function sameLocale(a: string, b: string): boolean {
   const x = a.toLowerCase(), y = b.toLowerCase();
   return x === y || x.startsWith(y + '-') || y.startsWith(x + '-');
+}
+
+/** The page's current locale: the `localeProbe` option, else `<html lang>`. */
+export async function probeLocale(page: Page, options: FitlocaleOptions): Promise<string> {
+  return options.localeProbe ? options.localeProbe(page) : page.evaluate(() => document.documentElement.lang);
 }
 
 const nextFrames = (page: Page) =>
@@ -79,12 +86,12 @@ export async function runLocaleCheck(ctx: CheckContext): Promise<CheckResult> {
           'source', viewport,
         );
         if (expectedLocale !== null) {
-          const actual = options.localeProbe
-            ? await options.localeProbe(page)
-            : await page.evaluate(() => (window as unknown as Api).__fitlocale.lang());
+          const actual = await probeLocale(page, options);
           if (!sameLocale(actual, expectedLocale)) {
             const box = { x: 0, y: 0, ...(await page.evaluate(() => (window as unknown as Api).__fitlocale.documentSize())) };
-            const message = MESSAGES['locale/persistence'].replace('{expected}', expectedLocale).replace('{actual}', actual);
+            const neverReflected = ctx.probeAfterSwitch != null && !sameLocale(ctx.probeAfterSwitch, expectedLocale);
+            const template = neverReflected ? LOCALE_NOT_REFLECTED_MESSAGE : MESSAGES['locale/persistence'];
+            const message = template.replace('{expected}', expectedLocale).replace('{actual}', actual);
             sourceIssues.push(...enrich([{ rule: 'locale/persistence', key: 'html', selector: 'html', box, text: actual }], 'source', viewport, message));
           }
         }

@@ -35,3 +35,19 @@ test('reporter collects results and copies screenshots', async () => {
   expect(existsSync(join(out, copied))).toBe(true);
   expect(existsSync(join(out, 'index.html'))).toBe(true);
 });
+
+test('reporter keeps only the last retry and records the project', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fitlocale-'));
+  const check = makeCheck({ screenshots: [] });
+  const attempt = { attachments: [{ name: 'fitlocale:result', contentType: 'application/json', body: Buffer.from(JSON.stringify(check)) }] } as unknown as TestResult;
+  const testCase = { id: 't1', parent: { project: () => ({ name: 'chromium' }) } } as unknown as TestCase;
+  const reporter = new FitlocaleReporter({ outputDir: join(dir, 'report') });
+  reporter.onTestEnd(testCase, attempt);
+  reporter.onTestEnd(testCase, attempt);
+  reporter.onTestEnd(testCase, attempt);
+  await reporter.onEnd();
+  const run = JSON.parse(readFileSync(join(dir, 'report', 'results.json'), 'utf8')) as RunResults;
+  expect(run.checks).toHaveLength(1);
+  expect(run.summary.error).toBe(1);
+  expect(run.checks[0].project).toBe('chromium');
+});

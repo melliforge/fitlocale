@@ -21,7 +21,10 @@ export function snapshotBoxes(ignore: string[], mirrorIgnore: string[]): BoxReco
     const text = directText(el);
     if (text === '' && !BOXED_TAGS.has(el.tagName.toLowerCase())) continue;
     if (isIgnored(el, ignoreSel) || !isVisible(el)) continue;
-    records.push({ key: keyOf(el), selector: selectorOf(el), box: docBox(el), text: clip(text), ignored: isIgnored(el, mirrorSel) });
+    records.push({
+      key: keyOf(el), selector: selectorOf(el), box: docBox(el), text: clip(text), ignored: isIgnored(el, mirrorSel),
+      direction: getComputedStyle(el).direction === 'rtl' ? 'rtl' : 'ltr',
+    });
   }
   return records;
 }
