@@ -1,4 +1,5 @@
-name: Release
+name: Release to npm and GitHub
+run-name: Release ${{ github.ref_name }}
 
 # Push a tag like v1.2.3 (made by `npm version`) to test, stage the release on npm and create the GitHub Release.
 # The npm trusted publisher allows staging only: the version goes live after a maintainer approves it on npmjs.com.
@@ -16,6 +17,7 @@ concurrency:
 
 jobs:
   release:
+    name: Test, stage on npm, create GitHub Release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
