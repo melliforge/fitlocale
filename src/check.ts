@@ -44,8 +44,17 @@ export async function probeLocale(page: Page, options: FitlocaleOptions): Promis
   return options.localeProbe ? options.localeProbe(page) : page.evaluate(() => document.documentElement.lang);
 }
 
-const nextFrames = (page: Page) =>
-  page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+const FONT_TIMEOUT_MS = 3000;
+
+/**
+ * Let the page settle after a text or direction change: wait for web fonts the new text needs
+ * (capped, so a font that never loads cannot hang the check), then for two frames.
+ */
+const settle = (page: Page) =>
+  page.evaluate(async timeout => {
+    await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, timeout))]);
+    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+  }, FONT_TIMEOUT_MS);
 
 export async function runLocaleCheck(ctx: CheckContext): Promise<CheckResult> {
   const { page, options, expectedLocale, testInfo, checkIndex } = ctx;
@@ -105,7 +114,7 @@ export async function runLocaleCheck(ctx: CheckContext): Promise<CheckResult> {
       if (options.modes.includes('pseudo-long')) {
         try {
           await page.evaluate(([e, ig]) => (window as unknown as Api).__fitlocale.rewriteText(e, ig), [options.expansion, options.ignore] as const);
-          await nextFrames(page);
+          await settle(page);
           const found = subtractSource(
             await page.evaluate(ig => (window as unknown as Api).__fitlocale.findOverflow(ig), options.ignore),
             sourceOverflow,
@@ -128,7 +137,7 @@ export async function runLocaleCheck(ctx: CheckContext): Promise<CheckResult> {
         try {
           const ltr = await snapshot();
           await page.evaluate(() => (window as unknown as Api).__fitlocale.setDir('rtl'));
-          await nextFrames(page);
+          await settle(page);
           const rtl = await snapshot();
           const viewportWidth = await page.evaluate(() => document.documentElement.clientWidth);
           const found = findNotMirrored(ltr, rtl, { viewportWidth });

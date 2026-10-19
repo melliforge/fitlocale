@@ -123,3 +123,20 @@ test('config-level fitlocale options merge with test.use overrides', async ({ pa
   const result = await localeCheck();
   expect(result.issues).toEqual([]);
 });
+
+test('waits for web fonts after rewriting text', async ({ page, localeCheck }) => {
+  await page.setContent(`<button id=s style="width:300px;overflow:hidden;white-space:nowrap">Save changes</button>`);
+  // A font that only starts loading once the accented pseudo text needs it, and makes the text wider.
+  await page.evaluate(() => {
+    let pending: Promise<void> | null = null;
+    Object.defineProperty(document.fonts, 'ready', {
+      configurable: true,
+      get: () => pending ??= new Promise<void>(resolve => setTimeout(() => {
+        document.getElementById('s')!.style.fontSize = '40px';
+        resolve();
+      }, 150)),
+    });
+  });
+  const result = await localeCheck();
+  expect(list(result)).toEqual(['overflow/clipped #s pseudo-long']);
+});
