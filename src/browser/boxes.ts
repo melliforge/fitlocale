@@ -42,3 +42,14 @@ export function scanLeaks(ignore: string[], knownKeys: string[]): RawIssue[] {
 }
 
 export { textElements };
+
+const MIN_CANVAS = 40;
+
+/** Visible canvases big enough to hold a chart or drawing: they ignore the page direction. */
+export function findCanvases(ignore: string[]): RawIssue[] {
+  const ignoreSel = ignoreSelector(ignore);
+  return Array.from(document.body.querySelectorAll('canvas'))
+    .filter(el => !isIgnored(el, ignoreSel) && isVisible(el))
+    .filter(el => { const r = el.getBoundingClientRect(); return r.width >= MIN_CANVAS && r.height >= MIN_CANVAS; })
+    .map(el => ({ rule: 'rtl/canvas' as const, key: keyOf(el), selector: selectorOf(el), box: docBox(el), text: '' }));
+}
