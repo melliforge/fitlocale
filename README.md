@@ -110,7 +110,7 @@ npx fitlocale report fitlocale-report/results.json              # re-render inde
 ## Limitations
 
 - Text inside shadow roots and iframes is not checked yet.
-- Works with Chromium, Firefox and WebKit.
+- Chromium only for now: Firefox and WebKit are not tested yet.
 
 ## License
 
