@@ -4,3 +4,6 @@ src/generated
 test-results
 fitlocale-report
 playwright-report
+# Internal plans and specs live outside this public repo
+docs/superpowers/
+.superpowers/
