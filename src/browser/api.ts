@@ -17,6 +17,8 @@ export interface FitlocaleBrowserApi {
   /** `null` restores the original `dir` attribute (or removes it). */
   setDir(dir: 'rtl' | null): void;
   documentDir(): 'ltr' | 'rtl';
+  /** The direction most visible text is laid out in (catches dir set on an app wrapper). */
+  contentDir(ignore: string[]): 'ltr' | 'rtl';
   lang(): string;
   scanLeaks(ignore: string[], knownKeys: string[]): RawIssue[];
   snapshotBoxes(ignore: string[], mirrorIgnore: string[]): BoxRecord[];

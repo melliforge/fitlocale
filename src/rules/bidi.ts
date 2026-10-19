@@ -8,7 +8,7 @@ const SENTENCE_PUNCTUATION = '.,;:!?…،؛؟"\'()';
 
 export const hasRtlLetters = (text: string) => RTL_LETTER.test(text);
 
-/** Whitespace-separated values mixing Latin letters or digits with symbols (C++, +1, $220, v2.0), without RTL letters. */
+/** Whitespace-separated values mixing Latin letters, a phone prefix or a currency sign with symbols (C++, +1, $220, v2.0), without RTL letters. */
 export function mixedTokens(text: string): Array<{ start: number; end: number; text: string }> {
   const tokens: Array<{ start: number; end: number; text: string }> = [];
   for (const m of text.matchAll(/\S+/g)) {
@@ -16,7 +16,10 @@ export function mixedTokens(text: string): Array<{ start: number; end: number; t
     while (start < end && SENTENCE_PUNCTUATION.includes(text[start])) start++;
     while (end > start && SENTENCE_PUNCTUATION.includes(text[end - 1])) end--;
     const token = text.slice(start, end);
-    if (/[A-Za-z0-9]/.test(token) && /[^A-Za-z0-9]/.test(token) && !RTL_LETTER.test(token)) tokens.push({ start, end, text: token });
+    // Western digits with %, -, # or dates read correctly right-to-left in Arabic text: only Latin text,
+    // phone prefixes (+1) and currency amounts ($220) are values whose order matters.
+    const value = /[A-Za-z]/.test(token) || /^\+\d/.test(token) || /[$€£¥₹]/.test(token);
+    if (value && /[^A-Za-z0-9]/.test(token) && !RTL_LETTER.test(token)) tokens.push({ start, end, text: token });
   }
   return tokens;
 }

@@ -47,3 +47,10 @@ test('severities of the right-to-left rules', () => {
   expect([SEVERITY['rtl/icon-not-mirrored'], SEVERITY['rtl/icon-mirrored'], SEVERITY['rtl/bidi-order'], SEVERITY['rtl/missing-dir'], SEVERITY['rtl/canvas']])
     .toEqual(['warning', 'warning', 'warning', 'error', 'info']);
 });
+
+test('media forward and step icons are not navigation arrows', () => {
+  expect(c('fa fa-step-forward', 'Forward')).toBe('invariant');
+  expect(c('fa-solid fa-forward-step', 'Forward')).toBe('invariant');
+  expect(c('fa fa-forward', 'Forward')).toBeNull();
+  expect(c('arrow_forward')).toBe('mirror');
+});

@@ -203,7 +203,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
             sourceIssues.push(...enrich(found, 'source', viewport));
           }
         }
-        const dir = await page.evaluate(() => (window as unknown as Api).__fitlocale.documentDir());
+        const dir = await page.evaluate(ig => (window as unknown as Api).__fitlocale.contentDir(ig), options.ignore);
         if (expectedLocale !== null && isRtlLocale(expectedLocale) && dir === 'ltr') {
           const box = { x: 0, y: 0, ...(await page.evaluate(() => (window as unknown as Api).__fitlocale.documentSize())) };
           sourceIssues.push(...enrich([{ rule: 'rtl/missing-dir', key: 'html', selector: 'html', box, text: '' }], 'source', viewport));

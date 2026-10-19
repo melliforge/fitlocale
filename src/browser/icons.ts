@@ -1,6 +1,6 @@
 import type { Box, RawIssue } from '../types';
 import { classifyIcon, iconTokens, type IconKind, type IconOverride } from '../rules/icons';
-import { clip, docBox, ignoreSelector, isIgnored, isVisible, keyOf, selectorOf } from './dom';
+import { ICON_FONT_IGNORE, clip, docBox, ignoreSelector, isIgnored, isVisible, keyOf, selectorOf } from './dom';
 
 export interface IconRecord { key: string; selector: string; box: Box; kind: IconKind; name: string; sign: number; signature: string }
 
@@ -20,6 +20,7 @@ function isIcon(el: Element): boolean {
   const r = el.getBoundingClientRect();
   if (r.width < 1 || r.height < 1 || r.width > MAX_ICON || r.height > MAX_ICON) return false;
   if (tag === 'svg' || tag === 'img') return true;
+  if (el.querySelector('svg, img')) return false; // an icon button: its svg or img is the icon
   const text = (el.textContent ?? '').trim();
   if (text !== '' && !LIGATURE.test(text)) return false;
   if (ICON_CLASS.test(el.getAttribute('class') ?? '')) return true;
@@ -69,7 +70,9 @@ function angleCos(value: string): number {
 
 /** -1 when the element and its ancestors draw it horizontally flipped, else 1. */
 function flipSign(el: Element): number {
-  let sign = 1;
+  // Icon fonts often flip only the glyph: [dir=rtl] .bi-chevron-right::before { transform: scaleX(-1) }.
+  const glyph = /matrix(?:3d)?\(\s*(-?[\d.e+-]+)/.exec(getComputedStyle(el, '::before').transform);
+  let sign = glyph && parseFloat(glyph[1]) < 0 ? -1 : 1;
   for (let n: Element | null = el; n; n = n.parentElement) {
     const s = getComputedStyle(n);
     const matrix = /matrix(?:3d)?\(\s*(-?[\d.e+-]+)/.exec(s.transform);
@@ -98,7 +101,7 @@ function signature(el: Element): string {
 }
 
 export function snapshotIcons(ignore: string[], manifest: Record<string, IconOverride>): IconRecord[] {
-  const ignoreSel = ignoreSelector(ignore);
+  const ignoreSel = ignoreSelector(ignore, ICON_FONT_IGNORE); // ligature icons are skipped as text, not as icons
   const records: IconRecord[] = [];
   let lastIcon: Element | null = null;
   for (const el of document.body.querySelectorAll('*')) {

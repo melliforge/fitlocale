@@ -27,3 +27,10 @@ test('outOfOrder: logical neighbours drawn right-to-left on one line', () => {
 test('visualText reads the characters in drawn order', () => {
   expect(visualText('C++', [{ x: 30, top: 0 }, { x: 10, top: 0 }, { x: 20, top: 0 }])).toBe('++C');
 });
+
+test('numbers that read correctly right-to-left are not tokens', () => {
+  for (const text of ['خصم 50%', 'من 10-20', 'بتاريخ 2026-10-19', 'درجة -5', 'رقم #3']) expect(tokens(text), text).toEqual([]);
+  expect(tokens('اتصل على +1 5551234')).toEqual(['+1']);
+  expect(tokens('السعر $220 أو €15')).toEqual(['$220', '€15']);
+  expect(tokens('لغة C# رائعة')).toEqual(['C#']);
+});

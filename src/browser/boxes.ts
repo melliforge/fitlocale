@@ -43,6 +43,14 @@ export function scanLeaks(ignore: string[], knownKeys: string[]): RawIssue[] {
 
 export { textElements };
 
+/** The direction most visible text is laid out in; apps often set dir on a wrapper rather than <html> or <body>. */
+export function contentDir(ignore: string[]): 'ltr' | 'rtl' {
+  const elements = textElements(ignoreSelector(ignore));
+  if (elements.length === 0) return getComputedStyle(document.body ?? document.documentElement).direction === 'rtl' ? 'rtl' : 'ltr';
+  const rtl = elements.filter(el => getComputedStyle(el).direction === 'rtl').length;
+  return rtl * 2 > elements.length ? 'rtl' : 'ltr';
+}
+
 const MIN_CANVAS = 40;
 
 /** Visible canvases big enough to hold a chart or drawing: they ignore the page direction. */

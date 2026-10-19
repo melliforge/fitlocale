@@ -1,7 +1,7 @@
 import type { FitlocaleBrowserApi } from './api';
 import { assignKeys, withLayoutCache } from './dom';
 import { documentDir, restoreText, rewriteText, setDir, unpseudoText } from './rewrite';
-import { findCanvases, scanLeaks, snapshotBoxes } from './boxes';
+import { contentDir, findCanvases, scanLeaks, snapshotBoxes } from './boxes';
 import { findOverflow } from './overflow';
 import { collectTextBlocks } from './blocks';
 import { findBidiOrder } from './bidi';
@@ -25,6 +25,7 @@ const api: FitlocaleBrowserApi = {
   scanLeaks: (ignore, knownKeys) => withLayoutCache(() => scanLeaks(ignore, knownKeys)),
   snapshotBoxes: (ignore, mirrorIgnore) => withLayoutCache(() => snapshotBoxes(ignore, mirrorIgnore)),
   findOverflow: ignore => withLayoutCache(() => findOverflow(ignore)),
+  contentDir: ignore => withLayoutCache(() => contentDir(ignore)),
   findCanvases: ignore => withLayoutCache(() => findCanvases(ignore)),
   findBidiOrder: ignore => withLayoutCache(() => findBidiOrder(ignore)),
   collectTextBlocks: ignore => withLayoutCache(() => collectTextBlocks(ignore)),

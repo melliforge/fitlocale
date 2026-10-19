@@ -62,3 +62,21 @@ test('the icons option names your own icons', async ({ page }) => {
 test('large images are not icons', async ({ page }) => {
   expect(await run(page, '', `<svg id=big class="arrow-right" width=200 height=200><path d="M0 0h16"/></svg>`)).toEqual([]);
 });
+
+test('an icon button is not the icon: a flipped SVG inside it is fine', async ({ page }) => {
+  const html = '<button id=b class="MuiIconButton-root" aria-label="back" style="width:32px;height:32px">'
+    + '<svg class="MuiSvgIcon-root" data-testid="ArrowBackIcon" width=16 height=16><path d="M0 0h16"/></svg></button>';
+  expect(await run(page, '[dir=rtl] .MuiSvgIcon-root { transform: scaleX(-1) }', html)).toEqual([]);
+});
+
+test('a flip on ::before counts as flipped', async ({ page }) => {
+  const html = '<i id=b class="bi bi-chevron-right" style="display:inline-block;width:16px;height:16px"></i>';
+  const css = '.bi-chevron-right::before { content: "›"; display: inline-block }';
+  expect(await run(page, `${css} [dir=rtl] .bi-chevron-right::before { transform: scaleX(-1) }`, html)).toEqual([]);
+  expect(await run(page, css, html)).toEqual(['rtl/icon-not-mirrored #b']);
+});
+
+test('Material ligature icons are checked', async ({ page }) => {
+  const html = '<span id=m class="material-icons" style="display:inline-block;width:16px;height:16px;overflow:hidden">arrow_back</span>';
+  expect(await run(page, '', html)).toEqual(['rtl/icon-not-mirrored #m']);
+});

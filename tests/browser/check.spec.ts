@@ -336,6 +336,14 @@ test.describe('right-to-left depth', () => {
     expect(result.issues.find(i => i.rule === 'rtl/missing-dir')!.message).toContain('"ar"');
   });
 
+  test('direction set on an app wrapper counts as right-to-left', async ({ page, localeCheck, useLocale }) => {
+    await page.setContent('<div id=app dir="rtl"><p>مرحبا بكم في المتجر</p><p id=c>تعلم C++ اليوم</p></div>');
+    await useLocale('ar');
+    const found = list(await localeCheck());
+    expect(found.filter(f => f.startsWith('rtl/missing-dir'))).toEqual([]);
+    expect(found).toContain('rtl/bidi-order #c source');
+  });
+
   test('a right-to-left page gets bidi and canvas checks, but no icon checks', async ({ page, localeCheck }) => {
     await page.setContent(`<html dir="rtl" lang="ar"><body><p id=c>تعلم C++ اليوم</p>
       <canvas id=chart width=200 height=100></canvas>${NEXT_ICON}</body></html>`);

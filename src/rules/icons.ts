@@ -17,13 +17,14 @@ const INVARIANT = new Set([
   'play', 'pause', 'stop', 'rewind', 'replay', 'skip', 'seek', 'volume', 'mute',
   'clock', 'schedule', 'alarm', 'timer', 'check', 'checkmark', 'done', 'tick', 'logo',
 ]);
-const INVARIANT_PAIRS = new Set(['fast forward', 'fast rewind']);
+const INVARIANT_PAIRS = new Set(['fast forward', 'fast rewind', 'step forward', 'forward step', 'step backward', 'backward step']);
 /** Up/down icons never flip; any of these makes an icon unknown. */
 const VERTICAL = new Set(['up', 'down', 'upward', 'downward', 'top', 'bottom', 'north', 'south', 'expand', 'collapse', 'sort', 'vert']);
-const HORIZONTAL = new Set(['back', 'next', 'forward', 'previous', 'prev', 'undo', 'redo', 'reply', 'send', 'east', 'west', 'before', 'logout', 'login']);
+// `forward` alone is often a media control (fa-forward): it counts only with a shape word (arrow_forward).
+const HORIZONTAL = new Set(['back', 'next', 'previous', 'prev', 'undo', 'redo', 'reply', 'send', 'east', 'west', 'before', 'logout', 'login']);
 const HORIZONTAL_PAIRS = new Set(['first page', 'last page']);
 const SHAPES = new Set(['arrow', 'chevron', 'caret', 'angle', 'triangle']);
-const SIDES = new Set(['left', 'right', 'start', 'end']);
+const SIDES = new Set(['left', 'right', 'start', 'end', 'forward', 'back', 'backward']);
 const CONTROL_WORDS = new Set(['next', 'back', 'previous', 'forward', 'continue']);
 
 const pairs = (tokens: string[]) => tokens.slice(1).map((t, i) => `${tokens[i]} ${t}`);
