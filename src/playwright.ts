@@ -1,6 +1,8 @@
 import { test as base, expect } from '@playwright/test';
 import type { TestInfo } from '@playwright/test';
-import { probeLocale, runLocaleCheck } from './check';
+import { resolve } from 'node:path';
+import { applyBaseline, failureSummary } from './baseline';
+import { configDirOf, probeLocale, runLocaleCheck } from './check';
 import { resolveOptions, type FitlocaleOptions } from './options';
 import type { CheckResult, Severity } from './types';
 
@@ -60,14 +62,17 @@ export const test = base.extend<FitlocaleFixtures>({
         probeAfterSwitch: _fitlocaleState.probeAfterSwitch,
         checkIndex: _fitlocaleState.checkIndex++,
       });
+      const baselinePath = options.baseline === false ? null : resolve(configDirOf(testInfo.config), options.baseline);
+      const { counts } = applyBaseline(
+        result, { project: testInfo.project.name, titlePath: testInfo.titlePath, checkIndex: result.checkIndex }, baselinePath,
+      );
       await testInfo.attach('fitlocale:result', { body: JSON.stringify(result), contentType: 'application/json' });
       for (const shot of result.screenshots) {
         await testInfo.attach('fitlocale:screenshot', { path: shot.path, contentType: 'image/png' });
       }
-      const failing = result.issues.filter(i => RANK[i.severity] >= THRESHOLD[options.failOn]);
-      const summary = `fitlocale found ${failing.length} issue(s):\n`
-        + failing.map(i => `  ${i.rule} ${i.selector} (${i.mode})`).join('\n');
-      expect.soft(failing.length, summary).toBe(0);
+      const failing = result.issues.filter(i => counts(i) && RANK[i.severity] >= THRESHOLD[options.failOn]);
+      const accepted = result.issues.filter(i => i.baselined).length;
+      expect.soft(failing.length, failureSummary(failing, accepted, result.baseline?.path)).toBe(0);
       return result;
     });
   },

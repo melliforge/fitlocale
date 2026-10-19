@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import type { Issue, Mode, RuleId, RunResults } from './types';
+import { relative, sep } from 'node:path';
+import type { CheckResult, Issue, Mode, RuleId, RunResults } from './types';
 
 /** Where an issue was found: Playwright project, test title path and the check's position in the test. */
 export interface IdScope { project: string; titlePath: string[]; checkIndex: number }
@@ -62,4 +63,25 @@ export function buildBaseline(runs: RunResults[]): BaselineFile {
 /** Deterministic text, so the file diffs cleanly in pull requests. */
 export function formatBaseline(file: BaselineFile): string {
   return JSON.stringify(file, null, 2) + '\n';
+}
+
+/**
+ * Give every issue its id and, with a baseline path, mark accepted issues. Returns which issues count toward failing:
+ * none while the baseline file does not exist yet, new ones once it does, all of them with the baseline off (`null`).
+ */
+export function applyBaseline(result: CheckResult, scope: IdScope, baselinePath: string | null): { counts: (issue: Issue) => boolean } {
+  for (const issue of result.issues) issue.id = issueId(scope, issue);
+  if (baselinePath === null) return { counts: () => true };
+  const accepted = readBaseline(baselinePath);
+  result.baseline = { status: accepted ? 'applied' : 'missing', path: relative(process.cwd(), baselinePath).split(sep).join('/') };
+  if (!accepted) return { counts: () => false };
+  for (const issue of result.issues) issue.baselined = accepted.has(issue.id!);
+  return { counts: issue => !issue.baselined };
+}
+
+/** The message of a failing check: the issues that fail it, and how many more the baseline accepted. */
+export function failureSummary(failing: Issue[], accepted: number, baselinePath?: string): string {
+  const lines = [`fitlocale found ${failing.length} issue(s):`, ...failing.map(i => `  ${i.rule} ${i.selector} (${i.mode})`)];
+  if (accepted > 0 && baselinePath) lines.push(`(${accepted} more accepted in ${baselinePath})`);
+  return lines.join('\n');
 }

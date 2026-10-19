@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
-import { buildBaseline, formatBaseline, issueId, readBaseline, type IdScope } from '../../src/baseline';
+import { applyBaseline, buildBaseline, failureSummary, formatBaseline, issueId, readBaseline, type IdScope } from '../../src/baseline';
 import { makeCheck, makeIssue, makeRun } from './fixtures';
 
 const SCOPE: IdScope = { project: 'chromium', titlePath: ['tests/a.spec.ts', 'settings'], checkIndex: 0 };
@@ -96,5 +96,45 @@ test.describe('buildBaseline', () => {
     expect(text.endsWith('}\n')).toBe(true);
     expect(text).toContain('\n  "issues": [');
     expect(JSON.parse(text)).toEqual(file);
+  });
+});
+
+test.describe('applyBaseline', () => {
+  const file = () => {
+    const path = join(tmp(), 'b.json');
+    writeFileSync(path, JSON.stringify({ version: 1, issues: [{ id: issueId(SCOPE, makeIssue({ selector: '#s' })) }] }));
+    return path;
+  };
+  const check = () => makeCheck({ issues: [makeIssue({ selector: '#s' }), makeIssue({ selector: '#t' })] });
+
+  test('ids every issue; with a file, marks accepted ones and only new ones count', () => {
+    const result = check();
+    const { counts } = applyBaseline(result, SCOPE, file());
+    expect(result.issues.map(i => i.id)).toEqual([issueId(SCOPE, result.issues[0]), issueId(SCOPE, result.issues[1])]);
+    expect(result.issues.map(i => [i.baselined, counts(i)])).toEqual([[true, false], [false, true]]);
+    expect(result.baseline?.status).toBe('applied');
+    expect(result.baseline?.path).not.toMatch(/\\/);
+  });
+
+  test('a missing file: nothing counts', () => {
+    const result = check();
+    const { counts } = applyBaseline(result, SCOPE, join(tmp(), 'none.json'));
+    expect(result.baseline?.status).toBe('missing');
+    expect(result.issues.some(counts)).toBe(false);
+  });
+
+  test('baseline off: everything counts, nothing is marked', () => {
+    const result = check();
+    const { counts } = applyBaseline(result, SCOPE, null);
+    expect(result.baseline).toBeUndefined();
+    expect(result.issues.every(counts)).toBe(true);
+    expect(result.issues.every(i => i.baselined === undefined && i.id)).toBe(true);
+  });
+
+  test('failureSummary lists failing issues and mentions accepted ones', () => {
+    const failing = [makeIssue({ selector: '#t' })];
+    expect(failureSummary(failing, 0)).toBe('fitlocale found 1 issue(s):\n  overflow/clipped #t (pseudo-long)');
+    expect(failureSummary(failing, 2, 'fitlocale-baseline.json')).toBe(
+      'fitlocale found 1 issue(s):\n  overflow/clipped #t (pseudo-long)\n(2 more accepted in fitlocale-baseline.json)');
   });
 });
