@@ -82,10 +82,10 @@ export async function runLocaleCheck(ctx: CheckContext): Promise<CheckResult> {
 
 async function check(ctx: CheckContext): Promise<CheckResult> {
   const { page, options, expectedLocale, testInfo, checkIndex } = ctx;
-  const original = page.viewportSize();
-  const viewports: Viewport[] = options.viewports === 'current'
-    ? [original ?? { width: 1280, height: 720 }]
-    : options.viewports;
+  // A context created with `viewport: null` has no fixed size: use (and later restore) the window's size.
+  const original = page.viewportSize()
+    ?? await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  const viewports: Viewport[] = options.viewports === 'current' ? [original] : options.viewports;
   const keys = knownKeys(options.sourceMessages);
   const issues: Issue[] = [];
   const screenshots: Screenshot[] = [];
@@ -177,7 +177,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
       }
     }
   } finally {
-    if (original && options.viewports !== 'current') await page.setViewportSize(original);
+    if (options.viewports !== 'current') await page.setViewportSize(original);
   }
 
   return {

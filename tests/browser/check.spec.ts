@@ -164,3 +164,16 @@ test('a navigation during the check gives a clear error', async ({ page, localeC
   await page.goto('http://fitlocale.test/');
   await expect(localeCheck()).rejects.toThrow('fitlocale: the page navigated during localeCheck()');
 });
+
+test.describe('context without a fixed viewport', () => {
+  test.use({ viewport: null, fitlocale: { viewports: [{ width: 390, height: 844 }], failOn: 'never' } });
+
+  test('the window size is restored after checking other viewports', async ({ page, localeCheck }) => {
+    await page.setContent(CLIPPED);
+    const size = () => page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
+    const before = await size();
+    expect(before).not.toEqual({ width: 390, height: 844 });
+    await localeCheck();
+    expect(await size()).toEqual(before);
+  });
+});
