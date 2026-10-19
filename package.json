@@ -1,6 +1,6 @@
 {
   "name": "fitlocale",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Catch translation-caused layout bugs (overflow, text leaks, RTL mirroring) in your Playwright tests.",
   "keywords": [
     "playwright",
@@ -31,7 +31,7 @@
   "type": "module",
   "license": "MIT",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "exports": {
     ".": {
@@ -74,7 +74,7 @@
   ],
   "scripts": {
     "build:browser": "node scripts/build-browser.mjs",
-    "build": "npm run build:browser && tsup",
+    "build": "npm run build:browser && tsdown",
     "test": "npm run build && playwright test",
     "typecheck": "npm run build && tsc --noEmit",
     "prepublishOnly": "npm run typecheck && npm test"
@@ -86,7 +86,7 @@
     "@playwright/test": "^1.64.1",
     "@types/node": "^26.6.5",
     "esbuild": "^0.28.2",
-    "tsup": "^8.5.1",
+    "tsdown": "^0.23.1",
     "typescript": "^5.9.3"
   },
   "main": "./dist/index.cjs",

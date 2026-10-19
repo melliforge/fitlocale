@@ -10,7 +10,7 @@ Catch layout bugs caused by translation before your users do. These are German l
 npm install -D fitlocale
 ```
 
-Requires Node 20+ and `@playwright/test` 1.45+.
+Requires Node 22+ and `@playwright/test` 1.45+.
 
 ## Quick start
 

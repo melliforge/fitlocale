@@ -7,3 +7,5 @@ playwright-report
 # Internal plans and specs live outside this public repo
 docs/superpowers/
 .superpowers/
+.DS_Store
+.idea/
