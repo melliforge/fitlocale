@@ -1,6 +1,8 @@
 import { test as base, expect } from '@playwright/test';
 import type { TestInfo } from '@playwright/test';
-import { probeLocale, runLocaleCheck } from './check';
+import { resolve } from 'node:path';
+import { applyBaseline, failureSummary } from './baseline';
+import { configDirOf, probeLocale, runLocaleCheck } from './check';
 import { resolveOptions, type FitlocaleOptions } from './options';
 import type { CheckResult, Severity } from './types';
 
@@ -31,6 +33,9 @@ function optionsFor(testInfo: TestInfo, fitlocale: Partial<FitlocaleOptions>): F
   return resolveOptions({ ...fromConfig, ...fitlocale });
 }
 
+/** Warn about a missing baseline file once per worker; each test also gets an annotation. */
+let warnedMissingBaseline = false;
+
 const RANK: Record<Severity, number> = { info: 1, warning: 2, error: 3 };
 const THRESHOLD: Record<FitlocaleOptions['failOn'], number> = { error: 3, warning: 2, never: Infinity };
 
@@ -60,14 +65,27 @@ export const test = base.extend<FitlocaleFixtures>({
         probeAfterSwitch: _fitlocaleState.probeAfterSwitch,
         checkIndex: _fitlocaleState.checkIndex++,
       });
+      const baselinePath = options.baseline === false ? null : resolve(configDirOf(testInfo.config), options.baseline);
+      const { counts } = applyBaseline(
+        result, { project: testInfo.project.name, titlePath: testInfo.titlePath, checkIndex: result.checkIndex }, baselinePath,
+      );
+      if (result.baseline?.status === 'missing' && !testInfo.annotations.some(a => a.type === 'fitlocale')) {
+        // Seen even without the fitlocale reporter: otherwise a missing file would silently stop every failure.
+        const note = `No baseline file yet (${result.baseline.path}): issues are reported but do not fail tests. `
+          + `Create it with: npx fitlocale baseline <results.json> --out ${result.baseline.path}`;
+        testInfo.annotations.push({ type: 'fitlocale', description: note });
+        if (!warnedMissingBaseline) {
+          warnedMissingBaseline = true;
+          console.warn(`fitlocale: ${note}`);
+        }
+      }
       await testInfo.attach('fitlocale:result', { body: JSON.stringify(result), contentType: 'application/json' });
       for (const shot of result.screenshots) {
         await testInfo.attach('fitlocale:screenshot', { path: shot.path, contentType: 'image/png' });
       }
-      const failing = result.issues.filter(i => RANK[i.severity] >= THRESHOLD[options.failOn]);
-      const summary = `fitlocale found ${failing.length} issue(s):\n`
-        + failing.map(i => `  ${i.rule} ${i.selector} (${i.mode})`).join('\n');
-      expect.soft(failing.length, summary).toBe(0);
+      const failing = result.issues.filter(i => counts(i) && RANK[i.severity] >= THRESHOLD[options.failOn]);
+      const accepted = result.issues.filter(i => i.baselined).length;
+      expect.soft(failing.length, failureSummary(failing, accepted, result.baseline?.path)).toBe(0);
       return result;
     });
   },

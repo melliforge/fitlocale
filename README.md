@@ -119,6 +119,7 @@ A page whose `<html lang>` is a pseudo locale gets these checks even without `us
 | `mirrorIgnore` | logos, `video`, `audio`, `code`, `pre` | Elements that legitimately keep their place in RTL |
 | `viewports` | `1280×800` and `390×844` | Viewports to check, or `'current'` |
 | `failOn` | `'error'` | Fail the test on `'error'`, on `'warning'` and up, or `'never'` |
+| `baseline` | `'fitlocale-baseline.json'` | Accepted issues file, relative to `playwright.config` (see [Baseline](#baseline)), or `false` to fail on every issue |
 | `screenshots` | `true` | Save a full-page screenshot when a mode finds issues |
 
 ## Rules
@@ -140,11 +141,59 @@ A page whose `<html lang>` is a pseudo locale gets these checks even without `us
 | `i18n/untranslated` | warning | In a real locale, text identical to a source-language message |
 | `i18n/pseudo-not-loaded` | error | The page is in a pseudo locale, but no text has pseudo-locale markers: the messages were not loaded |
 
+## Baseline
+
+Most apps already have some of these issues. So fitlocale fails only on new ones:
+
+1. The first run has no `fitlocale-baseline.json` yet. Issues are reported, but no test fails, and the run prints the command that accepts them.
+2. Accept the current issues and commit the file:
+
+   ```bash
+   npx fitlocale baseline fitlocale-report/results.json
+   ```
+
+3. From then on, only issues missing from the baseline fail. Accepted ones still show in the report, marked "accepted".
+
+Run the command again after fixing issues, to drop them from the file. With sharded runs, pass every shard's `results.json`. The baseline file is looked up next to `playwright.config`: if you run the command from another folder, pass `--out` with the path the run's notice prints.
+
+Each issue is identified by its test, the check's position in that test, the rule, the mode, the locale, the viewport and the element's selector. Its text and the URL are not part of it. Give key elements a test id, so their selector survives markup changes. Set `baseline: false` to fail on every issue instead.
+
+## GitHub Actions
+
+Run your tests as usual, then add the fitlocale step. It writes a table of new issues to the job summary and uploads the HTML report as an artifact:
+
+```yaml
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - uses: melliforge/localization-layout-tester@v0.3.0
+        if: always()
+```
+
+| Input | Default | Meaning |
+|---|---|---|
+| `report-dir` | `fitlocale-report` | The reporter's `outputDir` |
+| `artifact-name` | `fitlocale-report` | Name of the uploaded report |
+| `max-rows` | `50` | Most issues listed in the job summary |
+| `fitlocale-command` | your `node_modules/.bin/fitlocale` | Command that runs the fitlocale CLI |
+
+The step never fails the job. Your test step already did, if there were new issues. In a matrix or with shards, give each job its own `artifact-name` (for example `fitlocale-report-${{ matrix.shardIndex }}`): an artifact name can be used once per workflow run.
+
 ## CLI
 
 ```bash
 npx fitlocale pseudo locales/en.json --out locales/en-XA.json   # pseudo-locale message file
 npx fitlocale report fitlocale-report/results.json              # re-render index.html
+npx fitlocale baseline fitlocale-report/results.json            # accept the current issues
+npx fitlocale summary fitlocale-report/results.json             # Markdown summary, for CI
 ```
 
 ## Limitations

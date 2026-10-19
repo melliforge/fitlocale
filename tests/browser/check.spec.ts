@@ -87,7 +87,7 @@ test.describe('mobile viewport', () => {
 });
 
 test.describe('failing on errors', () => {
-  test.use({ fitlocale: { viewports: 'current', failOn: 'error' } });
+  test.use({ fitlocale: { viewports: 'current', failOn: 'error', baseline: false } });
 
   test('failOn error fails the test', async ({ page, localeCheck }) => {
     test.fail();

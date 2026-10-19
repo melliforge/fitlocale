@@ -62,3 +62,20 @@ test('issue boxes stay visible on any background, in light and dark mode', async
     expect(shadow).toContain('rgb(255, 255, 255)');
   }
 });
+
+test('accepted issues are marked and can be hidden', () => {
+  const html = renderReport(makeRun([makeCheck({
+    issues: [makeIssue({ baselined: true }), makeIssue({ selector: '#t' })],
+  })]));
+  expect(html).toContain('<tr class="error accepted">');
+  expect(html).toContain('<span class="tag">accepted</span>');
+  expect(html).toContain('box error accepted');
+  expect(html).toContain('1 new · 1 accepted');
+  expect(html).toContain('data-sev="accepted"');
+});
+
+test('without accepted issues the report has no accepted toggle', () => {
+  const html = renderReport(makeRun([makeCheck()]));
+  expect(html).not.toContain('data-sev="accepted"');
+  expect(html).not.toContain(' accepted');
+});

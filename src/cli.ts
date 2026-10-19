@@ -1,8 +1,10 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 import { parseArgs } from 'node:util';
+import { buildBaseline, formatBaseline } from './baseline';
 import { pseudoMessages, type Messages } from './pseudo';
 import { renderReport } from './report/html';
+import { renderSummary } from './summary';
 import type { RunResults } from './types';
 
 export interface CliIO { stdout: (s: string) => void; stderr: (s: string) => void }
@@ -10,12 +12,14 @@ export interface CliIO { stdout: (s: string) => void; stderr: (s: string) => voi
 const USAGE = `Usage:
   fitlocale pseudo <input.json> [--out <file>] [--expansion <n>]   Write a pseudo-locale message file
   fitlocale report <results.json> [--out <dir>]                   Re-render index.html from results.json
+  fitlocale baseline <results.json>... [--out <file>]             Accept the issues found (default fitlocale-baseline.json)
+  fitlocale summary <results.json> [--max-rows <n>]               Print a Markdown summary (for CI job summaries)
   fitlocale --help
 `;
 
 const defaultIO: CliIO = { stdout: s => process.stdout.write(s), stderr: s => process.stderr.write(s) };
 
-const COMMANDS: Record<string, true> = { pseudo: true, report: true };
+const COMMANDS: Record<string, true> = { pseudo: true, report: true, summary: true };
 
 /** Read a JSON file whose top level must be an object. */
 function readJsonObject(path: string): Record<string, unknown> {
@@ -51,6 +55,12 @@ function relocateScreenshots(results: RunResults, fromDir: string, toDir: string
   }
 }
 
+function readResults(path: string): RunResults {
+  const results = readJsonObject(path) as unknown as RunResults;
+  if (!Array.isArray(results.checks)) throw new Error(`${path} is not a fitlocale results.json (no "checks" list)`);
+  return results;
+}
+
 function readJson(path: string): unknown {
   let text: string;
   try {
@@ -71,7 +81,7 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
     const { values, positionals } = parseArgs({
       args: argv,
       allowPositionals: true,
-      options: { out: { type: 'string' }, expansion: { type: 'string' }, help: { type: 'boolean' } },
+      options: { out: { type: 'string' }, expansion: { type: 'string' }, 'max-rows': { type: 'string' }, help: { type: 'boolean' } },
     });
     const [command, input, ...extra] = positionals;
     if (values.help || command === 'help') {
@@ -87,9 +97,22 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
       else io.stdout(json);
       return 0;
     }
+    if (command === 'baseline' && input) {
+      const runs = [input, ...extra].map(path => readResults(path));
+      const file = buildBaseline(runs);
+      const out = values.out ?? 'fitlocale-baseline.json';
+      writeFileCreatingDir(out, formatBaseline(file));
+      io.stdout(`fitlocale: wrote ${file.issues.length} accepted issue(s) to ${out}\n`);
+      return 0;
+    }
+    if (command === 'summary' && input) {
+      const maxRows = values['max-rows'] === undefined ? 50 : Number(values['max-rows']);
+      if (!Number.isInteger(maxRows) || maxRows < 1) throw new Error('--max-rows must be a whole number ≥ 1');
+      io.stdout(renderSummary(readResults(input), { maxRows, resultsPath: input }));
+      return 0;
+    }
     if (command === 'report' && input) {
-      const results = readJsonObject(input) as unknown as RunResults;
-      if (!Array.isArray(results.checks)) throw new Error(`${input} is not a fitlocale results.json (no "checks" list)`);
+      const results = readResults(input);
       const dir = values.out ?? dirname(input);
       mkdirSync(dir, { recursive: true });
       relocateScreenshots(results, dirname(input), dir);

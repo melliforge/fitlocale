@@ -41,6 +41,10 @@ export interface Issue extends RawIssue {
   url: string;
   message: string;
   fix?: string;
+  /** Stable fingerprint of this issue (test, check, rule, mode, locale, viewport, element); used by the baseline file. */
+  id?: string;
+  /** True when the baseline file accepts this issue, so it does not fail the test. */
+  baselined?: boolean;
 }
 
 export interface Screenshot { mode: Mode; viewport: Viewport; path: string; size: { width: number; height: number } }
@@ -54,6 +58,8 @@ export interface CheckResult {
   url: string;
   issues: Issue[];
   screenshots: Screenshot[];
+  /** The baseline file used for this check (path relative to the working directory); absent with `baseline: false`. */
+  baseline?: { status: 'missing' | 'applied'; path: string };
 }
 
 export interface RunResults { version: 1; createdAt: string; checks: CheckResult[]; summary: Record<Severity, number> }

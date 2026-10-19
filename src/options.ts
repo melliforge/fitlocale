@@ -23,6 +23,11 @@ export interface FitlocaleOptions {
   mirrorIgnore: string[];
   viewports: Viewport[] | 'current';
   failOn: 'error' | 'warning' | 'never';
+  /**
+   * Accepted issues file, relative to the Playwright config. Missing file: report without failing.
+   * `false`: every issue at or above `failOn` fails.
+   */
+  baseline: string | false;
   screenshots: boolean;
 }
 
@@ -35,6 +40,7 @@ export const DEFAULT_OPTIONS: FitlocaleOptions = {
   mirrorIgnore: DEFAULT_MIRROR_IGNORE,
   viewports: [{ width: 1280, height: 800 }, { width: 390, height: 844 }],
   failOn: 'error',
+  baseline: 'fitlocale-baseline.json',
   screenshots: true,
 };
 

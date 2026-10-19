@@ -99,3 +99,36 @@ test('reporter drops screenshots Playwright already deleted (preserveOutput: fai
   expect(run.checks[0].issues).toHaveLength(1);
   expect(readFileSync(join(out, 'index.html'), 'utf8')).not.toContain('gone.png');
 });
+
+async function consoleOf(checks: ReturnType<typeof makeCheck>[]): Promise<string> {
+  const out = join(mkdtempSync(join(tmpdir(), 'fitlocale-')), 'report');
+  const reporter = new FitlocaleReporter({ outputDir: out });
+  const result = {
+    attachments: checks.map(c => ({ name: 'fitlocale:result', contentType: 'application/json', body: Buffer.from(JSON.stringify(c)) })),
+  } as unknown as TestResult;
+  reporter.onTestEnd({ id: 't1' } as TestCase, result);
+  const log = console.log;
+  const lines: string[] = [];
+  console.log = (...args: unknown[]) => { lines.push(args.join(' ')); };
+  try {
+    await reporter.onEnd();
+  } finally {
+    console.log = log;
+  }
+  return lines.join('\n');
+}
+
+test('reporter explains how to create a missing baseline', async () => {
+  const text = await consoleOf([makeCheck({ screenshots: [], baseline: { status: 'missing', path: 'fitlocale-baseline.json' } })]);
+  expect(text).toContain('no baseline file yet (fitlocale-baseline.json), so no test failed');
+  expect(text).toMatch(/npx fitlocale baseline \S+\/results\.json --out fitlocale-baseline\.json/);
+});
+
+test('reporter counts accepted issues', async () => {
+  const text = await consoleOf([makeCheck({
+    screenshots: [], baseline: { status: 'applied', path: 'fitlocale-baseline.json' },
+    issues: [makeIssue({ baselined: true }), makeIssue({ selector: '#t', baselined: false })],
+  })]);
+  expect(text).toContain('fitlocale: 2 errors, 0 warnings, 0 info (1 accepted in the baseline) →');
+  expect(text).not.toContain('no baseline file yet');
+});

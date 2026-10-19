@@ -69,7 +69,7 @@ test('German: text left in English is found', async ({ page, localeCheck, useLoc
 });
 
 test.describe('failing on errors', () => {
-  test.use({ fitlocale: { viewports: 'current', failOn: 'error' } });
+  test.use({ fitlocale: { viewports: 'current', failOn: 'error', baseline: false } });
 
   test('failing build on errors', async ({ page, localeCheck }) => {
     test.fail();
