@@ -4,7 +4,9 @@ import type { Frame, FullConfig, Page, TestInfo } from '@playwright/test';
 import { ensureInjected } from './inject';
 import type { FitlocaleOptions } from './options';
 import { flattenKeys, flattenValues, type Messages } from './pseudo';
+import { findConcatenated, findHardcoded } from './rules/i18n';
 import { subtractSource } from './rules/noise';
+import { findUntranslated, sourceMatcher, type SourceMatcher } from './rules/untranslated';
 import {
   FIXES, LOCALE_NOT_REFLECTED_MESSAGE, MESSAGES, SEVERITY, type CheckResult, type Issue, type Mode, type RawIssue, type Screenshot, type Viewport,
 } from './types';
@@ -62,6 +64,20 @@ export function sourceValues(path: string | undefined, baseDir: string): string[
   return path ? loadMessages(path, baseDir).values : [];
 }
 
+const matcherCache = new Map<string, SourceMatcher>();
+
+/** A matcher for the strings of the `sourceMessages` file, built once per file. */
+function matcherFor(path: string, baseDir: string): SourceMatcher {
+  const file = resolve(baseDir, path);
+  if (!matcherCache.has(file)) matcherCache.set(file, sourceMatcher(sourceValues(path, baseDir)));
+  return matcherCache.get(file)!;
+}
+
+/** Is `locale` one of the `pseudoLocales` (exact, case-insensitive)? */
+export function isPseudoLocale(locale: string, options: FitlocaleOptions): boolean {
+  return options.pseudoLocales.some(p => p.toLowerCase() === locale.toLowerCase());
+}
+
 /** `de` matches `de`, `de-CH` and `DE`; `de-CH` matches `de`. */
 export function sameLocale(a: string, b: string): boolean {
   const x = a.toLowerCase(), y = b.toLowerCase();
@@ -115,10 +131,17 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
   const original = page.viewportSize()
     ?? await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
   const viewports: Viewport[] = options.viewports === 'current' ? [original] : options.viewports;
-  const keys = knownKeys(options.sourceMessages, configDirOf(testInfo.config));
+  const baseDir = configDirOf(testInfo.config);
+  const keys = knownKeys(options.sourceMessages, baseDir);
   const issues: Issue[] = [];
   const screenshots: Screenshot[] = [];
-  const locale = expectedLocale ?? options.sourceLocale;
+  // Without useLocale(), a page showing a pseudo locale is still checked as one.
+  let locale = expectedLocale ?? options.sourceLocale;
+  if (expectedLocale === null) {
+    const probed = await probeLocale(page, options);
+    if (typeof probed === 'string' && isPseudoLocale(probed, options)) locale = probed;
+  }
+  const isPseudo = isPseudoLocale(locale, options);
 
   const enrich = (raw: RawIssue[], mode: Mode, viewport: Viewport, message?: string): Issue[] =>
     raw.map(r => ({
@@ -126,15 +149,19 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
       message: message ?? MESSAGES[r.rule], ...(FIXES[r.rule] ? { fix: FIXES[r.rule] } : {}),
     }));
 
+  const shot = new Set<string>();
   const shoot = async (mode: Mode, viewport: Viewport) => {
-    if (!options.screenshots) return;
+    const id = `${mode}-${viewport.width}x${viewport.height}`;
+    if (!options.screenshots || shot.has(id)) return;
+    shot.add(id);
     const path = testInfo.outputPath(`fitlocale-${checkIndex}-${mode}-${viewport.width}x${viewport.height}.png`);
     const size = await page.evaluate(() => (window as unknown as Api).__fitlocale.documentSize());
     await page.screenshot({ fullPage: true, path });
     screenshots.push({ mode, viewport, path, size });
   };
 
-  const isSource = expectedLocale === null || sameLocale(expectedLocale, options.sourceLocale);
+  // Checked first: a pseudo locale such as en-XA shares its language with the source.
+  const isSource = !isPseudo && (expectedLocale === null || sameLocale(expectedLocale, options.sourceLocale));
   let skippedRtl = false; // report an already-RTL page once, not once per viewport
 
   try {
@@ -159,14 +186,40 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
             sourceIssues.push(...enrich([{ rule: 'locale/persistence', key: 'html', selector: 'html', box, text: actual }], 'source', viewport, message));
           }
         }
+        if (isPseudo || (!isSource && options.sourceMessages)) {
+          const blocks = await page.evaluate(ig => (window as unknown as Api).__fitlocale.collectTextBlocks(ig), options.ignore);
+          const pageLocale = locale, sourceLocale = options.sourceLocale;
+          const found = isPseudo
+            ? [...findHardcoded(blocks, { pageLocale, sourceLocale }), ...findConcatenated(blocks, { pageLocale })]
+            : findUntranslated(blocks, matcherFor(options.sourceMessages!, baseDir), { pageLocale, sourceLocale });
+          sourceIssues.push(...enrich(found, 'source', viewport));
+        }
         if (sourceIssues.length) await shoot('source', viewport);
         issues.push(...sourceIssues);
       }
 
-      if (!isSource) continue;
-      const sourceOverflow = await page.evaluate(ig => (window as unknown as Api).__fitlocale.findOverflow(ig), options.ignore);
+      if (!isSource && !isPseudo) continue;
 
-      if (options.modes.includes('pseudo-long')) {
+      if (isPseudo) {
+        // The text is already long: compare the page as it is with an approximation of its source text.
+        const findOverflow = () => page.evaluate(ig => (window as unknown as Api).__fitlocale.findOverflow(ig), options.ignore);
+        const asIs = await findOverflow();
+        let approx: RawIssue[] = [];
+        try {
+          await page.evaluate(ig => (window as unknown as Api).__fitlocale.unpseudoText(ig), options.ignore);
+          await settle(page);
+          approx = await findOverflow();
+        } finally {
+          await page.evaluate(() => (window as unknown as Api).__fitlocale.restoreText());
+        }
+        await settle(page);
+        const found = subtractSource(asIs, approx);
+        if (found.length) await shoot('source', viewport);
+        issues.push(...enrich(found, 'source', viewport));
+      }
+
+      if (isSource && options.modes.includes('pseudo-long')) {
+        const sourceOverflow = await page.evaluate(ig => (window as unknown as Api).__fitlocale.findOverflow(ig), options.ignore);
         try {
           await page.evaluate(([e, ig]) => (window as unknown as Api).__fitlocale.rewriteText(e, ig), [options.expansion, options.ignore] as const);
           await settle(page);
