@@ -1,0 +1,79 @@
+export type Severity = 'error' | 'warning' | 'info';
+
+export type RuleId =
+  | 'overflow/clipped'
+  | 'overflow/ellipsis'
+  | 'overflow/escapes-box'
+  | 'overflow/overlap'
+  | 'leak/raw-key'
+  | 'leak/placeholder'
+  | 'leak/bad-value'
+  | 'locale/persistence'
+  | 'rtl/not-mirrored'
+  | 'rtl/skipped-already-rtl';
+
+export type Mode = 'source' | 'pseudo-long' | 'pseudo-rtl';
+
+/** Document coordinates in CSS pixels (matches a full-page screenshot). */
+export interface Box { x: number; y: number; width: number; height: number }
+
+export interface Viewport { width: number; height: number }
+
+/** An issue as measured in the page, before Node-side enrichment. `text` is at most 120 chars. */
+export interface RawIssue { rule: RuleId; key: string; selector: string; box: Box; text: string }
+
+export interface Issue extends RawIssue {
+  severity: Severity;
+  mode: Mode;
+  viewport: Viewport;
+  url: string;
+  message: string;
+  fix?: string;
+}
+
+export interface Screenshot { mode: Mode; viewport: Viewport; path: string; size: { width: number; height: number } }
+
+export interface CheckResult {
+  testTitle: string;
+  testFile: string;
+  checkIndex: number;
+  url: string;
+  issues: Issue[];
+  screenshots: Screenshot[];
+}
+
+export interface RunResults { version: 1; createdAt: string; checks: CheckResult[]; summary: Record<Severity, number> }
+
+export const SEVERITY: Record<RuleId, Severity> = {
+  'overflow/clipped': 'error',
+  'overflow/ellipsis': 'warning',
+  'overflow/escapes-box': 'error',
+  'overflow/overlap': 'error',
+  'leak/raw-key': 'error',
+  'leak/placeholder': 'error',
+  'leak/bad-value': 'error',
+  'locale/persistence': 'error',
+  'rtl/not-mirrored': 'warning',
+  'rtl/skipped-already-rtl': 'info',
+};
+
+export const MESSAGES: Record<RuleId, string> = {
+  'overflow/clipped': 'Text is cut off: it no longer fits its box and the overflow is hidden.',
+  'overflow/ellipsis': 'Text is truncated with an ellipsis or line clamp that does not happen in the source language.',
+  'overflow/escapes-box': 'Text spills outside its box.',
+  'overflow/overlap': 'This control overlaps a neighbouring control.',
+  'leak/raw-key': 'A translation key is shown instead of translated text.',
+  'leak/placeholder': 'A placeholder was shown without being filled in.',
+  'leak/bad-value': 'A broken value (undefined, NaN, null or [object Object]) is shown to users.',
+  'locale/persistence': 'The page language changed back: expected "{expected}", found "{actual}".',
+  'rtl/not-mirrored': 'This element stayed in place when the page switched to right-to-left; it should usually move to the opposite side.',
+  'rtl/skipped-already-rtl': 'The page is already right-to-left, so the RTL mirroring check was skipped.',
+};
+
+const GROW_FIX = 'Let the box grow with its text (min-width instead of width) or allow wrapping.';
+
+export const FIXES: Partial<Record<RuleId, string>> = {
+  'overflow/clipped': GROW_FIX,
+  'overflow/escapes-box': GROW_FIX,
+  'rtl/not-mirrored': 'Use logical CSS properties (inset-inline-start, margin-inline-start, padding-inline-end) instead of left/right.',
+};
