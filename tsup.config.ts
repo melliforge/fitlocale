@@ -5,6 +5,7 @@ export default defineConfig({
     index: 'src/index.ts',
     playwright: 'src/playwright.ts',
     reporter: 'src/reporter.ts',
+    cli: 'src/bin.ts',
   },
   format: ['esm'],
   dts: true,
