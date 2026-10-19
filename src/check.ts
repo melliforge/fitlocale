@@ -3,7 +3,7 @@ import { dirname, relative, resolve } from 'node:path';
 import type { Frame, FullConfig, Page, TestInfo } from '@playwright/test';
 import { ensureInjected } from './inject';
 import type { FitlocaleOptions } from './options';
-import { flattenKeys, type Messages } from './pseudo';
+import { flattenKeys, flattenValues, type Messages } from './pseudo';
 import { subtractSource } from './rules/noise';
 import {
   FIXES, LOCALE_NOT_REFLECTED_MESSAGE, MESSAGES, SEVERITY, type CheckResult, type Issue, type Mode, type RawIssue, type Screenshot, type Viewport,
@@ -24,18 +24,17 @@ export interface CheckContext {
 
 type Api = { __fitlocale: FitlocaleBrowserApi };
 
-const knownKeysCache = new Map<string, string[]>();
+/** Parsed `sourceMessages` files, keyed by absolute path. */
+const messagesCache = new Map<string, { keys: string[]; values: string[] }>();
 
 /** Relative option paths resolve against the directory of the Playwright config, like Playwright's own. */
 export function configDirOf(config: Pick<FullConfig, 'configFile'>): string {
   return config.configFile ? dirname(config.configFile) : process.cwd();
 }
 
-/** Dotted keys of the `sourceMessages` file, resolved against `baseDir`. */
-export function knownKeys(path: string | undefined, baseDir: string): string[] {
-  if (!path) return [];
+function loadMessages(path: string, baseDir: string): { keys: string[]; values: string[] } {
   const file = resolve(baseDir, path);
-  if (!knownKeysCache.has(file)) {
+  if (!messagesCache.has(file)) {
     let text: string;
     try {
       text = readFileSync(file, 'utf8');
@@ -48,9 +47,19 @@ export function knownKeys(path: string | undefined, baseDir: string): string[] {
     } catch (err) {
       throw new Error(`fitlocale: sourceMessages file ${file} is not valid JSON: ${(err as Error).message}`, { cause: err });
     }
-    knownKeysCache.set(file, flattenKeys(messages));
+    messagesCache.set(file, { keys: flattenKeys(messages), values: flattenValues(messages) });
   }
-  return knownKeysCache.get(file)!;
+  return messagesCache.get(file)!;
+}
+
+/** Dotted keys of the `sourceMessages` file, resolved against `baseDir`. */
+export function knownKeys(path: string | undefined, baseDir: string): string[] {
+  return path ? loadMessages(path, baseDir).keys : [];
+}
+
+/** Every string of the `sourceMessages` file, resolved against `baseDir`. */
+export function sourceValues(path: string | undefined, baseDir: string): string[] {
+  return path ? loadMessages(path, baseDir).values : [];
 }
 
 /** `de` matches `de`, `de-CH` and `DE`; `de-CH` matches `de`. */

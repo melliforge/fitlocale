@@ -135,3 +135,13 @@ export function flattenKeys(messages: Messages, prefix = ''): string[] {
   }
   return keys;
 }
+
+/** Every string of a message file, in key order. */
+export function flattenValues(messages: Messages): string[] {
+  const values: string[] = [];
+  for (const value of Object.values(messages)) {
+    if (typeof value === 'string') values.push(value);
+    else if (value && typeof value === 'object' && !Array.isArray(value)) values.push(...flattenValues(value));
+  }
+  return values;
+}

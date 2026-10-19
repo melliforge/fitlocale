@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
-import { knownKeys, configDirOf } from '../../src/check';
+import { knownKeys, configDirOf, sourceValues } from '../../src/check';
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'fitlocale-msgs-'));
 
@@ -21,4 +21,14 @@ test('invalid sourceMessages JSON gives a fitlocale error', () => {
   const dir = tmp();
   writeFileSync(join(dir, 'bad.json'), '{"a": ');
   expect(() => knownKeys('bad.json', dir)).toThrow(/^fitlocale: sourceMessages file .*bad\.json is not valid JSON/);
+});
+
+test('sourceValues lists every message string', () => {
+  const dir = tmp();
+  writeFileSync(join(dir, 'en.json'), '{"nav":{"home":"Home"},"a":"B c"}');
+  expect(sourceValues('en.json', dir)).toEqual(['Home', 'B c']);
+});
+
+test('sourceValues reports a missing file like knownKeys', () => {
+  expect(() => sourceValues('missing.json', tmp())).toThrow(/^fitlocale: cannot read sourceMessages file .*missing\.json/);
 });
