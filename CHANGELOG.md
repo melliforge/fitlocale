@@ -5,6 +5,13 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-19
+
+### Changed
+
+- Releases are now built and published by GitHub Actions, with npm provenance. On npm you can check that the package was built from this repository's source.
+- The package now includes `CHANGELOG.md`.
+
 ## [0.2.0] - 2026-10-19
 
 ### Breaking
@@ -47,7 +54,8 @@ First public release.
 - CLI: `fitlocale pseudo` writes pseudo-locale message files, and `fitlocale report` re-renders a report.
 - CommonJS and ESM builds with TypeScript types.
 
-[Unreleased]: https://github.com/melliforge/localization-layout-tester/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/melliforge/localization-layout-tester/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/melliforge/localization-layout-tester/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/melliforge/localization-layout-tester/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/melliforge/localization-layout-tester/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/melliforge/localization-layout-tester/releases/tag/v0.1.0
