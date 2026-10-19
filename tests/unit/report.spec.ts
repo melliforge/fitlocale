@@ -46,3 +46,8 @@ test('every value from results.json is escaped', () => {
   expect(html).not.toContain('<img src=x');
   expect(html).toContain('<span class="sev">&quot;&gt;&lt;img src=x onerror=alert(1)&gt;</span>');
 });
+
+test('report shows the locale of each group', () => {
+  const html = renderReport(makeRun([makeCheck({ issues: [makeIssue({ locale: 'de', mode: 'source' })] })]));
+  expect(html).toContain('<h3>source · 1280×800 · de</h3>');
+});

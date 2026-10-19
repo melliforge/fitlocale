@@ -187,3 +187,21 @@ test.describe('with a custom testIdAttribute', () => {
     expect(list(result)).toEqual(['leak/raw-key [data-qa="welcome"] source']);
   });
 });
+
+test('issues record the locale they were found in', async ({ page, localeCheck }) => {
+  await page.setContent(`${CLIPPED}<p id=k>dashboard.welcome.title</p>`);
+  const result = await localeCheck();
+  expect(result.issues.map(i => i.locale)).toEqual(['en', 'en']);
+});
+
+test.describe('locale field after switching', () => {
+  test.use({ fitlocale: { viewports: 'current', failOn: 'never',
+    setLocale: async (page, l) => { await page.evaluate(x => { document.documentElement.lang = x; }, l); } } });
+
+  test('issues in a switched locale carry that locale', async ({ page, localeCheck, useLocale }) => {
+    await page.setContent(`<html lang="en"><body><p id=k>dashboard.welcome.title</p></body></html>`);
+    await useLocale('de');
+    const result = await localeCheck();
+    expect(result.issues.map(i => `${i.rule} ${i.locale}`)).toEqual(['leak/raw-key de']);
+  });
+});

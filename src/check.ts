@@ -110,10 +110,11 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
   const keys = knownKeys(options.sourceMessages, configDirOf(testInfo.config));
   const issues: Issue[] = [];
   const screenshots: Screenshot[] = [];
+  const locale = expectedLocale ?? options.sourceLocale;
 
   const enrich = (raw: RawIssue[], mode: Mode, viewport: Viewport, message?: string): Issue[] =>
     raw.map(r => ({
-      ...r, mode, viewport, url: page.url(), severity: SEVERITY[r.rule],
+      ...r, mode, locale, viewport, url: page.url(), severity: SEVERITY[r.rule],
       message: message ?? MESSAGES[r.rule], ...(FIXES[r.rule] ? { fix: FIXES[r.rule] } : {}),
     }));
 

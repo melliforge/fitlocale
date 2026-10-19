@@ -25,6 +25,8 @@ export interface RawIssue { rule: RuleId; key: string; selector: string; box: Bo
 export interface Issue extends RawIssue {
   severity: Severity;
   mode: Mode;
+  /** The locale the page was checked in: the one passed to `useLocale()`, else `sourceLocale`. */
+  locale: string;
   viewport: Viewport;
   url: string;
   message: string;

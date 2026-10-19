@@ -3,7 +3,7 @@ import type { CheckResult, Issue, RunResults } from '../../src/types';
 export function makeIssue(overrides: Partial<Issue> = {}): Issue {
   return {
     rule: 'overflow/clipped', key: 'body>button', selector: '#save', box: { x: 100, y: 200, width: 50, height: 20 },
-    text: 'Save', severity: 'error', mode: 'pseudo-long', viewport: { width: 1280, height: 800 },
+    text: 'Save', severity: 'error', mode: 'pseudo-long', locale: 'en', viewport: { width: 1280, height: 800 },
     url: 'http://app.test/settings', message: 'Text is cut off.', ...overrides,
   };
 }
