@@ -1,13 +1,14 @@
 {
   "brand": "Fitshop",
   "promo": "Neu",
-  "nav": { "home": "Start", "shop": "Laden", "help": "Hilfe" },
+  "nav": { "home": "Start", "shop": "Laden", "help": "Hilfe", "back": "Zurück" },
   "title": "Ihre Kontoeinstellungen und alles rund um Ihr Abonnement",
   "inbox": { "count": "Sie haben {count} Nachrichten" },
-  "pricing": { "label": "Preis:" },
+  "pricing": { "label": "Preis:", "amount": "Gesamt: 220 $" },
   "tabs": { "billing": "Rechnungsdetails" },
   "actions": { "delete": "Löschen", "archive": "Archivieren", "save": "Änderungen speichern", "ok": "OK", "next": "Nächste Seite" },
   "page2": { "title": "Bestellverlauf" },
   "cart": { "saved": "Sie haben", "order": "bei dieser Bestellung gespart" },
-  "help": { "line": "Read the <a href=\"#\">help center</a> first" }
+  "help": { "line": "Read the <a href=\"#\">help center</a> first" },
+  "course": { "title": "Lerne heute C++" }
 }

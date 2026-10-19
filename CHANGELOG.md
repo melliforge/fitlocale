@@ -19,6 +19,13 @@ Each section becomes the notes of the matching GitHub Release.
 - `fitlocale summary` prints a Markdown summary of the new issues, for CI job summaries.
 - GitHub Action (`uses: melliforge/localization-layout-tester@v0.3.0`): writes the summary to the job summary and uploads the HTML report.
 - Every issue in `results.json` has a stable `id`, and accepted ones are marked `baselined`.
+- Right-to-left checks:
+  - `rtl/icon-not-mirrored`: arrows and chevrons that did not flip;
+  - `rtl/icon-mirrored`: media, clock, check-mark and logo icons that flipped;
+  - `rtl/bidi-order`: mixed-direction text such as `C++` or `$220` drawn out of order in Arabic or Hebrew text;
+  - `rtl/missing-dir`: a right-to-left locale laid out left-to-right;
+  - `rtl/canvas`: an informational note for each canvas.
+- `icons` option and `data-fitlocale-icon` attribute, to say which of your icons flip.
 - The npm package now includes `CHANGELOG.md`. The 0.2.1 notes said it already did, but it wasn't shipped.
 
 ### Changed

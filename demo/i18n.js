@@ -23,5 +23,7 @@
   if (price) price.textContent = lookup('pricing.label') + ' ' + (window.product && window.product.price);
 
   html.lang = lang;
+  if (['ar', 'he', 'fa', 'ur'].includes(lang.split('-')[0])) html.dir = 'rtl';
+  else html.removeAttribute('dir');
   html.dataset.ready = '1';
 })();

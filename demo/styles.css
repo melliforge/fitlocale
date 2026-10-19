@@ -16,3 +16,6 @@ main { max-width: 800px; margin: 0 auto; padding: 16px; }
 /* Planted bug: fixed width that clips. */
 .save { width: 120px; overflow: hidden; white-space: nowrap; }
 .ok { min-width: 100px; padding: 4px 12px; }
+svg { fill: none; stroke: currentColor; stroke-width: 1.5; }
+/* Icons that point somewhere flip in right-to-left. Planted bug: #next-chevron lacks this class, and #play-icon has it. */
+[dir=rtl] .icon-flip { transform: scaleX(-1); }
