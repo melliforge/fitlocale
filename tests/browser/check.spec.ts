@@ -251,9 +251,35 @@ test.describe('integrated pseudo-locale mode', () => {
   });
 
   test('without useLocale, a page whose lang is a pseudo locale is checked as one', async ({ page, localeCheck }) => {
-    await page.setContent(`<html lang="en-XA"><body><p id=h>Free shipping</p></body></html>`);
+    await page.setContent(`<html lang="en-XA"><body><p>⟦Hömé ~⟧</p><p id=h>Free shipping</p></body></html>`);
     const result = await localeCheck();
     expect(list(result)).toContain('i18n/hardcoded #h source');
+  });
+});
+
+test.describe('integrated mode edge cases', () => {
+  test.use({ fitlocale: { viewports: 'current', failOn: 'never', setLocale: setLang } });
+
+  test('pseudo-locale messages that never loaded give one clear issue', async ({ page, localeCheck, useLocale }) => {
+    await page.setContent(`<p>Home</p><p>Free shipping</p><button>Save changes</button>`);
+    await useLocale('en-XA');
+    const result = await localeCheck();
+    expect(list(result)).toEqual(['i18n/pseudo-not-loaded html source']);
+    expect(result.issues[0].message).toContain('"en-XA"');
+  });
+
+  test('overflow of a message ending in a tag is found', async ({ page, localeCheck, useLocale }) => {
+    await page.setContent(`<button id=a style="width:100px;overflow:hidden;white-space:nowrap">⟦Öpéñ hélp ~~~~~~~~⟧</button>
+      <button id=b style="width:100px;overflow:hidden;white-space:nowrap">⟦Öpéñ <b>hélp</b> ~~~~~~~~⟧</button>`);
+    await useLocale('en-XA');
+    expect(list(await localeCheck())).toEqual(['overflow/clipped #a source', 'overflow/clipped #b source']);
+  });
+
+  test('icon-font ligatures are not hardcoded text', async ({ page, localeCheck, useLocale }) => {
+    await page.setContent(`<p>⟦Hömé ~⟧</p><button id=x><span class="material-icons">close</span></button>
+      <a href=# id=y><span class="material-symbols-outlined">arrow_forward</span></a>`);
+    await useLocale('en-XA');
+    expect(list(await localeCheck())).toEqual([]);
   });
 });
 

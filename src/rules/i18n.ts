@@ -87,7 +87,7 @@ const letterRuns = (s: string) => (s.match(/\p{L}+/gu) ?? []).map(w => w.toLower
 let nativeNames: Set<string> | null = null;
 const allowCache = new Map<string, Set<string>>();
 
-/** Words that are not UI text even without markers: month and weekday names, AM/PM, native language names. */
+/** Words that are not UI text even without markers: words of formatted dates, times and relative times, AM/PM, native language names. */
 function allowedWords(locales: string[]): Set<string> {
   const cacheKey = locales.join('|');
   const cached = allowCache.get(cacheKey);
@@ -109,6 +109,28 @@ function allowedWords(locales: string[]): Set<string> {
         for (let m = 0; m < 12; m++) for (const w of letterRuns(month.format(Date.UTC(2026, m, 15)))) words.add(w);
         // 4 January 2026 is a Sunday.
         for (let d = 0; d < 7; d++) for (const w of letterRuns(weekday.format(Date.UTC(2026, 0, 4 + d)))) words.add(w);
+      }
+      // Full dates and times ("October 19, 2026 at 10:30 PM UTC") and time-zone names.
+      const at = Date.UTC(2026, 9, 19, 22, 30);
+      for (const dateStyle of [undefined, 'full', 'long', 'medium', 'short'] as const) {
+        for (const timeStyle of [undefined, 'full', 'long', 'medium', 'short'] as const) {
+          if (!dateStyle && !timeStyle) continue;
+          for (const w of letterRuns(new Intl.DateTimeFormat(locale, { dateStyle, timeStyle, timeZone: 'UTC' }).format(at))) words.add(w);
+        }
+      }
+      for (const timeZone of ['UTC', 'Europe/Berlin', 'America/New_York', 'Asia/Tokyo']) {
+        for (const timeZoneName of ['short', 'long'] as const) {
+          for (const w of letterRuns(new Intl.DateTimeFormat(locale, { timeZone, timeZoneName }).format(at))) words.add(w);
+        }
+      }
+      // Relative times ("yesterday", "3 hours ago", "in 2 weeks").
+      for (const style of ['long', 'short'] as const) {
+        for (const numeric of ['auto', 'always'] as const) {
+          const rtf = new Intl.RelativeTimeFormat(locale, { style, numeric });
+          for (const unit of ['second', 'minute', 'hour', 'day', 'week', 'month', 'quarter', 'year'] as const) {
+            for (const n of [-3, -1, 0, 1, 3]) for (const w of letterRuns(rtf.format(n, unit))) words.add(w);
+          }
+        }
       }
     } catch { /* an invalid locale tag: no date words for it */ }
   }
@@ -154,4 +176,9 @@ export function findConcatenated(blocks: TextBlock[], opts: { pageLocale: string
     if (pieces.length >= 2) issues.push(issue('i18n/concatenated', block, block.text));
   }
   return issues;
+}
+
+/** Did the page load pseudo-locale messages at all? With none, every string would look hardcoded. */
+export function hasPseudoMarkers(blocks: TextBlock[]): boolean {
+  return blocks.some(b => b.text.includes(MARK_START) || b.text.includes(MARK_END));
 }

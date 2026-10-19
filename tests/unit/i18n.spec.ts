@@ -43,7 +43,7 @@ test.describe('hardcoded', () => {
     expect(hardcoded(block('⟦Fréé šhíppíñg ~~⟧'))).toEqual([]);
   });
 
-  for (const text of ['October 19, 2026', 'Mon, Oct 19', '10:30 PM', 'support@fitshop.example', 'www.example.com', '42 €', 'x']) {
+  for (const text of ['October 19, 2026 at 10:30 PM', '10:30 PM UTC', 'yesterday', '3 hours ago', 'October 19, 2026', 'Mon, Oct 19', '10:30 PM', 'support@fitshop.example', 'www.example.com', '42 €', 'x']) {
     test(`dates, emails, URLs, numbers and single letters are not hardcoded: ${text}`, () => {
       expect(hardcoded(block(text))).toEqual([]);
     });

@@ -5,7 +5,7 @@ let rewritten: Array<{ node: Text; original: string; written: string }> = [];
 let savedDir: string | null | undefined; // undefined = nothing saved
 
 /** Rewrite visible, letter-bearing text nodes with `transform`, recording them for `restoreText()`. */
-function rewriteVisibleText(transform: (text: string) => string, ignore: string[]): number {
+function rewriteVisibleText(transform: (text: string) => string, ignore: string[], select: (text: string) => boolean): number {
   const ignoreSel = ignoreSelector(ignore);
   restoreText();
   // Measure everything first, then write: writing as we go would force a layout per text node.
@@ -15,8 +15,7 @@ function rewriteVisibleText(transform: (text: string) => string, ignore: string[
     const visible = new Map<Element, boolean>();
     for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
       const parent = node.parentElement;
-      // Translation never lengthens numbers, prices or symbols, so text without letters stays as it is.
-      if (!parent || !/\p{L}/u.test(node.nodeValue ?? '') || isIgnored(parent, ignoreSel)) continue;
+      if (!parent || !select(node.nodeValue ?? '') || isIgnored(parent, ignoreSel)) continue;
       if (!visible.has(parent)) visible.set(parent, isVisible(parent));
       if (visible.get(parent)) found.push(node);
     }
@@ -33,12 +32,14 @@ function rewriteVisibleText(transform: (text: string) => string, ignore: string[
 }
 
 export function rewriteText(expansion: number, ignore: string[]): number {
-  return rewriteVisibleText(text => pseudoLong(text, { expansion }), ignore);
+  // Translation never lengthens numbers, prices or symbols, so text without letters stays as it is.
+  return rewriteVisibleText(text => pseudoLong(text, { expansion }), ignore, text => /\p{L}/u.test(text));
 }
 
 /** Approximate the source-language text of a pseudo-locale page (markers, padding and accents removed). */
 export function unpseudoText(ignore: string[]): number {
-  return rewriteVisibleText(unpseudo, ignore);
+  // Padding after a closing tag ("<a>…</a> ~~~⟧") has no letters but must go too.
+  return rewriteVisibleText(unpseudo, ignore, text => /[\p{L}\u27E6\u27E7]/u.test(text));
 }
 
 /** Undo `rewriteText`, leaving alone any node the app removed or changed in the meantime. */

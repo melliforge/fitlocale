@@ -4,7 +4,7 @@ import type { Frame, FullConfig, Page, TestInfo } from '@playwright/test';
 import { ensureInjected } from './inject';
 import type { FitlocaleOptions } from './options';
 import { flattenKeys, flattenValues, type Messages } from './pseudo';
-import { findConcatenated, findHardcoded } from './rules/i18n';
+import { findConcatenated, findHardcoded, hasPseudoMarkers } from './rules/i18n';
 import { subtractSource } from './rules/noise';
 import { findUntranslated, sourceMatcher, type SourceMatcher } from './rules/untranslated';
 import {
@@ -189,10 +189,17 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
         if (isPseudo || (!isSource && options.sourceMessages)) {
           const blocks = await page.evaluate(ig => (window as unknown as Api).__fitlocale.collectTextBlocks(ig), options.ignore);
           const pageLocale = locale, sourceLocale = options.sourceLocale;
-          const found = isPseudo
-            ? [...findHardcoded(blocks, { pageLocale, sourceLocale }), ...findConcatenated(blocks, { pageLocale })]
-            : findUntranslated(blocks, matcherFor(options.sourceMessages!, baseDir), { pageLocale, sourceLocale });
-          sourceIssues.push(...enrich(found, 'source', viewport));
+          if (isPseudo && blocks.length > 0 && !hasPseudoMarkers(blocks)) {
+            // One clear issue instead of every string on the page reported as hardcoded.
+            const box = { x: 0, y: 0, ...(await page.evaluate(() => (window as unknown as Api).__fitlocale.documentSize())) };
+            const message = MESSAGES['i18n/pseudo-not-loaded'].replace('{locale}', locale);
+            sourceIssues.push(...enrich([{ rule: 'i18n/pseudo-not-loaded', key: 'html', selector: 'html', box, text: '' }], 'source', viewport, message));
+          } else {
+            const found = isPseudo
+              ? [...findHardcoded(blocks, { pageLocale, sourceLocale }), ...findConcatenated(blocks, { pageLocale })]
+              : findUntranslated(blocks, matcherFor(options.sourceMessages!, baseDir), { pageLocale, sourceLocale });
+            sourceIssues.push(...enrich(found, 'source', viewport));
+          }
         }
         if (sourceIssues.length) await shoot('source', viewport);
         issues.push(...sourceIssues);

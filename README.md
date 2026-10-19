@@ -100,7 +100,7 @@ Every translated string now carries `⟦…⟧` markers, so fitlocale also finds
 - **sentences glued together** (`i18n/concatenated`): one sentence made of several separately translated pieces, which breaks word order in other languages;
 - **real overflow**: the page as your app renders it, compared with the same page with markers and padding removed.
 
-Dates, times, emails, URLs, numbers and language names (`<a lang="de">Deutsch</a>`) are not reported as hardcoded. Data shown from your database (user names, product titles) has no markers either: mark those areas with `data-fitlocale-ignore` or the `ignore` option. These rules are warnings; set `failOn: 'warning'` to fail the build on them.
+Dates, times, relative times ("3 hours ago"), emails, URLs, numbers, icon-font ligatures and language names (`<a lang="de">Deutsch</a>`) are not reported as hardcoded. If no text on the page has markers at all, fitlocale reports one `i18n/pseudo-not-loaded` error instead: the pseudo-locale messages were not loaded. Data shown from your database (user names, product titles) has no markers either: mark those areas with `data-fitlocale-ignore` or the `ignore` option. These rules are warnings; set `failOn: 'warning'` to fail the build on them.
 
 A page whose `<html lang>` is a pseudo locale gets these checks even without `useLocale()`. Pseudo locales are `en-XA` and `ar-XB` by default (the `pseudoLocales` option).
 
@@ -138,6 +138,7 @@ A page whose `<html lang>` is a pseudo locale gets these checks even without `us
 | `i18n/hardcoded` | warning | In a pseudo locale, text without pseudo-locale markers: it is hardcoded (or it is data) |
 | `i18n/concatenated` | warning | In a pseudo locale, one sentence built from several separately translated pieces |
 | `i18n/untranslated` | warning | In a real locale, text identical to a source-language message |
+| `i18n/pseudo-not-loaded` | error | The page is in a pseudo locale, but no text has pseudo-locale markers: the messages were not loaded |
 
 ## CLI
 
