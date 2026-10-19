@@ -74,7 +74,7 @@ main { max-width:1100px; margin:0 auto; }
 h1 { font-size:22px; margin:0 0 4px; } h2 { font-size:17px; margin:32px 0 8px; word-break:break-all; } h3 { font-size:14px; color:var(--muted); margin:20px 0 8px; }
 .meta { color:var(--muted); margin:0 0 16px; } .toggles { display:flex; gap:16px; flex-wrap:wrap; }
 .shot { position:relative; border:1px solid var(--line); max-width:100%; } .shot img { display:block; width:100%; height:auto; }
-.box { position:absolute; border:2px solid; box-sizing:border-box; } .box.error { border-color:var(--error); } .box.warning { border-color:var(--warning); } .box.info { border-color:var(--info); }
+.box { position:absolute; border:2px solid; box-sizing:border-box; box-shadow:0 0 0 1px #000, inset 0 0 0 1px #fff; } /* rings keep any colour visible on any background */ .box.error { border-color:var(--error); } .box.warning { border-color:var(--warning); } .box.info { border-color:var(--info); }
 table { width:100%; border-collapse:collapse; margin:8px 0 0; display:block; overflow-x:auto; } th, td { text-align:start; vertical-align:top; padding:6px 8px; border-bottom:1px solid var(--line); }
 .sev { font-weight:600; } tr.error .sev, label.error { color:var(--error); } tr.warning .sev, label.warning { color:var(--warning); } tr.info .sev, label.info { color:var(--info); }
 .hide-error .error, .hide-warning .warning, .hide-info .info { display:none; } .empty { font-size:16px; }

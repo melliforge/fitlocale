@@ -51,3 +51,14 @@ test('report shows the locale of each group', () => {
   const html = renderReport(makeRun([makeCheck({ issues: [makeIssue({ locale: 'de', mode: 'source' })] })]));
   expect(html).toContain('<h3>source · 1280×800 · de</h3>');
 });
+
+test('issue boxes stay visible on any background, in light and dark mode', async ({ page }) => {
+  // Warning orange is close to yellow (especially the dark-mode shade), so boxes also get a dark and a light ring.
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    await page.setContent(renderReport(makeRun([makeCheck({ issues: [makeIssue({ severity: 'warning' })] })])));
+    const shadow = await page.locator('.box.warning').evaluate(el => getComputedStyle(el).boxShadow);
+    expect(shadow).toContain('rgb(0, 0, 0)');
+    expect(shadow).toContain('rgb(255, 255, 255)');
+  }
+});
