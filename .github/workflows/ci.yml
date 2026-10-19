@@ -28,6 +28,13 @@ jobs:
       - run: npm test
         env:
           CI: true
+      - name: fitlocale report
+        if: always()
+        uses: ./
+        with:
+          report-dir: test-results/fitlocale-report
+          artifact-name: fitlocale-report-node-${{ matrix.node }}
+          fitlocale-command: node dist/cli.js
       - name: Upload test report
         if: failure()
         uses: actions/upload-artifact@v7
