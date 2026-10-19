@@ -1,6 +1,6 @@
 {
   "name": "fitlocale",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Catch translation-caused layout bugs (overflow, text leaks, RTL mirroring) in your Playwright tests.",
   "keywords": [
     "playwright",
@@ -63,7 +63,8 @@
         "types": "./dist/reporter.d.cts",
         "default": "./dist/reporter.cjs"
       }
-    }
+    },
+    "./package.json": "./package.json"
   },
   "bin": {
     "fitlocale": "dist/cli.js"
