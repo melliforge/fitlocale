@@ -2,6 +2,32 @@
   "name": "fitlocale",
   "version": "0.1.0",
   "description": "Catch translation-caused layout bugs (overflow, text leaks, RTL mirroring) in your Playwright tests.",
+  "keywords": [
+    "playwright",
+    "i18n",
+    "l10n",
+    "localization",
+    "internationalization",
+    "pseudo-localization",
+    "rtl",
+    "right-to-left",
+    "arabic",
+    "hebrew",
+    "text-overflow",
+    "truncation",
+    "testing",
+    "visual-testing",
+    "ci"
+  ],
+  "homepage": "https://github.com/melliforge/localization-layout-tester#readme",
+  "bugs": {
+    "url": "https://github.com/melliforge/localization-layout-tester/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/melliforge/localization-layout-tester.git"
+  },
+  "author": "melliforge",
   "type": "module",
   "license": "MIT",
   "engines": {
@@ -49,7 +75,8 @@
     "build:browser": "node scripts/build-browser.mjs",
     "build": "npm run build:browser && tsup",
     "test": "npm run build && playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run typecheck && npm test"
   },
   "peerDependencies": {
     "@playwright/test": ">=1.45.0"
