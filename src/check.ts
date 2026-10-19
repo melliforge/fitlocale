@@ -81,6 +81,7 @@ export async function runLocaleCheck(ctx: CheckContext): Promise<CheckResult> {
   };
 
   const isSource = expectedLocale === null || sameLocale(expectedLocale, options.sourceLocale);
+  let skippedRtl = false; // report an already-RTL page once, not once per viewport
 
   try {
     for (const [index, viewport] of viewports.entries()) {
@@ -128,8 +129,11 @@ export async function runLocaleCheck(ctx: CheckContext): Promise<CheckResult> {
 
       if (options.modes.includes('pseudo-rtl')) {
         if (await page.evaluate(() => (window as unknown as Api).__fitlocale.documentDir()) === 'rtl') {
-          const box = { x: 0, y: 0, ...(await page.evaluate(() => (window as unknown as Api).__fitlocale.documentSize())) };
-          issues.push(...enrich([{ rule: 'rtl/skipped-already-rtl', key: 'html', selector: 'html', box, text: '' }], 'pseudo-rtl', viewport));
+          if (!skippedRtl) {
+            const box = { x: 0, y: 0, ...(await page.evaluate(() => (window as unknown as Api).__fitlocale.documentSize())) };
+            issues.push(...enrich([{ rule: 'rtl/skipped-already-rtl', key: 'html', selector: 'html', box, text: '' }], 'pseudo-rtl', viewport));
+            skippedRtl = true;
+          }
           continue;
         }
         const snapshot = () => page.evaluate(

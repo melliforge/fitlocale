@@ -147,3 +147,13 @@ test('the page is put back exactly as it was', async ({ page, localeCheck }) => 
   await localeCheck();
   expect(await page.evaluate(() => document.documentElement.outerHTML)).toBe(before);
 });
+
+test.describe('two viewports on an RTL page', () => {
+  test.use({ fitlocale: { viewports: [{ width: 1280, height: 800 }, { width: 390, height: 844 }], failOn: 'never' } });
+
+  test('skipped-already-rtl is reported once per check', async ({ page, localeCheck }) => {
+    await page.setContent(`<html dir="rtl"><body style="margin:0">${BADGE}</body></html>`);
+    const result = await localeCheck();
+    expect(list(result)).toEqual(['rtl/skipped-already-rtl html pseudo-rtl']);
+  });
+});
