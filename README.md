@@ -123,8 +123,10 @@ npx fitlocale report fitlocale-report/results.json              # re-render inde
 
 The [Release workflow](.github/workflows/release.yml) then:
 - tests the tagged commit;
-- publishes it to npm with trusted publishing and provenance;
+- stages it on npm with trusted publishing and provenance;
 - creates the GitHub Release, using the changelog section as its notes and attaching the package.
+
+The new version goes live on npm once a maintainer approves the staged release on npmjs.com (**Staged Packages → Approve**, with 2FA).
 
 ## License
 

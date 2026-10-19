@@ -1,6 +1,7 @@
 name: Release
 
-# Push a tag like v1.2.3 (made by `npm version`) to test, publish to npm and create the GitHub Release.
+# Push a tag like v1.2.3 (made by `npm version`) to test, stage the release on npm and create the GitHub Release.
+# The npm trusted publisher allows staging only: the version goes live after a maintainer approves it on npmjs.com.
 on:
   push:
     tags: ['v*.*.*']
@@ -37,7 +38,7 @@ jobs:
           # Pre-releases such as 1.0.0-beta.1 go to the "next" dist-tag, not "latest".
           if [[ "$VERSION" == *-* ]]; then echo "NPM_TAG=next" >> "$GITHUB_ENV"; else echo "NPM_TAG=latest" >> "$GITHUB_ENV"; fi
 
-      - name: Use npm 11 (trusted publishing needs 11.5.1+)
+      - name: Use npm 11 (trusted publishing and `npm stage` need a recent npm 11)
         run: npm install -g npm@11
 
       - run: npm ci
@@ -53,12 +54,14 @@ jobs:
       - name: Pack
         run: npm pack --ignore-scripts
 
-      - name: Publish to npm
+      - name: Stage on npm (approve it on npmjs.com to publish)
         run: |
           if npm view "$PKG_NAME@$VERSION" version >/dev/null 2>&1; then
-            echo "$PKG_NAME@$VERSION is already on npm; skipping publish."
+            echo "$PKG_NAME@$VERSION is already on npm; skipping."
           else
-            npm publish "$PKG_NAME-$VERSION.tgz" --access public --tag "$NPM_TAG"
+            # Packs this checkout (the same files as the .tgz attached to the GitHub Release).
+            npm stage publish --ignore-scripts --access public --tag "$NPM_TAG"
+            echo "::notice::$PKG_NAME@$VERSION is staged on npm. Approve it at https://www.npmjs.com (Staged Packages) to publish."
           fi
 
       - name: Create or update the GitHub Release
