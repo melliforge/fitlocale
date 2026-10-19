@@ -115,6 +115,17 @@ npx fitlocale report fitlocale-report/results.json              # re-render inde
 - Text inside shadow roots and iframes is not checked yet.
 - Chromium only for now: Firefox and WebKit are not tested yet.
 
+## Releasing
+
+1. Add the changes under a new `## [x.y.z] - date` heading in `CHANGELOG.md`.
+2. Run `npm version patch` (or `minor` / `major`). It bumps `package.json`, then commits and tags `vx.y.z`.
+3. Run `git push --follow-tags`.
+
+The [Release workflow](.github/workflows/release.yml) then:
+- tests the tagged commit;
+- publishes it to npm with trusted publishing and provenance;
+- creates the GitHub Release, using the changelog section as its notes and attaching the package.
+
 ## License
 
 MIT
