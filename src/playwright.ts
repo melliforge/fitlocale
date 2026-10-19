@@ -48,11 +48,11 @@ export const test = base.extend<FitlocaleFixtures>({
     });
   },
 
-  localeCheck: async ({ page, fitlocale, _fitlocaleState }, use, testInfo) => {
+  localeCheck: async ({ page, fitlocale, _fitlocaleState, testIdAttribute }, use, testInfo) => {
     await use(async () => {
       const options = optionsFor(testInfo, fitlocale);
       const result = await runLocaleCheck({
-        page, options, testInfo,
+        page, options, testInfo, testIdAttribute,
         expectedLocale: _fitlocaleState.expectedLocale,
         probeAfterSwitch: _fitlocaleState.probeAfterSwitch,
         checkIndex: _fitlocaleState.checkIndex++,

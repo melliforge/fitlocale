@@ -19,6 +19,8 @@ export interface CheckContext {
   probeAfterSwitch?: string | null;
   testInfo: TestInfo;
   checkIndex: number;
+  /** Playwright's `testIdAttribute` option, used for readable selectors. */
+  testIdAttribute?: string;
 }
 
 type Api = { __fitlocale: FitlocaleBrowserApi };
@@ -130,7 +132,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
     for (const [index, viewport] of viewports.entries()) {
       if (options.viewports !== 'current') await page.setViewportSize(viewport);
       await ensureInjected(page);
-      await page.evaluate(() => (window as unknown as Api).__fitlocale.assignKeys());
+      await page.evaluate(attr => (window as unknown as Api).__fitlocale.assignKeys(attr), ctx.testIdAttribute ?? 'data-testid');
 
       // Leaks and locale persistence do not depend on the viewport: check them once.
       if (index === 0) {

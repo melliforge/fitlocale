@@ -93,8 +93,10 @@ export function domPath(el: Element): string {
 
 /** Keys live outside the DOM, so the page is left exactly as it was. */
 let keys = new WeakMap<Element, string>();
+let testIdAttribute = 'data-testid';
 
-export function assignKeys(): void {
+export function assignKeys(testIdAttr = 'data-testid'): void {
+  testIdAttribute = testIdAttr;
   keys = new WeakMap([[document.body, 'body']]);
   for (const el of document.body.querySelectorAll('*')) keys.set(el, domPath(el));
 }
@@ -103,10 +105,15 @@ export function keyOf(el: Element): string {
   return keys.get(el) ?? domPath(el);
 }
 
+/** A CSS string literal (double-quoted) for `value`. */
+const cssString = (value: string) => `"${value.replace(/["\\]/g, '\\$&').replace(/\n/g, '\\a ')}"`;
+
+/** A readable selector: the test id (Playwright's `testIdAttribute`), a unique id, else the DOM path. */
 export function selectorOf(el: Element): string {
-  const testId = el.getAttribute('data-testid');
-  if (testId) return `[data-testid="${testId}"]`;
-  if (el.id && document.querySelectorAll(`#${CSS.escape(el.id)}`).length === 1) return `#${el.id}`;
+  const testId = el.getAttribute(testIdAttribute);
+  if (testId) return `[${CSS.escape(testIdAttribute)}=${cssString(testId)}]`;
+  const id = el.id && `#${CSS.escape(el.id)}`;
+  if (id && document.querySelectorAll(id).length === 1) return id;
   return keyOf(el);
 }
 

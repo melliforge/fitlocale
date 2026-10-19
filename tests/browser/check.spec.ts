@@ -177,3 +177,13 @@ test.describe('context without a fixed viewport', () => {
     expect(await size()).toEqual(before);
   });
 });
+
+test.describe('with a custom testIdAttribute', () => {
+  test.use({ testIdAttribute: 'data-qa' });
+
+  test('selectors use the project test id attribute', async ({ page, localeCheck }) => {
+    await page.setContent(`<p data-qa="welcome">dashboard.welcome.title</p>`);
+    const result = await localeCheck();
+    expect(list(result)).toEqual(['leak/raw-key [data-qa="welcome"] source']);
+  });
+});
