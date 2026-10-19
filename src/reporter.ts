@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import type { Reporter, TestCase, TestResult } from '@playwright/test/reporter';
 import { renderReport } from './report/html';
@@ -36,23 +36,37 @@ export default class FitlocaleReporter implements Reporter {
 
   async onEnd(): Promise<void> {
     const checks = [...this.byTest.values()].flat();
-    if (!checks.length) return;
     const shotsDir = join(this.outputDir, 'screenshots');
+    // Screenshots from earlier runs would pile up; only files this reporter writes are removed.
+    rmSync(shotsDir, { recursive: true, force: true });
+    if (!checks.length) {
+      for (const file of ['results.json', 'index.html']) rmSync(join(this.outputDir, file), { force: true });
+      return;
+    }
     mkdirSync(shotsDir, { recursive: true });
     const summary: Record<Severity, number> = { error: 0, warning: 0, info: 0 };
+    let missing = 0;
     for (const check of checks) {
       for (const issue of check.issues) summary[issue.severity]++;
-      for (const shot of check.screenshots) {
-        if (!existsSync(shot.path)) continue;
+      // With preserveOutput: 'failures-only', Playwright deletes a passing test's output, screenshots included.
+      check.screenshots = check.screenshots.filter(shot => {
+        if (!existsSync(shot.path)) {
+          missing++;
+          return false;
+        }
         const name = `${createHash('sha1').update(shot.path).digest('hex').slice(0, 12)}.png`;
         copyFileSync(shot.path, join(shotsDir, name));
         shot.path = `screenshots/${name}`;
-      }
+        return true;
+      });
     }
     const results: RunResults = { version: 1, createdAt: new Date().toISOString(), checks, summary };
     writeFileSync(join(this.outputDir, 'results.json'), JSON.stringify(results, null, 2));
     writeFileSync(join(this.outputDir, 'index.html'), renderReport(results));
     const where = relative(process.cwd(), join(this.outputDir, 'index.html'));
     console.log(`fitlocale: ${summary.error} errors, ${summary.warning} warnings, ${summary.info} info → ${where}`);
+    if (missing) {
+      console.log(`fitlocale: ${missing} screenshot(s) were already deleted, probably by Playwright's preserveOutput setting; their issues are listed without a screenshot.`);
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
@@ -50,4 +50,52 @@ test('reporter keeps only the last retry and records the project', async () => {
   expect(run.checks).toHaveLength(1);
   expect(run.summary.error).toBe(1);
   expect(run.checks[0].project).toBe('chromium');
+});
+
+const attempt = (check: object) =>
+  ({ attachments: [{ name: 'fitlocale:result', contentType: 'application/json', body: Buffer.from(JSON.stringify(check)) }] }) as unknown as TestResult;
+
+function staleReport(out: string): void {
+  mkdirSync(join(out, 'screenshots'), { recursive: true });
+  writeFileSync(join(out, 'screenshots', 'old.png'), 'old');
+  writeFileSync(join(out, 'results.json'), '{}');
+  writeFileSync(join(out, 'index.html'), 'old');
+}
+
+test('reporter clears screenshots from earlier runs', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fitlocale-'));
+  const out = join(dir, 'report');
+  staleReport(out);
+  const reporter = new FitlocaleReporter({ outputDir: out });
+  reporter.onTestEnd({ id: 't' } as TestCase, attempt(makeCheck({ screenshots: [] })));
+  await reporter.onEnd();
+  expect(existsSync(join(out, 'screenshots', 'old.png'))).toBe(false);
+  expect(existsSync(join(out, 'results.json'))).toBe(true);
+});
+
+test('reporter removes a stale report when no checks ran', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fitlocale-'));
+  const out = join(dir, 'report');
+  staleReport(out);
+  writeFileSync(join(out, 'notes.txt'), 'not ours');
+  await new FitlocaleReporter({ outputDir: out }).onEnd();
+  expect(existsSync(join(out, 'results.json'))).toBe(false);
+  expect(existsSync(join(out, 'index.html'))).toBe(false);
+  expect(existsSync(join(out, 'screenshots'))).toBe(false);
+  expect(existsSync(join(out, 'notes.txt'))).toBe(true);
+});
+
+test('reporter drops screenshots Playwright already deleted (preserveOutput: failures-only)', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fitlocale-'));
+  const out = join(dir, 'report');
+  const check = makeCheck({
+    screenshots: [{ mode: 'pseudo-long', viewport: { width: 1280, height: 800 }, path: join(dir, 'gone.png'), size: { width: 1000, height: 2000 } }],
+  });
+  const reporter = new FitlocaleReporter({ outputDir: out });
+  reporter.onTestEnd({ id: 't' } as TestCase, attempt(check));
+  await reporter.onEnd();
+  const run = JSON.parse(readFileSync(join(out, 'results.json'), 'utf8')) as RunResults;
+  expect(run.checks[0].screenshots).toEqual([]);
+  expect(run.checks[0].issues).toHaveLength(1);
+  expect(readFileSync(join(out, 'index.html'), 'utf8')).not.toContain('gone.png');
 });
