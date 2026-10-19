@@ -17,14 +17,14 @@ function shot(group: Group): string {
   const s = group.screenshot;
   if (!s) return '';
   const boxes = group.issues.map(i =>
-    `<div class="box ${esc(i.severity)}" title="${esc(`${i.rule} ${i.selector}`)}" style="left:${pct(i.box.x, s.size.width)};top:${pct(i.box.y, s.size.height)};width:${pct(i.box.width, s.size.width)};height:${pct(i.box.height, s.size.height)}"></div>`,
+    `<div class="box ${esc(i.severity)}${i.baselined ? ' accepted' : ''}" title="${esc(`${i.rule} ${i.selector}`)}" style="left:${pct(i.box.x, s.size.width)};top:${pct(i.box.y, s.size.height)};width:${pct(i.box.width, s.size.width)};height:${pct(i.box.height, s.size.height)}"></div>`,
   ).join('');
   return `<div class="shot"><img src="${esc(s.path)}" alt="Screenshot, ${esc(group.mode)}">${boxes}</div>`;
 }
 
 function table(issues: Issue[]): string {
-  const rows = issues.map(i => `<tr class="${esc(i.severity)}">
-    <td><span class="sev">${esc(i.severity)}</span></td><td><code>${esc(i.rule)}</code></td>
+  const rows = issues.map(i => `<tr class="${esc(i.severity)}${i.baselined ? ' accepted' : ''}">
+    <td><span class="sev">${esc(i.severity)}</span>${i.baselined ? ' <span class="tag">accepted</span>' : ''}</td><td><code>${esc(i.rule)}</code></td>
     <td><code>${esc(i.selector)}</code></td><td>${esc(i.message)}</td>
     <td>${esc(i.fix ?? '')}</td><td dir="auto">${esc(i.text)}</td></tr>`).join('');
   return `<table><thead><tr><th>Severity</th><th>Rule</th><th>Element</th><th>Problem</th><th>Fix</th><th>Text</th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -61,8 +61,11 @@ export function renderReport(results: RunResults): string {
   const body = results.checks.some(c => c.issues.length)
     ? sections(results)
     : '<p class="empty">No localization layout issues found.</p>';
+  const accepted = results.checks.reduce((n, c) => n + c.issues.filter(i => i.baselined).length, 0);
   const toggles = SEVERITIES.map(s =>
-    `<label class="${s}"><input type="checkbox" checked data-sev="${s}"> ${esc(results.summary[s])} ${s}</label>`).join('');
+    `<label class="${s}"><input type="checkbox" checked data-sev="${s}"> ${esc(results.summary[s])} ${s}</label>`).join('')
+    + (accepted ? `<label><input type="checkbox" checked data-sev="accepted"> ${accepted} accepted in the baseline</label>` : '');
+  const counts = accepted ? ` · ${total - accepted} new · ${accepted} accepted` : '';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>fitlocale report</title>
@@ -77,11 +80,12 @@ h1 { font-size:22px; margin:0 0 4px; } h2 { font-size:17px; margin:32px 0 8px; w
 .box { position:absolute; border:2px solid; box-sizing:border-box; box-shadow:0 0 0 1px #000, inset 0 0 0 1px #fff; } /* rings keep any colour visible on any background */ .box.error { border-color:var(--error); } .box.warning { border-color:var(--warning); } .box.info { border-color:var(--info); }
 table { width:100%; border-collapse:collapse; margin:8px 0 0; display:block; overflow-x:auto; } th, td { text-align:start; vertical-align:top; padding:6px 8px; border-bottom:1px solid var(--line); }
 .sev { font-weight:600; } tr.error .sev, label.error { color:var(--error); } tr.warning .sev, label.warning { color:var(--warning); } tr.info .sev, label.info { color:var(--info); }
-.hide-error .error, .hide-warning .warning, .hide-info .info { display:none; } .empty { font-size:16px; }
+.hide-error .error, .hide-warning .warning, .hide-info .info, .hide-accepted .accepted { display:none; } .empty { font-size:16px; }
+.box.accepted { border-style:dashed; } tr.accepted td { opacity:.65; } .tag { font-size:12px; border:1px solid var(--line); border-radius:4px; padding:0 4px; color:var(--muted); }
 </style></head>
 <body><main>
 <h1>fitlocale report</h1>
-<p class="meta">${esc(total)} issue(s) · ${esc(results.createdAt)}</p>
+<p class="meta">${esc(total)} issue(s)${counts} · ${esc(results.createdAt)}</p>
 <div class="toggles">${toggles}</div>
 ${body}
 </main>

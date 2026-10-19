@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import type { Reporter, TestCase, TestResult } from '@playwright/test/reporter';
 import { renderReport } from './report/html';
 import type { CheckResult, RunResults, Severity } from './types';
@@ -45,13 +45,13 @@ export default class FitlocaleReporter implements Reporter {
     }
     mkdirSync(shotsDir, { recursive: true });
     const summary: Record<Severity, number> = { error: 0, warning: 0, info: 0 };
-    let missing = 0;
+    let missingShots = 0;
     for (const check of checks) {
       for (const issue of check.issues) summary[issue.severity]++;
       // With preserveOutput: 'failures-only', Playwright deletes a passing test's output, screenshots included.
       check.screenshots = check.screenshots.filter(shot => {
         if (!existsSync(shot.path)) {
-          missing++;
+          missingShots++;
           return false;
         }
         const name = `${createHash('sha1').update(shot.path).digest('hex').slice(0, 12)}.png`;
@@ -63,10 +63,17 @@ export default class FitlocaleReporter implements Reporter {
     const results: RunResults = { version: 1, createdAt: new Date().toISOString(), checks, summary };
     writeFileSync(join(this.outputDir, 'results.json'), JSON.stringify(results, null, 2));
     writeFileSync(join(this.outputDir, 'index.html'), renderReport(results));
-    const where = relative(process.cwd(), join(this.outputDir, 'index.html'));
-    console.log(`fitlocale: ${summary.error} errors, ${summary.warning} warnings, ${summary.info} info → ${where}`);
+    const rel = (path: string) => relative(process.cwd(), path).split(sep).join('/');
+    const accepted = checks.reduce((n, c) => n + c.issues.filter(i => i.baselined).length, 0);
+    const acceptedNote = accepted ? ` (${accepted} accepted in the baseline)` : '';
+    console.log(`fitlocale: ${summary.error} errors, ${summary.warning} warnings, ${summary.info} info${acceptedNote} → ${rel(join(this.outputDir, 'index.html'))}`);
+    const missing = checks.find(c => c.baseline?.status === 'missing')?.baseline;
     if (missing) {
-      console.log(`fitlocale: ${missing} screenshot(s) were already deleted, probably by Playwright's preserveOutput setting; their issues are listed without a screenshot.`);
+      console.log(`fitlocale: no baseline file yet (${missing.path}), so no test failed. Accept the current issues with: `
+        + `npx fitlocale baseline ${rel(join(this.outputDir, 'results.json'))} --out ${missing.path}`);
+    }
+    if (missingShots) {
+      console.log(`fitlocale: ${missingShots} screenshot(s) were already deleted, probably by Playwright's preserveOutput setting; their issues are listed without a screenshot.`);
     }
   }
 }
