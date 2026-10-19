@@ -1,4 +1,4 @@
-import type { RawIssue } from '../types';
+import type { RawIssue, TextBlock } from '../types';
 import type { BoxRecord } from '../rules/mirror';
 
 /** The API the in-page bundle installs as `window.__fitlocale`. */
@@ -26,5 +26,7 @@ export interface FitlocaleBrowserApi {
    */
   findNotMirrored(ignore: string[], mirrorIgnore: string[]): RawIssue[];
   findOverflow(ignore: string[]): RawIssue[];
+  /** Visible text grouped by block, with each block's inline links and buttons. */
+  collectTextBlocks(ignore: string[]): TextBlock[];
   documentSize(): { width: number; height: number };
 }
