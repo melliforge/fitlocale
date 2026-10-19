@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 import { parseArgs } from 'node:util';
 import { pseudoMessages, type Messages } from './pseudo';
 import { renderReport } from './report/html';
@@ -14,6 +14,42 @@ const USAGE = `Usage:
 `;
 
 const defaultIO: CliIO = { stdout: s => process.stdout.write(s), stderr: s => process.stderr.write(s) };
+
+const COMMANDS: Record<string, true> = { pseudo: true, report: true };
+
+/** Read a JSON file whose top level must be an object. */
+function readJsonObject(path: string): Record<string, unknown> {
+  const value = readJson(path);
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${path} must contain a JSON object`);
+  return value as Record<string, unknown>;
+}
+
+function writeFileCreatingDir(path: string, text: string): void {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, text);
+}
+
+/**
+ * Screenshot paths in results.json are relative to that file. When the report goes elsewhere,
+ * copy the screenshots along (or point at them, when they live outside the results directory).
+ */
+function relocateScreenshots(results: RunResults, fromDir: string, toDir: string): void {
+  if (resolve(fromDir) === resolve(toDir)) return;
+  for (const check of results.checks) {
+    for (const shot of check.screenshots ?? []) {
+      if (isAbsolute(shot.path)) continue;
+      const source = resolve(fromDir, shot.path);
+      if (!existsSync(source)) continue;
+      const inside = !normalize(shot.path).startsWith('..' + sep) && normalize(shot.path) !== '..';
+      if (inside) {
+        mkdirSync(dirname(resolve(toDir, shot.path)), { recursive: true });
+        copyFileSync(source, resolve(toDir, shot.path));
+      } else {
+        shot.path = relative(toDir, source).split(sep).join('/');
+      }
+    }
+  }
+}
 
 function readJson(path: string): unknown {
   let text: string;
@@ -37,22 +73,27 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
       allowPositionals: true,
       options: { out: { type: 'string' }, expansion: { type: 'string' }, help: { type: 'boolean' } },
     });
-    const [command, input] = positionals;
+    const [command, input, ...extra] = positionals;
     if (values.help || command === 'help') {
       io.stdout(USAGE);
       return 0;
     }
+    if (command && COMMANDS[command] && extra.length) throw new Error(`Unexpected argument: ${extra[0]}`);
     if (command === 'pseudo' && input) {
       const expansion = values.expansion === undefined ? undefined : Number(values.expansion);
       if (expansion !== undefined && !(expansion >= 0)) throw new Error('--expansion must be a number ≥ 0');
-      const json = JSON.stringify(pseudoMessages(readJson(input) as Messages, { expansion }), null, 2) + '\n';
-      if (values.out) writeFileSync(values.out, json);
+      const json = JSON.stringify(pseudoMessages(readJsonObject(input) as Messages, { expansion }), null, 2) + '\n';
+      if (values.out) writeFileCreatingDir(values.out, json);
       else io.stdout(json);
       return 0;
     }
     if (command === 'report' && input) {
+      const results = readJsonObject(input) as unknown as RunResults;
+      if (!Array.isArray(results.checks)) throw new Error(`${input} is not a fitlocale results.json (no "checks" list)`);
       const dir = values.out ?? dirname(input);
-      writeFileSync(join(dir, 'index.html'), renderReport(readJson(input) as RunResults));
+      mkdirSync(dir, { recursive: true });
+      relocateScreenshots(results, dirname(input), dir);
+      writeFileSync(join(dir, 'index.html'), renderReport(results));
       io.stdout(`fitlocale: wrote ${join(dir, 'index.html')}\n`);
       return 0;
     }
