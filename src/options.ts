@@ -21,6 +21,8 @@ export interface FitlocaleOptions {
   ignore: string[];
   /** Elements that legitimately keep their position in right-to-left layouts. */
   mirrorIgnore: string[];
+  /** Your icon names (one token, lower case) and whether they flip in right-to-left; overrides the built-in names. Per element: data-fitlocale-icon. */
+  icons: Record<string, 'mirror' | 'invariant' | 'ignore'>;
   viewports: Viewport[] | 'current';
   failOn: 'error' | 'warning' | 'never';
   /**
@@ -38,6 +40,7 @@ export const DEFAULT_OPTIONS: FitlocaleOptions = {
   pseudoLocales: ['en-XA', 'ar-XB'],
   ignore: [],
   mirrorIgnore: DEFAULT_MIRROR_IGNORE,
+  icons: {},
   viewports: [{ width: 1280, height: 800 }, { width: 390, height: 844 }],
   failOn: 'error',
   baseline: 'fitlocale-baseline.json',

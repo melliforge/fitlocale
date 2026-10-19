@@ -4,14 +4,16 @@
   "nav": {
     "home": "⟦Hömé ~⟧",
     "shop": "⟦Šhöp ~⟧",
-    "help": "⟦Hélp ~⟧"
+    "help": "⟦Hélp ~⟧",
+    "back": "⟦Báçk ~⟧"
   },
   "title": "⟦Ýöür áççöüñt šéttîñgš áñd évérýthîñg áböüt ýöür šübšçrîptîöñ ~~~~~~~~~~~~~~~~~~~~~~~⟧",
   "inbox": {
     "count": "⟦Ýöü hávé {count} méššágéš ~~~~~~~⟧"
   },
   "pricing": {
-    "label": "⟦Prîçé: ~~⟧"
+    "label": "⟦Prîçé: ~~⟧",
+    "amount": "⟦Tötál: $220 ~~~~⟧"
   },
   "tabs": {
     "billing": "⟦Bîllîñg détáîlš ~~~~~⟧"
@@ -32,5 +34,8 @@
   },
   "help": {
     "line": "⟦Réád thé <a href=\"#\">hélp çéñtér</a> fîršt ~~~~~~~~~~⟧"
+  },
+  "course": {
+    "title": "⟦Léárñ Ç++ tödáý ~~~~~⟧"
   }
 }

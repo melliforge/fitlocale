@@ -1,11 +1,13 @@
 import type { Box } from '../types';
 
+/** Icon fonts draw a glyph from a ligature word ("close", "arrow_forward"): not text, but still icons. */
+export const ICON_FONT_IGNORE = ['[class*="material-icons"]', '[class*="material-symbols"]'];
+
 /** Always skipped, in addition to the caller's ignore list. */
 export const DEFAULT_IGNORE = [
   'script', 'style', 'noscript', 'template', 'code', 'pre', 'kbd', 'samp', 'textarea',
   '[contenteditable=""]', '[contenteditable="true"]', '[data-fitlocale-ignore]',
-  // Icon fonts draw a glyph from a ligature word ("close", "arrow_forward"): not text.
-  '[class*="material-icons"]', '[class*="material-symbols"]',
+  ...ICON_FONT_IGNORE,
 ];
 
 /** Elements that legitimately keep their position in right-to-left layouts. */
@@ -24,9 +26,9 @@ function validate(selectors: string[]): void {
 }
 
 /** One selector list matching the defaults plus the caller's selectors. */
-export function ignoreSelector(user: string[]): string {
+export function ignoreSelector(user: string[], except: string[] = []): string {
   validate(user);
-  return [...DEFAULT_IGNORE, ...user].join(',');
+  return [...DEFAULT_IGNORE.filter(sel => !except.includes(sel)), ...user].join(',');
 }
 
 /** A selector list for an optional caller-supplied list ('' when empty). */

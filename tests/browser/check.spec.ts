@@ -303,3 +303,57 @@ test.describe('real locale with source messages', () => {
     });
   });
 });
+
+test.describe('right-to-left depth', () => {
+  test.use({ fitlocale: { viewports: 'current', failOn: 'never', setLocale: setLang } });
+  const NEXT_ICON = '<button aria-label="Next"><svg id=n class="icon-chevron" width=16 height=16><path d="M0 0h16"/></svg></button>';
+
+  test('icons are checked when the page is forced right-to-left', async ({ page, localeCheck }) => {
+    await page.setContent(`<style>[dir=rtl] #p { transform: scaleX(-1) }</style>${NEXT_ICON}
+      <svg id=p class="icon-play" width=16 height=16><path d="M0 0h16"/></svg>`);
+    const found = list(await localeCheck());
+    expect(found).toContain('rtl/icon-not-mirrored #n pseudo-rtl');
+    expect(found).toContain('rtl/icon-mirrored #p pseudo-rtl');
+    expect(await page.evaluate(() => document.documentElement.hasAttribute('dir'))).toBe(false);
+  });
+
+  test.describe('two viewports', () => {
+    test.use({ fitlocale: { viewports: [{ width: 1280, height: 800 }, { width: 390, height: 844 }], failOn: 'never' } });
+
+    test('a canvas gets one info notice per check', async ({ page, localeCheck }) => {
+      await page.setContent('<canvas id=chart width=200 height=100></canvas>');
+      const result = await localeCheck();
+      const canvas = result.issues.filter(i => i.rule === 'rtl/canvas');
+      expect(canvas.map(i => `${i.selector} ${i.mode} ${i.severity}`)).toEqual(['#chart pseudo-rtl info']);
+    });
+  });
+
+  test('a right-to-left locale laid out left-to-right is an error', async ({ page, localeCheck, useLocale }) => {
+    await page.setContent('<p>مرحبا</p>');
+    await useLocale('ar');
+    const result = await localeCheck();
+    expect(list(result)).toContain('rtl/missing-dir html source');
+    expect(result.issues.find(i => i.rule === 'rtl/missing-dir')!.message).toContain('"ar"');
+  });
+
+  test('direction set on an app wrapper counts as right-to-left', async ({ page, localeCheck, useLocale }) => {
+    await page.setContent('<div id=app dir="rtl"><p>مرحبا بكم في المتجر</p><p id=c>تعلم C++ اليوم</p></div>');
+    await useLocale('ar');
+    const found = list(await localeCheck());
+    expect(found.filter(f => f.startsWith('rtl/missing-dir'))).toEqual([]);
+    expect(found).toContain('rtl/bidi-order #c source');
+  });
+
+  test('a right-to-left page gets bidi and canvas checks, but no icon checks', async ({ page, localeCheck }) => {
+    await page.setContent(`<html dir="rtl" lang="ar"><body><p id=c>تعلم C++ اليوم</p>
+      <canvas id=chart width=200 height=100></canvas>${NEXT_ICON}</body></html>`);
+    const result = await localeCheck();
+    const found = list(result);
+    expect(found).toContain('rtl/bidi-order #c source');
+    expect(found).toContain('rtl/canvas #chart source');
+    expect(found).toContain('rtl/skipped-already-rtl html pseudo-rtl');
+    expect(found.filter(f => f.includes('icon'))).toEqual([]);
+    expect(result.issues.find(i => i.rule === 'rtl/bidi-order')!.message)
+      .toBe('Mixed-direction text is shown in the wrong order: "C++" appears as "++C".');
+  });
+});

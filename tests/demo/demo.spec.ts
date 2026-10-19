@@ -23,6 +23,9 @@ test('home page: finds every planted bug, no false alarms', async ({ page, local
     'overflow/clipped #save-btn',
     'overflow/escapes-box #tab-billing',
     'overflow/overlap #btn-delete',
+    'rtl/canvas #sales-chart',
+    'rtl/icon-mirrored #play-icon',
+    'rtl/icon-not-mirrored #next-chevron',
     'rtl/not-mirrored #promo-badge',
   ]);
 });
@@ -51,6 +54,9 @@ test('pseudo locale en-XA: hardcoded and concatenated text, real overflow', asyn
     'overflow/clipped #save-btn',
     'overflow/escapes-box #tab-billing',
     'overflow/overlap #btn-delete',
+    'rtl/canvas #sales-chart',
+    'rtl/icon-mirrored #play-icon',
+    'rtl/icon-not-mirrored #next-chevron',
     'rtl/not-mirrored #promo-badge',
   ]);
 });
@@ -65,6 +71,23 @@ test('German: text left in English is found', async ({ page, localeCheck, useLoc
     'leak/bad-value #price',
     'leak/placeholder #inbox-count',
     'leak/raw-key #welcome',
+  ]);
+});
+
+test('Arabic: mixed-direction text drawn in the wrong order, and the chart', async ({ page, localeCheck, useLocale }) => {
+  await page.goto('/');
+  await useLocale('ar');
+  await expect(page.locator('html')).toHaveAttribute('data-ready', '1');
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  const result = await localeCheck();
+  expect(list(result)).toEqual([
+    'leak/bad-value #price',
+    'leak/placeholder #inbox-count',
+    'leak/raw-key #welcome',
+    'rtl/bidi-order #course-title',
+    'rtl/bidi-order #inbox-count',
+    'rtl/bidi-order #price-ar',
+    'rtl/canvas #sales-chart',
   ]);
 });
 

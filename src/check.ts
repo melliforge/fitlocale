@@ -5,6 +5,7 @@ import { ensureInjected } from './inject';
 import type { FitlocaleOptions } from './options';
 import { flattenKeys, flattenValues, type Messages } from './pseudo';
 import { findConcatenated, findHardcoded, hasPseudoMarkers } from './rules/i18n';
+import { isRtlLocale } from './rules/icons';
 import { subtractSource } from './rules/noise';
 import { findUntranslated, sourceMatcher, type SourceMatcher } from './rules/untranslated';
 import {
@@ -146,7 +147,8 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
   const enrich = (raw: RawIssue[], mode: Mode, viewport: Viewport, message?: string): Issue[] =>
     raw.map(r => ({
       ...r, mode, locale, viewport, url: page.url(), severity: SEVERITY[r.rule],
-      message: message ?? MESSAGES[r.rule], ...(FIXES[r.rule] ? { fix: FIXES[r.rule] } : {}),
+      message: message ?? MESSAGES[r.rule].replace('{text}', r.text).replace('{visual}', r.visual ?? '').replace('{locale}', locale),
+      ...(FIXES[r.rule] ? { fix: FIXES[r.rule] } : {}),
     }));
 
   const shot = new Set<string>();
@@ -201,6 +203,18 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
             sourceIssues.push(...enrich(found, 'source', viewport));
           }
         }
+        const dir = await page.evaluate(ig => (window as unknown as Api).__fitlocale.contentDir(ig), options.ignore);
+        if (expectedLocale !== null && isRtlLocale(expectedLocale) && dir === 'ltr') {
+          const box = { x: 0, y: 0, ...(await page.evaluate(() => (window as unknown as Api).__fitlocale.documentSize())) };
+          sourceIssues.push(...enrich([{ rule: 'rtl/missing-dir', key: 'html', selector: 'html', box, text: '' }], 'source', viewport));
+        }
+        if (dir === 'rtl') {
+          // A page that is right-to-left already: its mixed-direction text and canvases can be checked as they are.
+          sourceIssues.push(...enrich([
+            ...await page.evaluate(ig => (window as unknown as Api).__fitlocale.findBidiOrder(ig), options.ignore),
+            ...await page.evaluate(ig => (window as unknown as Api).__fitlocale.findCanvases(ig), options.ignore),
+          ], 'source', viewport));
+        }
         if (sourceIssues.length) await shoot('source', viewport);
         issues.push(...sourceIssues);
       }
@@ -251,11 +265,18 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
           continue;
         }
         const lists = [options.ignore, options.mirrorIgnore] as const;
+        const iconArgs = [options.ignore, options.icons] as const;
         try {
           await page.evaluate(([ig, mi]) => (window as unknown as Api).__fitlocale.rememberBoxes(ig, mi), lists);
+          await page.evaluate(([ig, ic]) => (window as unknown as Api).__fitlocale.rememberIcons(ig, ic), iconArgs);
           await page.evaluate(() => (window as unknown as Api).__fitlocale.setDir('rtl'));
           await settle(page);
-          const found = await page.evaluate(([ig, mi]) => (window as unknown as Api).__fitlocale.findNotMirrored(ig, mi), lists);
+          const found = [
+            ...await page.evaluate(([ig, mi]) => (window as unknown as Api).__fitlocale.findNotMirrored(ig, mi), lists),
+            ...await page.evaluate(([ig, ic]) => (window as unknown as Api).__fitlocale.findIconIssues(ig, ic), iconArgs),
+            // Canvases do not depend on the viewport: list them once per check.
+            ...(index === 0 ? await page.evaluate(ig => (window as unknown as Api).__fitlocale.findCanvases(ig), options.ignore) : []),
+          ];
           if (found.length) await shoot('pseudo-rtl', viewport);
           issues.push(...enrich(found, 'pseudo-rtl', viewport));
         } finally {

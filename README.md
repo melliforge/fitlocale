@@ -104,6 +104,29 @@ Dates, times, relative times ("3 hours ago"), emails, URLs, numbers, icon-font l
 
 A page whose `<html lang>` is a pseudo locale gets these checks even without `useLocale()`. Pseudo locales are `en-XA` and `ar-XB` by default (the `pseudoLocales` option).
 
+## Right-to-left checks
+
+When fitlocale forces a page right-to-left (the `pseudo-rtl` mode), it compares the two renders:
+- **mirroring** (`rtl/not-mirrored`): elements that stayed in place;
+- **icons** (`rtl/icon-not-mirrored`): arrows, chevrons, back and next icons that still point the same way;
+- **icons that should not flip** (`rtl/icon-mirrored`): play, pause, clock, check-mark and logo icons that flipped.
+
+On a page that is right-to-left already, such as your Arabic or Hebrew locale, it checks:
+- **text order** (`rtl/bidi-order`): values like `C++`, `+1 555…` or `$220` whose characters are drawn out of order inside Arabic or Hebrew text (`++C`, `220$`). The fix is `<bdi>` or `dir="auto"`;
+- **missing direction** (`rtl/missing-dir`): a right-to-left locale whose page is still laid out left-to-right.
+
+Both kinds of page also get an **informational note** for each `<canvas>` (`rtl/canvas`): charts drawn on a canvas ignore the page direction, so check them by hand. These notes never fail a test.
+
+Icons are recognised by their names: class, id, `aria-label`, `title`, `alt`, file name, SVG `<use>` and `<title>`, and the button or link around them ("Next", "Back"). Arrows pointing up or down are never reported. When a name is ambiguous, tell fitlocale:
+
+```html
+<svg class="my-glyph" data-fitlocale-icon="mirror">…</svg>   <!-- or "invariant", or "ignore" -->
+```
+
+```ts
+test.use({ fitlocale: { icons: { glyph: 'mirror', compass: 'invariant' } } });
+```
+
 ## Options
 
 | Option | Default | Meaning |
@@ -117,6 +140,7 @@ A page whose `<html lang>` is a pseudo locale gets these checks even without `us
 | `sourceMessages` | — | Path to your source message JSON (relative to `playwright.config`), to recognise raw keys and untranslated text |
 | `ignore` | `[]` | Selectors to skip (code, `script`, `[data-fitlocale-ignore]` and similar are always skipped) |
 | `mirrorIgnore` | logos, `video`, `audio`, `code`, `pre` | Elements that legitimately keep their place in RTL |
+| `icons` | `{}` | Your icon names and whether they flip in right-to-left: `'mirror'`, `'invariant'` or `'ignore'` |
 | `viewports` | `1280×800` and `390×844` | Viewports to check, or `'current'` |
 | `failOn` | `'error'` | Fail the test on `'error'`, on `'warning'` and up, or `'never'` |
 | `baseline` | `'fitlocale-baseline.json'` | Accepted issues file, relative to `playwright.config` (see [Baseline](#baseline)), or `false` to fail on every issue |
@@ -136,6 +160,11 @@ A page whose `<html lang>` is a pseudo locale gets these checks even without `us
 | `locale/persistence` | error | The page language changed back during the test |
 | `rtl/not-mirrored` | warning | An element stayed in place when the page switched to right-to-left |
 | `rtl/skipped-already-rtl` | info | The page is already right-to-left, so the mirroring check was skipped |
+| `rtl/icon-not-mirrored` | warning | An arrow, chevron, back or next icon points the same way in right-to-left |
+| `rtl/icon-mirrored` | warning | A media control, clock, check mark or logo flipped in right-to-left |
+| `rtl/bidi-order` | warning | Mixed-direction text (`C++`, `$220`) is drawn in the wrong order in right-to-left text |
+| `rtl/missing-dir` | error | A right-to-left locale is laid out left-to-right |
+| `rtl/canvas` | info | A canvas ignores the page direction: check it by hand |
 | `i18n/hardcoded` | warning | In a pseudo locale, text without pseudo-locale markers: it is hardcoded (or it is data) |
 | `i18n/concatenated` | warning | In a pseudo locale, one sentence built from several separately translated pieces |
 | `i18n/untranslated` | warning | In a real locale, text identical to a source-language message |

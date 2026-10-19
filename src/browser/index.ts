@@ -1,13 +1,16 @@
 import type { FitlocaleBrowserApi } from './api';
 import { assignKeys, withLayoutCache } from './dom';
 import { documentDir, restoreText, rewriteText, setDir, unpseudoText } from './rewrite';
-import { scanLeaks, snapshotBoxes } from './boxes';
+import { contentDir, findCanvases, scanLeaks, snapshotBoxes } from './boxes';
 import { findOverflow } from './overflow';
 import { collectTextBlocks } from './blocks';
+import { findBidiOrder } from './bidi';
+import { compareIcons, snapshotIcons, type IconRecord } from './icons';
 import { findNotMirrored } from '../rules/mirror';
 import type { BoxRecord } from '../rules/mirror';
 
 let remembered: BoxRecord[] | null = null;
+let rememberedIcons: IconRecord[] | null = null;
 
 const api: FitlocaleBrowserApi = {
   version: '0.1.0',
@@ -22,6 +25,9 @@ const api: FitlocaleBrowserApi = {
   scanLeaks: (ignore, knownKeys) => withLayoutCache(() => scanLeaks(ignore, knownKeys)),
   snapshotBoxes: (ignore, mirrorIgnore) => withLayoutCache(() => snapshotBoxes(ignore, mirrorIgnore)),
   findOverflow: ignore => withLayoutCache(() => findOverflow(ignore)),
+  contentDir: ignore => withLayoutCache(() => contentDir(ignore)),
+  findCanvases: ignore => withLayoutCache(() => findCanvases(ignore)),
+  findBidiOrder: ignore => withLayoutCache(() => findBidiOrder(ignore)),
   collectTextBlocks: ignore => withLayoutCache(() => collectTextBlocks(ignore)),
   rememberBoxes: (ignore, mirrorIgnore) => {
     remembered = withLayoutCache(() => snapshotBoxes(ignore, mirrorIgnore));
@@ -31,6 +37,14 @@ const api: FitlocaleBrowserApi = {
     remembered = null;
     const after = withLayoutCache(() => snapshotBoxes(ignore, mirrorIgnore));
     return findNotMirrored(before, after, { viewportWidth: document.documentElement.clientWidth });
+  },
+  rememberIcons: (ignore, icons) => {
+    rememberedIcons = withLayoutCache(() => snapshotIcons(ignore, icons));
+  },
+  findIconIssues: (ignore, icons) => {
+    const before = rememberedIcons ?? [];
+    rememberedIcons = null;
+    return compareIcons(before, withLayoutCache(() => snapshotIcons(ignore, icons)));
   },
   documentSize: () => ({
     width: document.documentElement.scrollWidth,

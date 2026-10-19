@@ -17,6 +17,8 @@ export interface FitlocaleBrowserApi {
   /** `null` restores the original `dir` attribute (or removes it). */
   setDir(dir: 'rtl' | null): void;
   documentDir(): 'ltr' | 'rtl';
+  /** The direction most visible text is laid out in (catches dir set on an app wrapper). */
+  contentDir(ignore: string[]): 'ltr' | 'rtl';
   lang(): string;
   scanLeaks(ignore: string[], knownKeys: string[]): RawIssue[];
   snapshotBoxes(ignore: string[], mirrorIgnore: string[]): BoxRecord[];
@@ -28,6 +30,14 @@ export interface FitlocaleBrowserApi {
    */
   findNotMirrored(ignore: string[], mirrorIgnore: string[]): RawIssue[];
   findOverflow(ignore: string[]): RawIssue[];
+  /** Visible canvases of at least 40×40px: they ignore the page direction. */
+  findCanvases(ignore: string[]): RawIssue[];
+  /** In right-to-left text with Arabic or Hebrew letters: mixed tokens (C++, +1) drawn out of logical order. */
+  findBidiOrder(ignore: string[]): RawIssue[];
+  /** Keep every icon's name, flip sign and drawing, to compare after switching direction. */
+  rememberIcons(ignore: string[], icons: Record<string, 'mirror' | 'invariant' | 'ignore'>): void;
+  /** Snapshot icons again and return directional icons that did not flip, and invariant icons that did. */
+  findIconIssues(ignore: string[], icons: Record<string, 'mirror' | 'invariant' | 'ignore'>): RawIssue[];
   /** Visible text grouped by block, with each block's inline links and buttons. */
   collectTextBlocks(ignore: string[]): TextBlock[];
   documentSize(): { width: number; height: number };
