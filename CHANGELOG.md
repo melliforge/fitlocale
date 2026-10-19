@@ -5,12 +5,15 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+### Added
+
+- The npm package now includes `CHANGELOG.md`. The 0.2.1 notes said it already did, but it wasn't shipped.
+
 ## [0.2.1] - 2026-10-19
 
 ### Changed
 
 - Releases are now built and published by GitHub Actions, with npm provenance. On npm you can check that the package was built from this repository's source.
-- The package now includes `CHANGELOG.md`.
 
 ## [0.2.0] - 2026-10-19
 

@@ -77,7 +77,8 @@
     "fitlocale": "dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build:browser": "node scripts/build-browser.mjs",
