@@ -72,6 +72,38 @@ test('checkout in German', async ({ page, useLocale, localeCheck }) => {
 
 You can also pass any `async (page, locale) => { … }`.
 
+In a real locale, set `sourceMessages` and fitlocale also reports text that is identical to a source-language message (`i18n/untranslated`), such as an English sentence left in the German messages.
+
+## Integrated pseudo-locale mode
+
+The pseudo modes above rewrite the page's text in the browser. For a deeper check, let your app load pseudo-locale messages itself:
+
+1. Generate them from your source messages:
+
+   ```bash
+   npx fitlocale pseudo locales/en.json --out locales/en-XA.json
+   ```
+
+2. Register `en-XA` in your i18n setup like any other language.
+3. Switch to it in a test:
+
+   ```ts
+   test('settings page in pseudo locale', async ({ page, useLocale, localeCheck }) => {
+     await page.goto('/settings');
+     await useLocale('en-XA');
+     await localeCheck();
+   });
+   ```
+
+Every translated string now carries `⟦…⟧` markers, so fitlocale also finds:
+- **hardcoded text** (`i18n/hardcoded`): visible text without markers never went through your message files;
+- **sentences glued together** (`i18n/concatenated`): one sentence made of several separately translated pieces, which breaks word order in other languages;
+- **real overflow**: the page as your app renders it, compared with the same page with markers and padding removed.
+
+Dates, times, relative times ("3 hours ago"), emails, URLs, numbers, icon-font ligatures and language names (`<a lang="de">Deutsch</a>`) are not reported as hardcoded. If no text on the page has markers at all, fitlocale reports one `i18n/pseudo-not-loaded` error instead: the pseudo-locale messages were not loaded. Data shown from your database (user names, product titles) has no markers either: mark those areas with `data-fitlocale-ignore` or the `ignore` option. These rules are warnings; set `failOn: 'warning'` to fail the build on them.
+
+A page whose `<html lang>` is a pseudo locale gets these checks even without `useLocale()`. Pseudo locales are `en-XA` and `ar-XB` by default (the `pseudoLocales` option).
+
 ## Options
 
 | Option | Default | Meaning |
@@ -79,9 +111,10 @@ You can also pass any `async (page, locale) => { … }`.
 | `modes` | `['pseudo-long', 'pseudo-rtl']` | Pseudo modes run while the page shows the source locale |
 | `expansion` | `0.4` | Extra length for pseudo-long text |
 | `sourceLocale` | `'en'` | Your source language |
+| `pseudoLocales` | `['en-XA', 'ar-XB']` | Locales whose messages come from `fitlocale pseudo`; pages in them get the integrated checks |
 | `setLocale` | — | How your app switches language (needed by `useLocale`) |
 | `localeProbe` | `<html lang>` | How to read the current locale |
-| `sourceMessages` | — | Path to your source message JSON (relative to `playwright.config`), to recognise raw keys |
+| `sourceMessages` | — | Path to your source message JSON (relative to `playwright.config`), to recognise raw keys and untranslated text |
 | `ignore` | `[]` | Selectors to skip (code, `script`, `[data-fitlocale-ignore]` and similar are always skipped) |
 | `mirrorIgnore` | logos, `video`, `audio`, `code`, `pre` | Elements that legitimately keep their place in RTL |
 | `viewports` | `1280×800` and `390×844` | Viewports to check, or `'current'` |
@@ -102,6 +135,10 @@ You can also pass any `async (page, locale) => { … }`.
 | `locale/persistence` | error | The page language changed back during the test |
 | `rtl/not-mirrored` | warning | An element stayed in place when the page switched to right-to-left |
 | `rtl/skipped-already-rtl` | info | The page is already right-to-left, so the mirroring check was skipped |
+| `i18n/hardcoded` | warning | In a pseudo locale, text without pseudo-locale markers: it is hardcoded (or it is data) |
+| `i18n/concatenated` | warning | In a pseudo locale, one sentence built from several separately translated pieces |
+| `i18n/untranslated` | warning | In a real locale, text identical to a source-language message |
+| `i18n/pseudo-not-loaded` | error | The page is in a pseudo locale, but no text has pseudo-locale markers: the messages were not loaded |
 
 ## CLI
 

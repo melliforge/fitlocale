@@ -4,6 +4,8 @@ import type { Box } from '../types';
 export const DEFAULT_IGNORE = [
   'script', 'style', 'noscript', 'template', 'code', 'pre', 'kbd', 'samp', 'textarea',
   '[contenteditable=""]', '[contenteditable="true"]', '[data-fitlocale-ignore]',
+  // Icon fonts draw a glyph from a ligature word ("close", "arrow_forward"): not text.
+  '[class*="material-icons"]', '[class*="material-symbols"]',
 ];
 
 /** Elements that legitimately keep their position in right-to-left layouts. */

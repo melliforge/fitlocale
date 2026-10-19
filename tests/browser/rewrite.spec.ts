@@ -56,3 +56,12 @@ test('text without letters is left alone', async ({ page }) => {
   await expect(page.locator('#p')).toHaveText('12.50 €');
   await expect(page.locator('#w')).not.toHaveText('Hi');
 });
+
+test('unpseudoText approximates the source text, and restoreText undoes it', async ({ page }) => {
+  await load(page, `<button id=b>⟦Šávé çháñgéš ~~~~⟧</button>`);
+  const before = await page.locator('body').innerHTML();
+  await page.evaluate(() => window.__fitlocale.unpseudoText([]));
+  await expect(page.locator('#b')).toHaveText('Save changes');
+  await page.evaluate(() => window.__fitlocale.restoreText());
+  expect(await page.locator('body').innerHTML()).toBe(before);
+});

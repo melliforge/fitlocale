@@ -7,5 +7,7 @@
   "pricing": { "label": "Preis:" },
   "tabs": { "billing": "Rechnungsdetails" },
   "actions": { "delete": "Löschen", "archive": "Archivieren", "save": "Änderungen speichern", "ok": "OK", "next": "Nächste Seite" },
-  "page2": { "title": "Bestellverlauf" }
+  "page2": { "title": "Bestellverlauf" },
+  "cart": { "saved": "Sie haben", "order": "bei dieser Bestellung gespart" },
+  "help": { "line": "Read the <a href=\"#\">help center</a> first" }
 }

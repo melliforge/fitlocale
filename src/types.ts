@@ -10,7 +10,11 @@ export type RuleId =
   | 'leak/bad-value'
   | 'locale/persistence'
   | 'rtl/not-mirrored'
-  | 'rtl/skipped-already-rtl';
+  | 'rtl/skipped-already-rtl'
+  | 'i18n/hardcoded'
+  | 'i18n/concatenated'
+  | 'i18n/untranslated'
+  | 'i18n/pseudo-not-loaded';
 
 export type Mode = 'source' | 'pseudo-long' | 'pseudo-rtl';
 
@@ -21,6 +25,12 @@ export interface Viewport { width: number; height: number }
 
 /** An issue as measured in the page, before Node-side enrichment. `text` is at most 120 chars. */
 export interface RawIssue { rule: RuleId; key: string; selector: string; box: Box; text: string }
+
+/** An inline link or button inside a text block: `text.slice(start, end)` is its text; `lang` is its closest [lang] value. */
+export interface InlineControl { start: number; end: number; key: string; selector: string; box: Box; lang: string }
+
+/** A visible block of text (nearest non-inline ancestor of text), whitespace-collapsed and trimmed. `lang` is the closest [lang] value, '' if none. */
+export interface TextBlock { key: string; selector: string; box: Box; text: string; lang: string; controls: InlineControl[] }
 
 export interface Issue extends RawIssue {
   severity: Severity;
@@ -59,6 +69,10 @@ export const SEVERITY: Record<RuleId, Severity> = {
   'locale/persistence': 'error',
   'rtl/not-mirrored': 'warning',
   'rtl/skipped-already-rtl': 'info',
+  'i18n/hardcoded': 'warning',
+  'i18n/concatenated': 'warning',
+  'i18n/untranslated': 'warning',
+  'i18n/pseudo-not-loaded': 'error',
 };
 
 export const MESSAGES: Record<RuleId, string> = {
@@ -72,6 +86,10 @@ export const MESSAGES: Record<RuleId, string> = {
   'locale/persistence': 'The page language changed back: expected "{expected}", found "{actual}".',
   'rtl/not-mirrored': 'This element stayed in place when the page switched to right-to-left; it should usually move to the opposite side.',
   'rtl/skipped-already-rtl': 'The page is already right-to-left, so the RTL mirroring check was skipped.',
+  'i18n/hardcoded': 'This text has no pseudo-locale markers, so it did not come from your message files. It is hardcoded, or it is data: mark data areas with data-fitlocale-ignore.',
+  'i18n/concatenated': 'This sentence is built from several separately translated pieces. Word order differs between languages, so translate it as one message with placeholders.',
+  'i18n/untranslated': 'This text is identical to a source-language message, so it was probably left untranslated.',
+  'i18n/pseudo-not-loaded': 'The page is in pseudo locale "{locale}", but none of its text has pseudo-locale markers, so the pseudo-locale messages were not loaded.',
 };
 
 export const LOCALE_NOT_REFLECTED_MESSAGE =
@@ -83,4 +101,8 @@ export const FIXES: Partial<Record<RuleId, string>> = {
   'overflow/clipped': GROW_FIX,
   'overflow/escapes-box': GROW_FIX,
   'rtl/not-mirrored': 'Use logical CSS properties (inset-inline-start, margin-inline-start, padding-inline-end) instead of left/right.',
+  'i18n/hardcoded': 'Move the text into your message files and render it with your i18n library.',
+  'i18n/concatenated': 'Use one message with placeholders, for example "You have {count} messages", or your library\'s rich-text component for links inside a sentence.',
+  'i18n/untranslated': 'Add the translation to this locale\'s message file.',
+  'i18n/pseudo-not-loaded': 'Generate the messages with `fitlocale pseudo` and register the locale in your i18n setup like any other language.',
 };

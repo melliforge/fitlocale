@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { pseudoLong, pseudoMessages, flattenKeys } from '../../src/pseudo';
+import { pseudoLong, pseudoMessages, flattenKeys, unpseudo } from '../../src/pseudo';
 
 test('expands and accents plain text', () => {
   expect(pseudoLong('Settings')).toBe('⟦Šéttîñgš ~~~⟧');
@@ -43,4 +43,11 @@ test('keeps i18next nesting, vue-i18n linked messages and HTML entities', () => 
   expect(pseudoLong('Terms &amp; conditions')).toContain('&amp;');
   expect(pseudoLong('10&nbsp;items')).toContain('&nbsp;');
   expect(pseudoLong('Copy&#123; &#x1F600;')).toContain('&#123; &#x1F600;');
+});
+
+test('unpseudo turns pseudo-long text back into the source text', () => {
+  for (const s of ['Save changes', 'You have {count} messages', 'Read <b>this</b> now', '  padded  ']) {
+    expect(unpseudo(pseudoLong(s))).toBe(s);
+  }
+  expect(unpseudo('plain')).toBe('plain');
 });

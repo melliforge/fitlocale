@@ -114,6 +114,16 @@ export function pseudoLong(text: string, opts: PseudoOptions = {}): string {
   return `${lead}${MARK_START}${out} ${'~'.repeat(pad - 1)}${MARK_END}${trail}`;
 }
 
+const UNACCENT: Record<string, string> = Object.fromEntries(Object.entries(ACCENTS).map(([plain, accented]) => [accented, plain]));
+
+/** Undo `pseudoLong`, approximately: drop the markers and padding, and take the accents off. */
+export function unpseudo(text: string): string {
+  return text
+    .replace(/ ~*\u27E7/g, '')
+    .replace(/[\u27E6\u27E7]/g, '')
+    .replace(/[^\x00-\x7F]/g, ch => UNACCENT[ch] ?? ch);
+}
+
 /** Apply `pseudoLong` to every string in a (possibly nested) message file. */
 export function pseudoMessages(messages: Messages, opts?: PseudoOptions): Messages {
   const result: Messages = {};
@@ -134,4 +144,14 @@ export function flattenKeys(messages: Messages, prefix = ''): string[] {
     else if (value && typeof value === 'object' && !Array.isArray(value)) keys.push(...flattenKeys(value, path));
   }
   return keys;
+}
+
+/** Every string of a message file, in key order. */
+export function flattenValues(messages: Messages): string[] {
+  const values: string[] = [];
+  for (const value of Object.values(messages)) {
+    if (typeof value === 'string') values.push(value);
+    else if (value && typeof value === 'object' && !Array.isArray(value)) values.push(...flattenValues(value));
+  }
+  return values;
 }
