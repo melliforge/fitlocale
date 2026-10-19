@@ -34,3 +34,15 @@ test('overlay boxes use percentages', () => {
 test('empty run', () => {
   expect(renderReport(makeRun([]))).toContain('No localization layout issues found.');
 });
+
+test('every value from results.json is escaped', () => {
+  const evil = '"><img src=x onerror=alert(1)>';
+  const run = makeRun([makeCheck({
+    issues: [makeIssue({ severity: evil as never, mode: evil as never, viewport: { width: evil as never, height: 1 } })],
+    screenshots: [{ mode: evil as never, viewport: { width: evil as never, height: 1 }, path: 'a.png', size: { width: 1000, height: 2000 } }],
+  })]);
+  run.summary = { error: evil as never, warning: 0, info: 0 };
+  const html = renderReport(run);
+  expect(html).not.toContain('<img src=x');
+  expect(html).toContain('<span class="sev">&quot;&gt;&lt;img src=x onerror=alert(1)&gt;</span>');
+});
