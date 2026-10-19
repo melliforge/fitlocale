@@ -1,0 +1,11 @@
+{
+  "brand": "Fitshop",
+  "promo": "Neu",
+  "nav": { "home": "Start", "shop": "Laden", "help": "Hilfe" },
+  "title": "Ihre Kontoeinstellungen und alles rund um Ihr Abonnement",
+  "inbox": { "count": "Sie haben {count} Nachrichten" },
+  "pricing": { "label": "Preis:" },
+  "tabs": { "billing": "Rechnungsdetails" },
+  "actions": { "delete": "Löschen", "archive": "Archivieren", "save": "Änderungen speichern", "ok": "OK", "next": "Nächste Seite" },
+  "page2": { "title": "Bestellverlauf" }
+}

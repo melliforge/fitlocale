@@ -1,0 +1,18 @@
+body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: #1d1d1f; }
+.header { position: relative; height: 56px; background: #f2f2f7; }
+.logo { width: 200px; margin: 0 auto; padding-top: 14px; text-align: center; font-weight: 700; }
+/* Planted bug: physical `left` does not mirror in right-to-left layouts. */
+.promo { position: absolute; left: 16px; top: 16px; font-size: 12px; background: #ffd60a; padding: 0 6px; }
+.nav { display: flex; gap: 24px; padding: 8px 16px; }
+main { max-width: 800px; margin: 0 auto; padding: 16px; }
+/* Truncated on purpose, even in English: the noise rule must not report it. */
+.long-title { width: 300px; font-size: 18px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* Planted bug: fixed width with visible overflow. */
+.tab { width: 130px; white-space: nowrap; font-size: 14px; }
+.toolbar { position: relative; height: 40px; margin: 16px 0; }
+.toolbar button { position: absolute; top: 0; font-size: 16px; }
+#btn-delete { inset-inline-start: 0; }
+#btn-archive { inset-inline-start: 90px; }
+/* Planted bug: fixed width that clips. */
+.save { width: 120px; overflow: hidden; white-space: nowrap; }
+.ok { min-width: 100px; padding: 4px 12px; }

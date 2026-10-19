@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Fitshop demo</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header id="header" class="header">
+    <div id="logo" class="logo" data-i18n="brand">Fitshop</div>
+    <span id="promo-badge" class="promo" data-i18n="promo">New</span>
+  </header>
+  <nav id="nav" class="nav">
+    <a href="#" data-i18n="nav.home">Home</a>
+    <a href="#" data-i18n="nav.shop">Shop</a>
+    <a href="#" data-i18n="nav.help">Help</a>
+  </nav>
+  <main>
+    <h1 id="long-title" class="long-title" data-i18n="title">Your account settings</h1>
+    <p id="welcome" data-i18n="dashboard.welcome.title">Welcome</p>
+    <p id="inbox-count" data-i18n="inbox.count">You have messages</p>
+    <p><span id="price">Price:</span></p>
+    <p id="site-url">www.example.com</p>
+    <pre><code id="code-sample">{user.name}</code></pre>
+    <div class="tabs"><div id="tab-billing" class="tab" data-i18n="tabs.billing">Billing details</div></div>
+    <div class="toolbar">
+      <button id="btn-delete" data-i18n="actions.delete">Delete</button>
+      <button id="btn-archive" data-i18n="actions.archive">Archive</button>
+    </div>
+    <p>
+      <button id="save-btn" class="save" data-i18n="actions.save">Save changes</button>
+      <button id="ok-btn" class="ok" data-i18n="actions.ok">OK</button>
+    </p>
+    <p id="hidden-msg" style="display:none">{count}</p>
+    <p><a id="to-page2" href="page2.html" data-i18n="actions.next">Next page</a></p>
+  </main>
+  <script src="i18n.js"></script>
+</body>
+</html>

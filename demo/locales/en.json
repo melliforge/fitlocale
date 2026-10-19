@@ -1,0 +1,11 @@
+{
+  "brand": "Fitshop",
+  "promo": "New",
+  "nav": { "home": "Home", "shop": "Shop", "help": "Help" },
+  "title": "Your account settings and everything about your subscription",
+  "inbox": { "count": "You have {count} messages" },
+  "pricing": { "label": "Price:" },
+  "tabs": { "billing": "Billing details" },
+  "actions": { "delete": "Delete", "archive": "Archive", "save": "Save changes", "ok": "OK", "next": "Next page" },
+  "page2": { "title": "Order history" }
+}
