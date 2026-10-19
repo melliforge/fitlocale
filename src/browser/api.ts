@@ -28,6 +28,8 @@ export interface FitlocaleBrowserApi {
    */
   findNotMirrored(ignore: string[], mirrorIgnore: string[]): RawIssue[];
   findOverflow(ignore: string[]): RawIssue[];
+  /** In right-to-left text with Arabic or Hebrew letters: mixed tokens (C++, +1) drawn out of logical order. */
+  findBidiOrder(ignore: string[]): RawIssue[];
   /** Keep every icon's name, flip sign and drawing, to compare after switching direction. */
   rememberIcons(ignore: string[], icons: Record<string, 'mirror' | 'invariant' | 'ignore'>): void;
   /** Snapshot icons again and return directional icons that did not flip, and invariant icons that did. */

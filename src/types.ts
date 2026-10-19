@@ -29,7 +29,11 @@ export interface Box { x: number; y: number; width: number; height: number }
 export interface Viewport { width: number; height: number }
 
 /** An issue as measured in the page, before Node-side enrichment. `text` is at most 120 chars. */
-export interface RawIssue { rule: RuleId; key: string; selector: string; box: Box; text: string }
+export interface RawIssue {
+  rule: RuleId; key: string; selector: string; box: Box; text: string;
+  /** For `rtl/bidi-order`: the text in the order it is drawn. */
+  visual?: string;
+}
 
 /** An inline link or button inside a text block: `text.slice(start, end)` is its text; `lang` is its closest [lang] value. */
 export interface InlineControl { start: number; end: number; key: string; selector: string; box: Box; lang: string }
