@@ -75,7 +75,7 @@
     "build:browser": "node scripts/build-browser.mjs",
     "build": "npm run build:browser && tsup",
     "test": "npm run build && playwright test",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "npm run build && tsc --noEmit",
     "prepublishOnly": "npm run typecheck && npm test"
   },
   "peerDependencies": {
