@@ -14,7 +14,7 @@ export interface FitlocaleOptions {
   setLocale?: SetLocale;
   /** How to read the current locale; defaults to `<html lang>`. */
   localeProbe?: (page: Page) => Promise<string>;
-  /** Path to the source-language message JSON, used to recognise raw keys. */
+  /** Path to the source-language message JSON (relative to the Playwright config), used to recognise raw keys. */
   sourceMessages?: string;
   ignore: string[];
   /** Elements that legitimately keep their position in right-to-left layouts. */

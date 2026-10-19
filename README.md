@@ -78,7 +78,7 @@ You can also pass any `async (page, locale) => { … }`.
 | `sourceLocale` | `'en'` | Your source language |
 | `setLocale` | — | How your app switches language (needed by `useLocale`) |
 | `localeProbe` | `<html lang>` | How to read the current locale |
-| `sourceMessages` | — | Path to your source message JSON, to recognise raw keys |
+| `sourceMessages` | — | Path to your source message JSON (relative to `playwright.config`), to recognise raw keys |
 | `ignore` | `[]` | Selectors to skip (code, `script`, `[data-fitlocale-ignore]` and similar are always skipped) |
 | `mirrorIgnore` | logos, `video`, `audio`, `code`, `pre` | Elements that legitimately keep their place in RTL |
 | `viewports` | `1280×800` and `390×844` | Viewports to check, or `'current'` |

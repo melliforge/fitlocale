@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { relative } from 'node:path';
-import type { Frame, Page, TestInfo } from '@playwright/test';
+import { dirname, relative, resolve } from 'node:path';
+import type { Frame, FullConfig, Page, TestInfo } from '@playwright/test';
 import { ensureInjected } from './inject';
 import type { FitlocaleOptions } from './options';
 import { flattenKeys, type Messages } from './pseudo';
@@ -25,12 +25,31 @@ type Api = { __fitlocale: FitlocaleBrowserApi };
 
 const knownKeysCache = new Map<string, string[]>();
 
-function knownKeys(path: string | undefined): string[] {
+/** Relative option paths resolve against the directory of the Playwright config, like Playwright's own. */
+export function configDirOf(config: Pick<FullConfig, 'configFile'>): string {
+  return config.configFile ? dirname(config.configFile) : process.cwd();
+}
+
+/** Dotted keys of the `sourceMessages` file, resolved against `baseDir`. */
+export function knownKeys(path: string | undefined, baseDir: string): string[] {
   if (!path) return [];
-  if (!knownKeysCache.has(path)) {
-    knownKeysCache.set(path, flattenKeys(JSON.parse(readFileSync(path, 'utf8')) as Messages));
+  const file = resolve(baseDir, path);
+  if (!knownKeysCache.has(file)) {
+    let text: string;
+    try {
+      text = readFileSync(file, 'utf8');
+    } catch (err) {
+      throw new Error(`fitlocale: cannot read sourceMessages file ${file} (${(err as NodeJS.ErrnoException).code ?? (err as Error).message})`, { cause: err });
+    }
+    let messages: Messages;
+    try {
+      messages = JSON.parse(text) as Messages;
+    } catch (err) {
+      throw new Error(`fitlocale: sourceMessages file ${file} is not valid JSON: ${(err as Error).message}`, { cause: err });
+    }
+    knownKeysCache.set(file, flattenKeys(messages));
   }
-  return knownKeysCache.get(path)!;
+  return knownKeysCache.get(file)!;
 }
 
 /** `de` matches `de`, `de-CH` and `DE`; `de-CH` matches `de`. */
@@ -86,7 +105,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
   const original = page.viewportSize()
     ?? await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
   const viewports: Viewport[] = options.viewports === 'current' ? [original] : options.viewports;
-  const keys = knownKeys(options.sourceMessages);
+  const keys = knownKeys(options.sourceMessages, configDirOf(testInfo.config));
   const issues: Issue[] = [];
   const screenshots: Screenshot[] = [];
 
