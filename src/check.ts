@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { relative } from 'node:path';
-import type { Page, TestInfo } from '@playwright/test';
+import type { Frame, Page, TestInfo } from '@playwright/test';
 import { ensureInjected } from './inject';
 import type { FitlocaleOptions } from './options';
 import { flattenKeys, type Messages } from './pseudo';
@@ -56,7 +56,31 @@ const settle = (page: Page) =>
     await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
   }, FONT_TIMEOUT_MS);
 
+const CONTEXT_DESTROYED = /Execution context was destroyed/;
+
+/** Run a check; a navigation part-way through gets one clear error instead of whatever call it broke. */
 export async function runLocaleCheck(ctx: CheckContext): Promise<CheckResult> {
+  const { page } = ctx;
+  let navigated = false;
+  const onNavigated = (frame: Frame) => { if (frame === page.mainFrame()) navigated = true; };
+  page.on('framenavigated', onNavigated);
+  try {
+    return await check(ctx);
+  } catch (err) {
+    if (navigated || CONTEXT_DESTROYED.test(String((err as Error)?.message))) {
+      throw new Error(
+        'fitlocale: the page navigated during localeCheck(). Wait until the page has settled '
+        + '(for example with await expect(locator).toBeVisible()) before calling it.',
+        { cause: err },
+      );
+    }
+    throw err;
+  } finally {
+    page.off('framenavigated', onNavigated);
+  }
+}
+
+async function check(ctx: CheckContext): Promise<CheckResult> {
   const { page, options, expectedLocale, testInfo, checkIndex } = ctx;
   const original = page.viewportSize();
   const viewports: Viewport[] = options.viewports === 'current'

@@ -157,3 +157,10 @@ test.describe('two viewports on an RTL page', () => {
     expect(list(result)).toEqual(['rtl/skipped-already-rtl html pseudo-rtl']);
   });
 });
+
+test('a navigation during the check gives a clear error', async ({ page, localeCheck }) => {
+  await page.route('http://fitlocale.test/**', route => route.fulfill({ contentType: 'text/html', body: `<p id=p>Hello</p>
+    <script>new MutationObserver(() => location.reload()).observe(document.body, { subtree: true, characterData: true });</script>` }));
+  await page.goto('http://fitlocale.test/');
+  await expect(localeCheck()).rejects.toThrow('fitlocale: the page navigated during localeCheck()');
+});
