@@ -205,3 +205,13 @@ test.describe('locale field after switching', () => {
     expect(result.issues.map(i => `${i.rule} ${i.locale}`)).toEqual(['leak/raw-key de']);
   });
 });
+
+test('deeply nested pages stay within budget', async ({ page, localeCheck }) => {
+  // 1,500 rows, 25 levels deep, with text at every level: about 39,000 text elements.
+  // This took over 20s before clip results were cached and text writes stopped updating live Ranges.
+  const row = (i: number) => '<div>x '.repeat(25) + `<span>Row ${i} label</span>` + '</div>'.repeat(25);
+  await page.setContent(Array.from({ length: 1500 }, (_, i) => row(i)).join(''));
+  const t0 = Date.now();
+  await localeCheck();
+  expect(Date.now() - t0).toBeLessThan(6000);
+});

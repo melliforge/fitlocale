@@ -1,5 +1,5 @@
 import { pseudoLong } from '../pseudo';
-import { ignoreSelector, isIgnored, isVisible } from './dom';
+import { ignoreSelector, isIgnored, isVisible, withLayoutCache } from './dom';
 
 let rewritten: Array<{ node: Text; original: string; written: string }> = [];
 let savedDir: string | null | undefined; // undefined = nothing saved
@@ -7,15 +7,22 @@ let savedDir: string | null | undefined; // undefined = nothing saved
 export function rewriteText(expansion: number, ignore: string[]): number {
   const ignoreSel = ignoreSelector(ignore);
   restoreText();
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  const visible = new Map<Element, boolean>();
-  for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+  // Measure everything first, then write: writing as we go would force a layout per text node.
+  const targets = withLayoutCache(() => {
+    const found: Text[] = [];
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const visible = new Map<Element, boolean>();
+    for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+      const parent = node.parentElement;
+      // Translation never lengthens numbers, prices or symbols, so text without letters stays as it is.
+      if (!parent || !/\p{L}/u.test(node.nodeValue ?? '') || isIgnored(parent, ignoreSel)) continue;
+      if (!visible.has(parent)) visible.set(parent, isVisible(parent));
+      if (visible.get(parent)) found.push(node);
+    }
+    return found;
+  });
+  for (const node of targets) {
     const original = node.nodeValue ?? '';
-    const parent = node.parentElement;
-    // Translation never lengthens numbers, prices or symbols, so text without letters stays as it is.
-    if (!parent || !/\p{L}/u.test(original) || isIgnored(parent, ignoreSel)) continue;
-    if (!visible.has(parent)) visible.set(parent, isVisible(parent));
-    if (!visible.get(parent)) continue;
     const written = pseudoLong(original, { expansion });
     node.nodeValue = written;
     rewritten.push({ node, original, written });

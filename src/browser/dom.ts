@@ -50,20 +50,48 @@ export function paddingRect(el: Element): Rect {
   return { left, top, right: left + el.clientWidth, bottom: top + el.clientHeight };
 }
 
+interface ClipState { x: Rect | null; y: Rect | null }
+
+const NO_CLIP: ClipState = { x: null, y: null };
+
+/** Clip state per ancestor, kept for the duration of one `withLayoutCache` pass. */
+let clipCache: Map<Element, ClipState> | null = null;
+
+/**
+ * Run `fn` with ancestor clip results cached. Only for passes that do not change layout:
+ * deep DOMs otherwise re-read every ancestor's computed style for every element.
+ */
+export function withLayoutCache<T>(fn: () => T): T {
+  if (clipCache) return fn();
+  clipCache = new Map();
+  try {
+    return fn();
+  } finally {
+    clipCache = null;
+  }
+}
+
+/** What `a` and its ancestors clip descendants of `a` to. */
+function clipFrom(a: Element | null): ClipState {
+  if (!a || a === document.documentElement) return NO_CLIP;
+  const cached = clipCache?.get(a);
+  if (cached) return cached;
+  const s = getComputedStyle(a);
+  const xClip = CLIPPING.has(s.overflowX), yClip = CLIPPING.has(s.overflowY);
+  const xEnds = xClip || SCROLLING.has(s.overflowX), yEnds = yClip || SCROLLING.has(s.overflowY);
+  const up = xEnds && yEnds ? NO_CLIP : clipFrom(a.parentElement);
+  const rect = xClip || yClip ? paddingRect(a) : null;
+  const state = { x: xEnds ? (xClip ? rect : null) : up.x, y: yEnds ? (yClip ? rect : null) : up.y };
+  clipCache?.set(a, state);
+  return state;
+}
+
 /**
  * Per axis, the padding box of the nearest ancestor that hides overflow on that axis.
  * A scroll container on an axis ends the search for that axis: its content can be scrolled into view.
  */
 export function clipRects(el: Element): { x: Rect | null; y: Rect | null } {
-  let x: Rect | null = null, y: Rect | null = null;
-  let xDone = false, yDone = false;
-  for (let a = el.parentElement; a && a !== document.documentElement && !(xDone && yDone); a = a.parentElement) {
-    const s = getComputedStyle(a);
-    if (!xDone && CLIPPING.has(s.overflowX)) { x = paddingRect(a); xDone = true; }
-    else if (!xDone && SCROLLING.has(s.overflowX)) xDone = true;
-    if (!yDone && CLIPPING.has(s.overflowY)) { y = paddingRect(a); yDone = true; }
-    else if (!yDone && SCROLLING.has(s.overflowY)) yDone = true;
-  }
+  const { x, y } = clipFrom(el.parentElement);
   return { x, y };
 }
 
@@ -98,7 +126,16 @@ let testIdAttribute = 'data-testid';
 export function assignKeys(testIdAttr = 'data-testid'): void {
   testIdAttribute = testIdAttr;
   keys = new WeakMap([[document.body, 'body']]);
-  for (const el of document.body.querySelectorAll('*')) keys.set(el, domPath(el));
+  // Same keys as domPath(), built from the parent's key instead of walking up from every element.
+  const visit = (parent: Element, path: string) => {
+    let index = 0;
+    for (const child of parent.children) {
+      const key = `${path}>${child.tagName.toLowerCase()}:nth-child(${++index})`;
+      keys.set(child, key);
+      visit(child, key);
+    }
+  };
+  visit(document.body, 'body');
 }
 
 export function keyOf(el: Element): string {

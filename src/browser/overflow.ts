@@ -8,11 +8,17 @@ const EPS = 1;
 const CLIPPING = new Set(['hidden', 'clip']);
 const INTERACTIVE = 'a[href], button, [role=button], input[type=button], input[type=submit], select';
 
+/**
+ * One shared Range: the browser updates every live Range on each text change, so a Range per
+ * text node makes rewriting and restoring text quadratic on large pages.
+ */
+let sharedRange: Range | null = null;
+
 /** Union of the client rects of an element's own text nodes, or null when it has none. */
 function textRect(el: Element): Rect | null {
   let rect: Rect | null = null;
+  const range = sharedRange ??= document.createRange();
   for (const node of directTextNodes(el)) {
-    const range = document.createRange();
     range.selectNodeContents(node);
     for (const r of range.getClientRects()) {
       if (r.width === 0 && r.height === 0) continue;
@@ -21,6 +27,7 @@ function textRect(el: Element): Rect | null {
         : { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
     }
   }
+  range.collapse(true);
   return rect;
 }
 

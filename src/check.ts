@@ -4,7 +4,6 @@ import type { Frame, FullConfig, Page, TestInfo } from '@playwright/test';
 import { ensureInjected } from './inject';
 import type { FitlocaleOptions } from './options';
 import { flattenKeys, type Messages } from './pseudo';
-import { findNotMirrored } from './rules/mirror';
 import { subtractSource } from './rules/noise';
 import {
   FIXES, LOCALE_NOT_REFLECTED_MESSAGE, MESSAGES, SEVERITY, type CheckResult, type Issue, type Mode, type RawIssue, type Screenshot, type Viewport,
@@ -182,15 +181,12 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
           }
           continue;
         }
-        const snapshot = () => page.evaluate(
-          ([ig, mi]) => (window as unknown as Api).__fitlocale.snapshotBoxes(ig, mi), [options.ignore, options.mirrorIgnore] as const);
+        const lists = [options.ignore, options.mirrorIgnore] as const;
         try {
-          const ltr = await snapshot();
+          await page.evaluate(([ig, mi]) => (window as unknown as Api).__fitlocale.rememberBoxes(ig, mi), lists);
           await page.evaluate(() => (window as unknown as Api).__fitlocale.setDir('rtl'));
           await settle(page);
-          const rtl = await snapshot();
-          const viewportWidth = await page.evaluate(() => document.documentElement.clientWidth);
-          const found = findNotMirrored(ltr, rtl, { viewportWidth });
+          const found = await page.evaluate(([ig, mi]) => (window as unknown as Api).__fitlocale.findNotMirrored(ig, mi), lists);
           if (found.length) await shoot('pseudo-rtl', viewport);
           issues.push(...enrich(found, 'pseudo-rtl', viewport));
         } finally {

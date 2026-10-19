@@ -25,7 +25,15 @@ export function findNotMirrored(ltr: BoxRecord[], rtl: BoxRecord[], opts: Mirror
     if (Math.abs(centerX(after.box) - centerX(before.box)) <= tol) flagged.push(after);
   }
 
+  // Report the outermost element only: a flagged ancestor's key is a `>`-prefix of its descendants'.
+  const flaggedKeys = new Set(flagged.map(r => r.key));
+  const hasFlaggedAncestor = (key: string) => {
+    for (let i = key.lastIndexOf('>'); i > 0; i = key.lastIndexOf('>', i - 1)) {
+      if (flaggedKeys.has(key.slice(0, i))) return true;
+    }
+    return false;
+  };
   return flagged
-    .filter(r => !flagged.some(other => r.key.startsWith(other.key + '>')))
+    .filter(r => !hasFlaggedAncestor(r.key))
     .map(r => ({ rule: 'rtl/not-mirrored', key: r.key, selector: r.selector, box: r.box, text: r.text }));
 }

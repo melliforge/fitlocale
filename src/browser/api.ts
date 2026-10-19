@@ -18,6 +18,13 @@ export interface FitlocaleBrowserApi {
   lang(): string;
   scanLeaks(ignore: string[], knownKeys: string[]): RawIssue[];
   snapshotBoxes(ignore: string[], mirrorIgnore: string[]): BoxRecord[];
+  /** Keep a `snapshotBoxes` result in the page, to compare against after switching direction. */
+  rememberBoxes(ignore: string[], mirrorIgnore: string[]): void;
+  /**
+   * Snapshot again and return elements that did not mirror since `rememberBoxes`.
+   * Runs in the page so that large snapshots never cross the wire.
+   */
+  findNotMirrored(ignore: string[], mirrorIgnore: string[]): RawIssue[];
   findOverflow(ignore: string[]): RawIssue[];
   documentSize(): { width: number; height: number };
 }

@@ -55,3 +55,8 @@ test('element that stays left-to-right after the switch is skipped', () => {
   const box = rec('body>a', 16, 100);
   expect(findNotMirrored([box], [box], { viewportWidth: W })).toEqual([]);
 });
+
+test('a flagged grandparent hides its grandchild, a sibling with a similar key does not', () => {
+  const boxes = [rec('body>a', 16, 100), rec('body>a>b>c', 20, 50), rec('body>ab>c', 16, 40)];
+  expect(run(boxes, boxes).map(i => i.key)).toEqual(['body>a', 'body>ab>c']);
+});
