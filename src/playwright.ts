@@ -9,6 +9,9 @@ export * from './locales';
 export type { FitlocaleOptions, SetLocale } from './options';
 export type { CheckResult, Issue } from './types';
 
+/** Pass to `defineConfig<FitlocaleTestOptions>()` so `use: { fitlocale }` type-checks in playwright.config.ts. */
+export interface FitlocaleTestOptions { fitlocale: Partial<FitlocaleOptions> }
+
 interface FitlocaleFixtures {
   /** Options, set with `test.use({ fitlocale: { ... } })` or in playwright.config `use`. */
   fitlocale: Partial<FitlocaleOptions>;

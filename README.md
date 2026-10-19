@@ -18,8 +18,9 @@ Requires Node 22+ and `@playwright/test` 1.45+.
 
 ```ts
 import { defineConfig } from '@playwright/test';
+import type { FitlocaleTestOptions } from 'fitlocale/playwright';
 
-export default defineConfig({
+export default defineConfig<FitlocaleTestOptions>({
   reporter: [['list'], ['fitlocale/reporter', { outputDir: 'fitlocale-report' }]],
   use: {
     fitlocale: { sourceMessages: 'locales/en.json' },

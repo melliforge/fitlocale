@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
+import type { FitlocaleTestOptions } from './src/playwright';
 
-export default defineConfig({
+export default defineConfig<FitlocaleTestOptions>({
   reporter: [['list'], ['./src/reporter.ts', { outputDir: 'test-results/fitlocale-report' }]],
   webServer: {
     command: 'node demo/serve.mjs',
@@ -9,7 +10,7 @@ export default defineConfig({
   },
   projects: [
     { name: 'unit', testDir: 'tests/unit' },
-    { name: 'browser', testDir: 'tests/browser', use: { fitlocale: { ignore: ['.config-ignored'] } } as object },
+    { name: 'browser', testDir: 'tests/browser', use: { fitlocale: { ignore: ['.config-ignored'] } } },
     {
       name: 'demo',
       testDir: 'tests/demo',
