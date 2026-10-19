@@ -11,6 +11,8 @@ export interface FitlocaleBrowserApi {
   assignKeys(testIdAttribute?: string): void;
   /** Rewrite visible text nodes into pseudo-long text. Returns the number of nodes rewritten. */
   rewriteText(expansion: number, ignore: string[]): number;
+  /** Rewrite visible text of a pseudo-locale page into an approximation of the source text. Undo with `restoreText()`. */
+  unpseudoText(ignore: string[]): number;
   restoreText(): void;
   /** `null` restores the original `dir` attribute (or removes it). */
   setDir(dir: 'rtl' | null): void;

@@ -114,6 +114,16 @@ export function pseudoLong(text: string, opts: PseudoOptions = {}): string {
   return `${lead}${MARK_START}${out} ${'~'.repeat(pad - 1)}${MARK_END}${trail}`;
 }
 
+const UNACCENT: Record<string, string> = Object.fromEntries(Object.entries(ACCENTS).map(([plain, accented]) => [accented, plain]));
+
+/** Undo `pseudoLong`, approximately: drop the markers and padding, and take the accents off. */
+export function unpseudo(text: string): string {
+  return text
+    .replace(/ ~*\u27E7/g, '')
+    .replace(/[\u27E6\u27E7]/g, '')
+    .replace(/[^\x00-\x7F]/g, ch => UNACCENT[ch] ?? ch);
+}
+
 /** Apply `pseudoLong` to every string in a (possibly nested) message file. */
 export function pseudoMessages(messages: Messages, opts?: PseudoOptions): Messages {
   const result: Messages = {};

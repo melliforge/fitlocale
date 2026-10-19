@@ -1,6 +1,6 @@
 import type { FitlocaleBrowserApi } from './api';
 import { assignKeys, withLayoutCache } from './dom';
-import { documentDir, restoreText, rewriteText, setDir } from './rewrite';
+import { documentDir, restoreText, rewriteText, setDir, unpseudoText } from './rewrite';
 import { scanLeaks, snapshotBoxes } from './boxes';
 import { findOverflow } from './overflow';
 import { collectTextBlocks } from './blocks';
@@ -13,6 +13,7 @@ const api: FitlocaleBrowserApi = {
   version: '0.1.0',
   assignKeys,
   rewriteText,
+  unpseudoText,
   restoreText,
   setDir,
   documentDir,
