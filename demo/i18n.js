@@ -13,6 +13,11 @@
     el.textContent = typeof value === 'string' ? value : el.dataset.i18n;
   }
 
+  for (const el of document.querySelectorAll('[data-i18n-html]')) {
+    const value = lookup(el.dataset.i18nHtml);
+    if (typeof value === 'string') el.innerHTML = value;
+  }
+
   const price = document.getElementById('price');
   // Planted bug: the product price was never loaded.
   if (price) price.textContent = lookup('pricing.label') + ' ' + (window.product && window.product.price);

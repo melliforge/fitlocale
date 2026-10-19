@@ -37,6 +37,37 @@ test('locale reset across navigation is caught', async ({ page, localeCheck, use
   expect(list(result)).toEqual(['locale/persistence html']);
 });
 
+test('pseudo locale en-XA: hardcoded and concatenated text, real overflow', async ({ page, localeCheck, useLocale }) => {
+  await page.goto('/');
+  await useLocale('en-XA');
+  await expect(page.locator('html')).toHaveAttribute('data-ready', '1');
+  const result = await localeCheck();
+  expect(list(result)).toEqual([
+    'i18n/concatenated #cart-summary',
+    'i18n/hardcoded #shipping-note',
+    'leak/bad-value #price',
+    'leak/placeholder #inbox-count',
+    'leak/raw-key #welcome',
+    'overflow/clipped #save-btn',
+    'overflow/escapes-box #tab-billing',
+    'overflow/overlap #btn-delete',
+    'rtl/not-mirrored #promo-badge',
+  ]);
+});
+
+test('German: text left in English is found', async ({ page, localeCheck, useLocale }) => {
+  await page.goto('/');
+  await useLocale('de');
+  await expect(page.locator('html')).toHaveAttribute('data-ready', '1');
+  const result = await localeCheck();
+  expect(list(result)).toEqual([
+    'i18n/untranslated #help-line',
+    'leak/bad-value #price',
+    'leak/placeholder #inbox-count',
+    'leak/raw-key #welcome',
+  ]);
+});
+
 test.describe('failing on errors', () => {
   test.use({ fitlocale: { viewports: 'current', failOn: 'error' } });
 

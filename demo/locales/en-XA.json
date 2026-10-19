@@ -1,0 +1,36 @@
+{
+  "brand": "⟦Fîtšhöp ~~⟧",
+  "promo": "⟦Ñéw ~⟧",
+  "nav": {
+    "home": "⟦Hömé ~⟧",
+    "shop": "⟦Šhöp ~⟧",
+    "help": "⟦Hélp ~⟧"
+  },
+  "title": "⟦Ýöür áççöüñt šéttîñgš áñd évérýthîñg áböüt ýöür šübšçrîptîöñ ~~~~~~~~~~~~~~~~~~~~~~~⟧",
+  "inbox": {
+    "count": "⟦Ýöü hávé {count} méššágéš ~~~~~~~⟧"
+  },
+  "pricing": {
+    "label": "⟦Prîçé: ~~⟧"
+  },
+  "tabs": {
+    "billing": "⟦Bîllîñg détáîlš ~~~~~⟧"
+  },
+  "actions": {
+    "delete": "⟦Délété ~~⟧",
+    "archive": "⟦Årçhîvé ~~⟧",
+    "save": "⟦Šávé çháñgéš ~~~~⟧",
+    "ok": "⟦ÖK ~⟧",
+    "next": "⟦Ñéxt págé ~~~⟧"
+  },
+  "page2": {
+    "title": "⟦Ördér hîštörý ~~~~~⟧"
+  },
+  "cart": {
+    "saved": "⟦Ýöü šávéd ~~~⟧",
+    "order": "⟦öñ thîš ördér ~~~~~⟧"
+  },
+  "help": {
+    "line": "⟦Réád thé <a href=\"#\">hélp çéñtér</a> fîršt ~~~~~~~~~~⟧"
+  }
+}

@@ -7,5 +7,7 @@
   "pricing": { "label": "Price:" },
   "tabs": { "billing": "Billing details" },
   "actions": { "delete": "Delete", "archive": "Archive", "save": "Save changes", "ok": "OK", "next": "Next page" },
-  "page2": { "title": "Order history" }
+  "page2": { "title": "Order history" },
+  "cart": { "saved": "You saved", "order": "on this order" },
+  "help": { "line": "Read the <a href=\"#\">help center</a> first" }
 }
