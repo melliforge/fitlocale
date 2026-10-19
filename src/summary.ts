@@ -27,9 +27,11 @@ export function renderSummary(results: RunResults, opts: { maxRows: number; resu
   lines.push(rows.length
     ? `**${plural(count('error'), 'new error', 'new errors')}**, ${plural(count('warning'), 'new warning', 'new warnings')}, ${count('info')} new info${acceptedNote}`
     : `**No new issues.**${acceptedNote}`);
-  if (results.checks.some(c => c.baseline?.status === 'missing')) {
-    const path = opts.resultsPath ?? '<path to results.json>';
-    lines.push('', `> No baseline file yet, so no test failed. Accept these issues with \`npx fitlocale baseline ${path}\` and commit the file.`);
+  const missing = results.checks.find(c => c.baseline?.status === 'missing')?.baseline;
+  if (missing) {
+    // --out: the tests look for the file relative to playwright.config, not where this command runs.
+    const command = `npx fitlocale baseline ${opts.resultsPath ?? '<path to results.json>'} --out ${missing.path}`;
+    lines.push('', `> No baseline file yet, so no test failed. Accept these issues with \`${command}\` and commit the file.`);
   }
   if (rows.length) {
     lines.push('', '| Severity | Rule | Element | Test | Locale | Mode | Viewport |', '|---|---|---|---|---|---|---|');

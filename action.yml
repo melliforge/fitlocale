@@ -48,6 +48,8 @@ runs:
 
     - name: Upload the fitlocale report
       uses: actions/upload-artifact@v7
+      # A second artifact with the same name in one run (matrix, shards) is an error: never fail the job for it.
+      continue-on-error: true
       with:
         name: ${{ inputs.artifact-name }}
         path: ${{ inputs.report-dir }}

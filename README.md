@@ -154,7 +154,7 @@ Most apps already have some of these issues. So fitlocale fails only on new ones
 
 3. From then on, only issues missing from the baseline fail. Accepted ones still show in the report, marked "accepted".
 
-Run the command again after fixing issues, to drop them from the file. With sharded runs, pass every shard's `results.json`.
+Run the command again after fixing issues, to drop them from the file. With sharded runs, pass every shard's `results.json`. The baseline file is looked up next to `playwright.config`: if you run the command from another folder, pass `--out` with the path the run's notice prints.
 
 Each issue is identified by its test, the check's position in that test, the rule, the mode, the locale, the viewport and the element's selector. Its text and the URL are not part of it. Give key elements a test id, so their selector survives markup changes. Set `baseline: false` to fail on every issue instead.
 
@@ -185,7 +185,7 @@ jobs:
 | `max-rows` | `50` | Most issues listed in the job summary |
 | `fitlocale-command` | your `node_modules/.bin/fitlocale` | Command that runs the fitlocale CLI |
 
-The step never fails the job. Your test step already did, if there were new issues.
+The step never fails the job. Your test step already did, if there were new issues. In a matrix or with shards, give each job its own `artifact-name` (for example `fitlocale-report-${{ matrix.shardIndex }}`): an artifact name can be used once per workflow run.
 
 ## CLI
 

@@ -30,6 +30,16 @@ test('without a baseline file nothing fails, and issues get ids', async ({ page,
   for (const i of result.issues) expect(i.id).toMatch(/^[0-9a-f]{16}$/);
 });
 
+test('a missing baseline is visible on the test, not only in the reporter', async ({ page, localeCheck }, testInfo) => {
+  rmSync(BASE, { force: true });
+  await page.setContent(TWO);
+  await localeCheck();
+  await localeCheck();
+  const notes = testInfo.annotations.filter(a => a.type === 'fitlocale');
+  expect(notes).toHaveLength(1);
+  expect(notes[0].description).toMatch(/^No baseline file yet \(.*fitlocale-baseline-\d+\.json\): issues are reported but do not fail tests\./);
+});
+
 test('every issue accepted: nothing fails', async ({ page, localeCheck }, testInfo) => {
   accept([idFor(testInfo, '#s'), idFor(testInfo, '#t')]);
   await page.setContent(TWO);

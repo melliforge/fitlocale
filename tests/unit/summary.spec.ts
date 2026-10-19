@@ -17,7 +17,7 @@ test('counts new issues and accepted ones', () => {
 test('the missing-baseline note appears only when the baseline file is missing', () => {
   const missing = renderSummary(makeRun([makeCheck({ baseline: { status: 'missing', path: 'fitlocale-baseline.json' } })]),
     { maxRows: 50, resultsPath: 'fitlocale-report/results.json' });
-  expect(missing).toContain('> No baseline file yet, so no test failed. Accept these issues with `npx fitlocale baseline fitlocale-report/results.json`');
+  expect(missing).toContain('> No baseline file yet, so no test failed. Accept these issues with `npx fitlocale baseline fitlocale-report/results.json --out fitlocale-baseline.json`');
   const applied = renderSummary(makeRun([makeCheck({ baseline: { status: 'applied', path: 'fitlocale-baseline.json' } })]), { maxRows: 50 });
   expect(applied).not.toContain('No baseline file yet');
 });
@@ -49,4 +49,10 @@ test('no issues: one line, no table', () => {
   const md = renderSummary(makeRun([makeCheck({ issues: [] })]), { maxRows: 50 });
   expect(md).toContain('**No new issues.**');
   expect(md).not.toContain('| Severity');
+});
+
+test('the missing-baseline command writes the file where the tests look for it', () => {
+  const md = renderSummary(makeRun([makeCheck({ baseline: { status: 'missing', path: 'e2e/fitlocale-baseline.json' } })]),
+    { maxRows: 50, resultsPath: 'fitlocale-report/results.json' });
+  expect(md).toContain('`npx fitlocale baseline fitlocale-report/results.json --out e2e/fitlocale-baseline.json`');
 });

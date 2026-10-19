@@ -10,6 +10,8 @@ test('the GitHub Action summarises and uploads the report', () => {
   expect(action).toContain('actions/upload-artifact@v7');
   expect(action).toContain('>> "$GITHUB_STEP_SUMMARY"');
   expect(action).toContain('if-no-files-found: ignore');
+  // A second artifact with the same name (matrix, shards) is a 409 error: the upload must not fail the job.
+  expect(action).toMatch(/upload-artifact@v7\n(\s+#.*\n)?\s+continue-on-error: true/);
 });
 
 test('action inputs reach scripts through env, never inline', () => {
