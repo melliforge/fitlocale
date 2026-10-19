@@ -2,6 +2,7 @@ import type { FitlocaleBrowserApi } from './api';
 import { assignKeys } from './dom';
 import { documentDir, restoreText, rewriteText, setDir } from './rewrite';
 import { scanLeaks, snapshotBoxes } from './boxes';
+import { findOverflow } from './overflow';
 
 const api: FitlocaleBrowserApi = {
   version: '0.1.0',
@@ -13,7 +14,7 @@ const api: FitlocaleBrowserApi = {
   lang: () => document.documentElement.lang,
   scanLeaks,
   snapshotBoxes,
-  findOverflow: () => [],
+  findOverflow,
   documentSize: () => ({
     width: document.documentElement.scrollWidth,
     height: document.documentElement.scrollHeight,

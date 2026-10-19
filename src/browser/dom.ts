@@ -38,10 +38,21 @@ export function isIgnored(el: Element, selector: string): boolean {
   return selector !== '' && el.closest(selector) !== null;
 }
 
+/** Rendered, non-transparent, non-empty, and not entirely cut away by an ancestor that hides overflow. */
 export function isVisible(el: Element): boolean {
   if (!el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return false;
   const r = el.getBoundingClientRect();
-  return r.width > 0 && r.height > 0;
+  if (r.width <= 0 || r.height <= 0) return false;
+  for (let a = el.parentElement; a && a !== document.documentElement; a = a.parentElement) {
+    const s = getComputedStyle(a);
+    if (!/hidden|clip/.test(s.overflowX + s.overflowY)) continue;
+    const ar = a.getBoundingClientRect();
+    const left = ar.left + a.clientLeft, top = ar.top + a.clientTop;
+    const w = Math.min(r.right, left + a.clientWidth) - Math.max(r.left, left);
+    const h = Math.min(r.bottom, top + a.clientHeight) - Math.max(r.top, top);
+    if (w <= 0 || h <= 0) return false;
+  }
+  return true;
 }
 
 export function domPath(el: Element): string {
