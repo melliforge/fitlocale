@@ -106,7 +106,7 @@ Arabic also needs more height than Latin text for its accent marks. `rtl/clipped
 
 ## In CI
 
-The first run reports issues without failing, because there is no baseline yet. Accept the current issues with `npx fitlocale baseline fitlocale-report/results.json`, commit the file, and from then on only new issues fail. Right-to-left rules are warnings, so set `failOn: 'warning'` to fail the build on them.
+The first run reports issues without failing, because there is no baseline yet. Accept the current issues with `npx fitlocale baseline fitlocale-report/results.json`, commit the file, and from then on only new issues fail. Most right-to-left rules are warnings, so set `failOn: 'warning'` to fail the build on them; `rtl/missing-dir` is an error and fails it already.
 
 The [GitHub Action](/reference/github-action) adds a table of new issues to each run's summary.
 

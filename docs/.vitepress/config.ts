@@ -27,6 +27,8 @@ export default defineConfig({
       ['meta', { property: 'og:title', content: title }],
       ['meta', { property: 'og:description', content: description }],
       ['meta', { property: 'og:url', content: SITE + page.relativePath.replace(/(index)?\.md$/, '') }],
+      // One URL per page: GitHub Pages also serves /page.html beside the clean /page.
+      ['link', { rel: 'canonical', href: SITE + page.relativePath.replace(/(index)?\.md$/, '') }],
     );
   },
   themeConfig: {

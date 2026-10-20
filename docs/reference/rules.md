@@ -70,7 +70,7 @@ A link, button or input overlaps a neighbouring control, so one of them is hard 
 
 **Severity:** error · **Modes:** `source`
 
-A translation key is shown instead of translated text: a dotted key path such as `dashboard.welcome.title`, or any key from your `sourceMessages`.
+A translation key is shown instead of translated text: an element whose whole text is a dotted key of three or more parts, such as `dashboard.welcome.title`, or any key from your `sourceMessages` (so set it to catch short keys like `nav.home`).
 
 ```html
 <p>dashboard.welcome.title</p>
@@ -94,7 +94,7 @@ A placeholder was shown without being filled in: `{count}`, `{{name}}`, `%s`, `%
 
 **Severity:** error · **Modes:** `source`
 
-A broken value is shown to users: `undefined`, `NaN`, `null` or `[object Object]`.
+A broken value is shown to users: `undefined`, `NaN` or `[object Object]` anywhere in the text, or `null` as the whole text ("Price: null" alone is not reported, because "null" is also a word).
 
 ```html
 <span>Price: undefined</span>
@@ -140,7 +140,7 @@ One sentence is built from several separately translated pieces, which breaks wo
 
 ### `i18n/untranslated`
 
-**Severity:** warning · **Modes:** `source`, in a real locale with `sourceMessages` set
+**Severity:** warning · **Modes:** `source`, in a locale switched with `useLocale()`, with `sourceMessages` set
 
 Text is identical to a source-language message (of at least two words), so it was probably left untranslated.
 
