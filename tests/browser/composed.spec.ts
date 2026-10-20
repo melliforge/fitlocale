@@ -260,8 +260,8 @@ test('a slotted button inside a clickable shadow card is not an overlap', async 
 });
 
 test('the overlap pass does not walk up the tree for every pair of controls', async ({ page }) => {
-  // Machines differ too much for a time budget: compare the same links flat and nested 20 levels deep.
-  // Only a per-pair walk up the tree grows with depth (it made the pass ~3x slower); the rest is linear.
+  // Machines differ too much for a time budget: compare the same links flat and nested 20 levels deep, with as many
+  // elements in both. Only a per-pair walk up the tree grows with depth (it made the pass ~3x slower).
   const links = Array.from({ length: 2000 }, (_, i) => `<a href=#>Link ${i}</a>`);
   const time = async (html: string) => {
     await load(page, html);
@@ -275,7 +275,8 @@ test('the overlap pass does not walk up the tree for every pair of controls', as
     }
     return best;
   };
-  const flat = await time(links.join(' '));
+  // The same number of elements in both: 20 empty spans beside each link, or around it.
+  const flat = await time(links.map(a => `${'<span></span>'.repeat(20)}${a}`).join(' '));
   const deep = await time(links.map(a => `${'<span>'.repeat(20)}${a}${'</span>'.repeat(20)}`).join(' '));
   expect(deep / flat, `flat ${flat.toFixed(0)} ms, deep ${deep.toFixed(0)} ms`).toBeLessThan(2);
 });
