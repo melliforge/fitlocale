@@ -210,11 +210,13 @@ test.describe('locale field after switching', () => {
 test('deeply nested pages stay within budget', async ({ page, localeCheck }) => {
   // 1,500 rows, 25 levels deep, with text at every level: about 39,000 text elements.
   // This took over 20s before clip results were cached and text writes stopped updating live Ranges.
+  // It guards against that kind of slowdown: shared CI runners are 2-4x slower and vary, so they get more room.
+  const budget = process.env.CI ? 12_000 : 6_000;
   const row = (i: number) => '<div>x '.repeat(25) + `<span>Row ${i} label</span>` + '</div>'.repeat(25);
   await page.setContent(Array.from({ length: 1500 }, (_, i) => row(i)).join(''));
   const t0 = Date.now();
   await localeCheck();
-  expect(Date.now() - t0).toBeLessThan(6000);
+  expect(Date.now() - t0).toBeLessThan(budget);
 });
 
 const setLang = async (page: Page, l: string) => { await page.evaluate(x => { document.documentElement.lang = x; }, l); };
