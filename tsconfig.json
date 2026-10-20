@@ -11,5 +11,5 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["src", "tests", "playwright.config.ts", "tsdown.config.ts"]
+  "include": ["src", "tests", "examples", "playwright.config.ts", "tsdown.config.ts", "docs/.vitepress/config.ts"]
 }

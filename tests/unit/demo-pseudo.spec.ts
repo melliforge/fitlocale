@@ -8,3 +8,7 @@ const read = (path: string) => JSON.parse(readFileSync(path, 'utf8')) as Message
 test('demo en-XA.json is the pseudo version of en.json', () => {
   expect(read('demo/locales/en-XA.json')).toEqual(pseudoMessages(read('demo/locales/en.json')));
 });
+
+test('the i18next example en-XA.json is the pseudo version of its en.json', () => {
+  expect(read('examples/i18next/locales/en-XA.json')).toEqual(pseudoMessages(read('examples/i18next/locales/en.json')));
+});
