@@ -3,14 +3,14 @@ import type { BoxRecord } from '../rules/mirror';
 import { findLeaksInText } from '../rules/leaks';
 import { hasRtlLetters } from '../rules/bidi';
 import {
-  clip, directText, docBox, ignoreSelector, isIgnored, isVisible, keyOf, optionalSelector, selectorOf,
+  clip, composedElements, directText, docBox, ignoreSelector, isIgnored, isVisible, keyOf, optionalSelector, selectorOf,
 } from './dom';
 
 const BOXED_TAGS = new Set(['img', 'svg', 'button', 'input', 'select']);
 
 /** Visible, non-ignored elements that carry their own text. */
 function textElements(ignoreSel: string): Element[] {
-  return Array.from(document.body.querySelectorAll('*'))
+  return composedElements()
     .filter(el => directText(el) !== '' && !isIgnored(el, ignoreSel) && isVisible(el));
 }
 

@@ -38,7 +38,123 @@ export function optionalSelector(user: string[]): string {
 }
 
 export function isIgnored(el: Element, selector: string): boolean {
-  return selector !== '' && el.closest(selector) !== null;
+  return selector !== '' && composedClosest(el, selector) !== null;
+}
+
+const isShadowRoot = (node: Node): node is ShadowRoot => node.nodeType === Node.DOCUMENT_FRAGMENT_NODE && 'host' in node;
+
+/** The `<iframe>` showing `doc`, or null for the page itself. */
+const frameElementOf = (doc: Document): Element | null => doc.defaultView?.frameElement ?? null;
+
+/** The document of a visible, same-origin iframe that has loaded, or null (closed to us, hidden, or not a frame). */
+function frameDocument(el: Element): Document | null {
+  if (el.localName !== 'iframe') return null;
+  let doc: Document | null;
+  try {
+    doc = (el as HTMLIFrameElement).contentDocument;
+  } catch {
+    return null;
+  }
+  if (!doc?.body || !el.checkVisibility()) return null;
+  return doc;
+}
+
+/** Was an open shadow root or a readable frame met by the last assignKeys()? Selectors then need checking in Playwright. */
+let composedSeen = false;
+export const hasComposed = () => composedSeen;
+
+/**
+ * Every element under the page's <body>, in order: an element, then its open shadow root's tree, then (for a
+ * same-origin iframe) its document's <body> tree, then its own children. Slotted children are visited once, as children.
+ */
+export function composedElements(): Element[] {
+  const out: Element[] = [];
+  composedWalk(el => out.push(el), () => {});
+  return out;
+}
+
+/** The text nodes whose text passes `select`, in the order of composedElements(), including text directly in a shadow root. */
+export function composedTextNodes(select: (text: string) => boolean): Text[] {
+  const out: Text[] = [];
+  composedWalk(() => {}, text => { if (select(text.nodeValue ?? '')) out.push(text); });
+  return out;
+}
+
+function composedWalk(onElement: (el: Element) => void, onText: (text: Text) => void): void {
+  // An explicit stack: deep pages would overflow a recursive walk.
+  const stack: Node[] = Array.from(document.body.childNodes).reverse();
+  while (stack.length) {
+    const node = stack.pop()!;
+    if (node.nodeType === Node.TEXT_NODE) {
+      onText(node as Text);
+      continue;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) continue;
+    const el = node as Element;
+    onElement(el);
+    const next: Node[] = [];
+    if (el.shadowRoot) next.push(...el.shadowRoot.childNodes);
+    const doc = frameDocument(el);
+    if (doc) next.push(...doc.body.childNodes);
+    next.push(...el.childNodes);
+    for (let i = next.length - 1; i >= 0; i--) stack.push(next[i]);
+  }
+}
+
+/** The parent in the composed tree: the host above a shadow root, the <iframe> above a frame's <html>. */
+export function composedParent(el: Element): Element | null {
+  const p = el.parentNode;
+  if (!p) return null;
+  if (p.nodeType === Node.ELEMENT_NODE) return p as Element;
+  if (isShadowRoot(p)) return p.host;
+  if (p.nodeType === Node.DOCUMENT_NODE) return frameElementOf(p as Document);
+  return null;
+}
+
+/** The parent element within the same document: crosses shadow roots, not frames. */
+function parentInDocument(el: Element): Element | null {
+  const p = el.parentNode;
+  if (p && p.nodeType === Node.ELEMENT_NODE) return p as Element;
+  return p && isShadowRoot(p) ? p.host : null;
+}
+
+/** `closest()` that continues past shadow roots to their hosts, and past frames to their <iframe>. */
+export function composedClosest(el: Element, selector: string): Element | null {
+  for (let node: Element | null = el; node;) {
+    const hit = node.closest(selector);
+    if (hit) return hit;
+    const root = node.getRootNode();
+    node = isShadowRoot(root) ? root.host : frameElementOf(root as Document);
+  }
+  return null;
+}
+
+/** The closest `lang`: shadow content takes its host's, a frame document has its own. */
+export function langOf(el: Element): string {
+  for (let node: Element | null = el; node;) {
+    const hit = node.closest('[lang]');
+    if (hit) return hit.getAttribute('lang') ?? '';
+    const root = node.getRootNode();
+    node = isShadowRoot(root) ? root.host : null;
+  }
+  return '';
+}
+
+/** `instanceof HTMLElement` that also holds for elements of a frame (another window). */
+export const isHTML = (el: Element): el is HTMLElement => el.namespaceURI === 'http://www.w3.org/1999/xhtml';
+
+export const sameDocument = (a: Element, b: Element) => a.ownerDocument === b.ownerDocument;
+
+/** Where a frame document's viewport sits in the page's viewport: the content boxes of its enclosing <iframe>s. */
+export function frameOffset(doc: Document): { x: number; y: number } {
+  let x = 0, y = 0;
+  for (let frame = frameElementOf(doc); frame; frame = frameElementOf(frame.ownerDocument)) {
+    const r = frame.getBoundingClientRect();
+    const s = getComputedStyle(frame);
+    x += r.left + frame.clientLeft + (parseFloat(s.paddingLeft) || 0);
+    y += r.top + frame.clientTop + (parseFloat(s.paddingTop) || 0);
+  }
+  return { x, y };
 }
 
 export interface Rect { left: number; top: number; right: number; bottom: number }
@@ -77,13 +193,14 @@ export function withLayoutCache<T>(fn: () => T): T {
 
 /** What `a` and its ancestors clip descendants of `a` to. */
 function clipFrom(a: Element | null): ClipState {
-  if (!a || a === document.documentElement) return NO_CLIP;
+  // A frame boundary ends the search: frame content scrolls.
+  if (!a || a === a.ownerDocument.documentElement) return NO_CLIP;
   const cached = clipCache?.get(a);
   if (cached) return cached;
   const s = getComputedStyle(a);
   const xClip = CLIPPING.has(s.overflowX), yClip = CLIPPING.has(s.overflowY);
   const xEnds = xClip || SCROLLING.has(s.overflowX), yEnds = yClip || SCROLLING.has(s.overflowY);
-  const up = xEnds && yEnds ? NO_CLIP : clipFrom(a.parentElement);
+  const up = xEnds && yEnds ? NO_CLIP : clipFrom(parentInDocument(a));
   const rect = xClip || yClip ? paddingRect(a) : null;
   const state = { x: xEnds ? (xClip ? rect : null) : up.x, y: yEnds ? (yClip ? rect : null) : up.y };
   clipCache?.set(a, state);
@@ -95,7 +212,7 @@ function clipFrom(a: Element | null): ClipState {
  * A scroll container on an axis ends the search for that axis: its content can be scrolled into view.
  */
 export function clipRects(el: Element): { x: Rect | null; y: Rect | null } {
-  const { x, y } = clipFrom(el.parentElement);
+  const { x, y } = clipFrom(parentInDocument(el));
   return { x, y };
 }
 
@@ -110,39 +227,74 @@ export function isVisible(el: Element): boolean {
   return true;
 }
 
-export function domPath(el: Element): string {
+/** The path of `el` within its tree (a document's <body> or a shadow root). */
+function localPath(el: Element): string {
   const parts: string[] = [];
-  let node: Element | null = el;
-  while (node && node !== document.body && node !== document.documentElement) {
-    const parent: Element | null = node.parentElement;
-    const index = parent ? Array.prototype.indexOf.call(parent.children, node) + 1 : 1;
-    parts.unshift(`${node.tagName.toLowerCase()}:nth-child(${index})`);
-    node = parent;
+  let node: Element = el;
+  for (;;) {
+    const parent = node.parentNode;
+    const doc = node.ownerDocument;
+    if (node === doc.body || node === doc.documentElement) {
+      parts.unshift(node === doc.documentElement ? 'html' : 'body');
+      break;
+    }
+    const siblings = parent ? (parent as ParentNode).children : null;
+    parts.unshift(`${node.tagName.toLowerCase()}:nth-child(${siblings ? Array.prototype.indexOf.call(siblings, node) + 1 : 1})`);
+    if (!parent || parent.nodeType !== Node.ELEMENT_NODE) {
+      if (parent && isShadowRoot(parent)) parts.unshift(':scope');
+      break;
+    }
+    node = parent as Element;
   }
-  parts.unshift(node === document.documentElement ? 'html' : 'body');
   return parts.join('>');
+}
+
+/** A Playwright selector chain to `el`: `host >> :scope>path` into a shadow root, `iframe >> internal:control=enter-frame >> body>path` into a frame. */
+export function domPath(el: Element): string {
+  const path = localPath(el);
+  const root = el.getRootNode();
+  if (isShadowRoot(root)) return `${keyOf(root.host)} >> ${path}`;
+  const frame = frameElementOf(root as Document);
+  return frame ? `${keyOf(frame)} >> internal:control=enter-frame >> ${path}` : path;
 }
 
 /** Keys live outside the DOM, so the page is left exactly as it was. */
 let keys = new WeakMap<Element, string>();
 let testIdAttribute = 'data-testid';
-/** How many elements carry each test id, counted once per assignKeys(): selectorOf() runs for every text element. */
-let testIdCounts: Map<string, number> | null = null;
+/** Per document (a frame's, with its shadow roots): how many elements carry each test id and each id, counted once per assignKeys(). */
+let testIdCounts: Map<Document, Map<string, number>> | null = null;
+let idCounts: Map<Document, Map<string, number>> | null = null;
+
+const count = (counts: Map<Document, Map<string, number>>, doc: Document, value: string) => {
+  const perDoc = counts.get(doc) ?? counts.set(doc, new Map()).get(doc)!;
+  perDoc.set(value, (perDoc.get(value) ?? 0) + 1);
+};
 
 export function assignKeys(testIdAttr = 'data-testid'): void {
   testIdAttribute = testIdAttr;
   keys = new WeakMap([[document.body, 'body']]);
   testIdCounts = new Map();
-  for (const el of document.querySelectorAll(`[${CSS.escape(testIdAttr)}]`)) {
-    const value = el.getAttribute(testIdAttr)!;
-    testIdCounts.set(value, (testIdCounts.get(value) ?? 0) + 1);
-  }
+  idCounts = new Map();
+  composedSeen = false;
   // Same keys as domPath(), built from the parent's key instead of walking up from every element.
-  const visit = (parent: Element, path: string) => {
+  const visit = (parent: ParentNode, path: string) => {
     let index = 0;
     for (const child of parent.children) {
       const key = `${path}>${child.tagName.toLowerCase()}:nth-child(${++index})`;
       keys.set(child, key);
+      const testId = child.getAttribute(testIdAttr);
+      if (testId) count(testIdCounts!, child.ownerDocument, testId);
+      if (child.id) count(idCounts!, child.ownerDocument, child.id);
+      if (child.shadowRoot) {
+        composedSeen = true;
+        visit(child.shadowRoot, `${key} >> :scope`);
+      }
+      const doc = frameDocument(child);
+      if (doc) {
+        composedSeen = true;
+        keys.set(doc.body, `${key} >> internal:control=enter-frame >> body`);
+        visit(doc.body, `${key} >> internal:control=enter-frame >> body`);
+      }
       visit(child, key);
     }
   };
@@ -156,17 +308,20 @@ export function keyOf(el: Element): string {
 /** A CSS string literal (double-quoted) for `value`. */
 const cssString = (value: string) => `"${value.replace(/["\\]/g, '\\$&').replace(/\n/g, '\\a ')}"`;
 
-/** A readable selector: the test id (Playwright's `testIdAttribute`), a unique id, else the DOM path. */
+/** A readable selector: the test id (Playwright's `testIdAttribute`), a unique id, else the DOM path. Inside a frame, prefixed with the frame's. */
 export function selectorOf(el: Element): string {
+  const doc = el.ownerDocument;
+  const frame = frameElementOf(doc);
+  const prefix = frame ? `${selectorOf(frame)} >> internal:control=enter-frame >> ` : '';
   const testId = el.getAttribute(testIdAttribute);
   if (testId) {
     const selector = `[${CSS.escape(testIdAttribute)}=${cssString(testId)}]`;
     // A test id shared by repeated components names none of them: use the DOM path, as for a non-unique id.
-    const count = testIdCounts?.get(testId) ?? document.querySelectorAll(selector).length;
-    if (count === 1) return selector;
+    const n = testIdCounts?.get(doc)?.get(testId) ?? doc.querySelectorAll(selector).length;
+    if (n === 1) return prefix + selector;
   }
   const id = el.id && `#${CSS.escape(el.id)}`;
-  if (id && document.querySelectorAll(id).length === 1) return id;
+  if (id && (idCounts?.get(doc)?.get(el.id) ?? doc.querySelectorAll(id).length) === 1) return prefix + id;
   return keyOf(el);
 }
 
@@ -185,5 +340,6 @@ export function clip(text: string): string {
 /** Bounding box in document coordinates. */
 export function docBox(el: Element): Box {
   const r = el.getBoundingClientRect();
-  return { x: r.left + window.scrollX, y: r.top + window.scrollY, width: r.width, height: r.height };
+  const offset = frameOffset(el.ownerDocument);
+  return { x: r.left + offset.x + window.scrollX, y: r.top + offset.y + window.scrollY, width: r.width, height: r.height };
 }

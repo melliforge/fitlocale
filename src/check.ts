@@ -10,6 +10,7 @@ import { openDevtools, type Devtools } from './devtools/session';
 import { attachCssSources } from './devtools/css-pointer';
 import { findFontFallback } from './devtools/fonts';
 import { subtractSource } from './rules/noise';
+import { resolveSelectors } from './selectors';
 import { findUntranslated, sourceMatcher, type SourceMatcher } from './rules/untranslated';
 import {
   FIXES, LOCALE_NOT_REFLECTED_MESSAGE, MESSAGES, SEVERITY, type CheckResult, type Issue, type Mode, type RawIssue, type Screenshot, type Viewport,
@@ -332,6 +333,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
     if (options.viewports !== 'current') await page.setViewportSize(original);
     if (devtools) await devtools.close();
   }
+  await resolveSelectors(page, issues);
 
   return {
     testTitle: testInfo.title,
