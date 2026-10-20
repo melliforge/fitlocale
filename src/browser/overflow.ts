@@ -1,6 +1,7 @@
 import type { RawIssue, RuleId } from '../types';
 import {
-  clip, clipRects, directText, directTextNodes, docBox, ignoreSelector, isVisible, keyOf, selectorOf, type Rect,
+  clip, clipRects, composedContains, composedElements, directText, directTextNodes, docBox, ignoreSelector, isIgnored, isVisible, keyOf,
+  rangeFor, sameDocument, selectorOf, type Rect,
 } from './dom';
 import { textElements } from './boxes';
 
@@ -8,17 +9,13 @@ const EPS = 1;
 const CLIPPING = new Set(['hidden', 'clip']);
 const INTERACTIVE = 'a[href], button, [role=button], input[type=button], input[type=submit], select';
 
-/**
- * One shared Range: the browser updates every live Range on each text change, so a Range per
- * text node makes rewriting and restoring text quadratic on large pages.
- */
-let sharedRange: Range | null = null;
-
 /** Union of the client rects of an element's own text nodes, or null when it has none. */
 function textRect(el: Element): Rect | null {
   let rect: Rect | null = null;
-  const range = sharedRange ??= document.createRange();
-  for (const node of directTextNodes(el)) {
+  const nodes = directTextNodes(el);
+  if (nodes.length === 0) return null;
+  const range = rangeFor(nodes[0]);
+  for (const node of nodes) {
     range.selectNodeContents(node);
     for (const r of range.getClientRects()) {
       if (r.width === 0 && r.height === 0) continue;
@@ -62,8 +59,8 @@ function issue(rule: RuleId, el: Element): RawIssue {
 }
 
 function overlaps(ignoreSel: string): RawIssue[] {
-  const controls = Array.from(document.body.querySelectorAll(INTERACTIVE))
-    .filter(el => !(ignoreSel && el.closest(ignoreSel)) && isVisible(el));
+  const controls = composedElements()
+    .filter(el => el.matches(INTERACTIVE) && !isIgnored(el, ignoreSel) && isVisible(el));
   // Per line fragment: a wrapped inline link's bounding box spans both lines and would "overlap" its neighbours.
   const fragments = controls.map(el => Array.from(el.getClientRects()).filter(r => r.width > 0 && r.height > 0));
   const touches = (as: DOMRect[], bs: DOMRect[]) => as.some(a => bs.some(b => {
@@ -76,8 +73,10 @@ function overlaps(ignoreSel: string): RawIssue[] {
   for (let i = 0; i < controls.length; i++) {
     for (let j = i + 1; j < controls.length; j++) {
       const a = controls[i], b = controls[j];
-      if (a.contains(b) || b.contains(a)) continue;
-      if (!reported.has(a) && touches(fragments[i], fragments[j])) {
+      // Rects of different documents (a frame's and the page's) are not in the same coordinates.
+      if (reported.has(a) || !sameDocument(a, b) || !touches(fragments[i], fragments[j])) continue;
+      // Only for touching pairs: walking up the composed tree for every pair would be slow on pages with many links.
+      if (!composedContains(a, b) && !composedContains(b, a)) {
         reported.add(a);
         issues.push(issue('overflow/overlap', a));
       }

@@ -60,3 +60,16 @@ test('a flagged grandparent hides its grandchild, a sibling with a similar key d
   const boxes = [rec('body>a', 16, 100), rec('body>a>b>c', 20, 50), rec('body>ab>c', 16, 40)];
   expect(run(boxes, boxes).map(i => i.key)).toEqual(['body>a', 'body>ab>c']);
 });
+
+test('framed elements are judged against their frame', () => {
+  const framed = (x: number): BoxRecord => ({ ...rec('body>iframe:nth-child(1) >> internal:control=enter-frame >> body>div:nth-child(1)', x, 40), frame: { x: 400, width: 300 } });
+  // Centred on the page, so the page-wide check skips it; in its 300px frame it sits on the left and must move.
+  expect(run([framed(480)], [framed(480)])).toHaveLength(1);
+  expect(run([framed(480)], [framed(580)])).toEqual([]);
+});
+
+test('a flagged shadow host hides its shadow children', () => {
+  const host = 'body>my-card:nth-child(1)', child = `${host} >> :scope>div:nth-child(1)`;
+  const issues = run([rec(host, 16, 200), rec(child, 20, 100)], [rec(host, 16, 200), rec(child, 20, 100)]);
+  expect(issues.map(i => i.key)).toEqual([host]);
+});

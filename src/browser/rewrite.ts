@@ -1,8 +1,9 @@
 import { pseudoLong, unpseudo } from '../pseudo';
-import { ignoreSelector, isIgnored, isVisible, withLayoutCache } from './dom';
+import { composedElements, composedTextNodes, frameDocument, ignoreSelector, isIgnored, isVisible, textParent, withLayoutCache } from './dom';
 
 let rewritten: Array<{ node: Text; original: string; written: string }> = [];
-let savedDir: string | null | undefined; // undefined = nothing saved
+/** The `dir` attribute of each document's <html> before setDir('rtl'): the page's and its same-origin frames'. */
+let savedDirs: Map<Document, string | null> | null = null;
 
 const hasLetters = (text: string) => /\p{L}/u.test(text);
 
@@ -11,11 +12,10 @@ function visibleTextNodes(ignore: string[], select: (text: string) => boolean): 
   const ignoreSel = ignoreSelector(ignore);
   return withLayoutCache(() => {
     const found: Text[] = [];
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     const visible = new Map<Element, boolean>();
-    for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
-      const parent = node.parentElement;
-      if (!parent || !select(node.nodeValue ?? '') || isIgnored(parent, ignoreSel)) continue;
+    for (const node of composedTextNodes(select)) {
+      const parent = textParent(node);
+      if (!parent || isIgnored(parent, ignoreSel)) continue;
       if (!visible.has(parent)) visible.set(parent, isVisible(parent));
       if (visible.get(parent)) found.push(node);
     }
@@ -68,17 +68,25 @@ export function restoreText(): void {
   rewritten = [];
 }
 
+/** Force right-to-left on the page and its same-origin frames (an app in an RTL locale switches both), or put back each `dir`. */
 export function setDir(dir: 'rtl' | null): void {
-  const html = document.documentElement;
   if (dir === 'rtl') {
-    if (savedDir === undefined) savedDir = html.getAttribute('dir');
-    html.setAttribute('dir', 'rtl');
+    const docs = [document, ...composedElements().map(frameDocument).filter((d): d is Document => d !== null)];
+    savedDirs ??= new Map();
+    for (const doc of docs) {
+      const html = doc.documentElement;
+      if (!savedDirs.has(doc)) savedDirs.set(doc, html.getAttribute('dir'));
+      html.setAttribute('dir', 'rtl');
+    }
     return;
   }
-  if (savedDir === undefined) return;
-  if (savedDir === null) html.removeAttribute('dir');
-  else html.setAttribute('dir', savedDir);
-  savedDir = undefined;
+  if (!savedDirs) return;
+  for (const [doc, saved] of savedDirs) {
+    const html = doc.documentElement;
+    if (saved === null) html.removeAttribute('dir');
+    else html.setAttribute('dir', saved);
+  }
+  savedDirs = null;
 }
 
 /** Direction of the page content: `<body>` decides, since apps often set `dir` there rather than on `<html>`. */

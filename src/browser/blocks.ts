@@ -1,6 +1,6 @@
 import type { InlineControl, TextBlock } from '../types';
 import { textElements } from './boxes';
-import { docBox, ignoreSelector, isIgnored, keyOf, selectorOf } from './dom';
+import { composedElements, docBox, frameElementOf, ignoreSelector, isIgnored, keyOf, langOf, selectorOf } from './dom';
 
 const MAX_BLOCK_TEXT = 2000;
 const CONTROL = 'a[href], button, [role=button]';
@@ -10,9 +10,7 @@ const isInline = (el: Element) => {
   return display === 'inline' || display === 'contents';
 };
 
-const langOf = (el: Element) => el.closest('[lang]')?.getAttribute('lang') ?? '';
-
-/** The nearest ancestor-or-self that is not inline, stopping at `<body>`. */
+/** The nearest ancestor-or-self that is not inline, stopping at `<body>` and at the top of a shadow root (a block boundary). */
 function blockOf(el: Element): Element {
   let node: Element = el;
   while (node !== document.body && node.parentElement && isInline(node)) node = node.parentElement;
@@ -88,8 +86,11 @@ export function collectTextBlocks(ignore: string[]): TextBlock[] {
     seen.add(block);
     blocks.push(block);
   }
-  // Text elements come in document order, but an inline child can reach its block after a later sibling's block.
-  blocks.sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+  // Text elements come in order, but an inline child can reach its block after a later sibling's block.
+  // Order by the composed traversal: document order does not compare elements of different shadow roots or frames.
+  const order = new Map(composedElements().map((el, i) => [el, i]));
+  const rank = (el: Element) => order.get(el) ?? (el === document.body ? -1 : (order.get(frameElementOf(el.ownerDocument)!) ?? 0) + 0.5);
+  blocks.sort((a, b) => rank(a) - rank(b));
   const result: TextBlock[] = [];
   for (const block of blocks) {
     const { text, controls } = readBlock(block, ignoreSel);

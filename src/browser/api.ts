@@ -10,6 +10,10 @@ export interface FitlocaleBrowserApi {
    * `testIdAttribute` (default `data-testid`) is used for readable selectors.
    */
   assignKeys(testIdAttribute?: string): void;
+  /** The key of an element, also one inside an open shadow root or a same-origin frame. */
+  keyFor(el: Element): string;
+  /** Did the last assignKeys() meet an open shadow root or a readable frame? */
+  hasComposed(): boolean;
   /** Rewrite visible text nodes into pseudo-long text. Returns the number of nodes rewritten. */
   rewriteText(expansion: number, ignore: string[]): number;
   /** Rewrite visible text of a pseudo-locale page into an approximation of the source text. Undo with `restoreText()`. */

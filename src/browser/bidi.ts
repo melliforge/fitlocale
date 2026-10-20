@@ -1,6 +1,6 @@
 import type { RawIssue } from '../types';
 import { hasRtlLetters, mixedTokens, outOfOrder, visualText, type CharBox } from '../rules/bidi';
-import { ignoreSelector, isIgnored, isVisible, keyOf, selectorOf } from './dom';
+import { composedTextNodes, frameOffset, textParent, ignoreSelector, isIgnored, isVisible, keyOf, rangeFor, selectorOf } from './dom';
 
 const isInline = (el: Element) => ['inline', 'contents'].includes(getComputedStyle(el).display);
 
@@ -14,11 +14,9 @@ function blockOf(el: Element): Element {
 export function findBidiOrder(ignore: string[]): RawIssue[] {
   const ignoreSel = ignoreSelector(ignore);
   const issues: RawIssue[] = [];
-  const range = document.createRange();
   const rtlBlock = new Map<Element, boolean>();
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
-    const parent = node.parentElement;
+  for (const node of composedTextNodes(text => /\S/.test(text))) {
+    const parent = textParent(node);
     const text = node.nodeValue ?? '';
     const tokens = mixedTokens(text);
     if (!parent || tokens.length === 0 || isIgnored(parent, ignoreSel)) continue;
@@ -26,6 +24,8 @@ export function findBidiOrder(ignore: string[]): RawIssue[] {
     const block = blockOf(parent);
     if (!rtlBlock.has(block)) rtlBlock.set(block, hasRtlLetters(block.textContent ?? ''));
     if (!rtlBlock.get(block)) continue;
+    const range = rangeFor(node);
+    const offset = frameOffset(node.ownerDocument!);
     for (const token of tokens) {
       const chars: CharBox[] = [];
       let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
@@ -40,10 +40,9 @@ export function findBidiOrder(ignore: string[]): RawIssue[] {
       if (chars.length !== token.end - token.start || !outOfOrder(chars)) continue;
       issues.push({
         rule: 'rtl/bidi-order', key: keyOf(parent), selector: selectorOf(parent), text: token.text, visual: visualText(token.text, chars),
-        box: { x: left + window.scrollX, y: top + window.scrollY, width: right - left, height: bottom - top },
+        box: { x: left + offset.x + window.scrollX, y: top + offset.y + window.scrollY, width: right - left, height: bottom - top },
       });
     }
   }
-  range.detach();
   return issues;
 }

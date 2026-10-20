@@ -249,8 +249,8 @@ npx fitlocale summary fitlocale-report/results.json             # Markdown summa
 
 ## Limitations
 
-- Text inside shadow roots and iframes is not checked yet.
-- Tested on Chromium, Firefox and WebKit. The fallback-font check and the CSS pointer need Chromium DevTools; on Firefox and WebKit they are skipped. Fonts are judged only where this machine has the fonts you declared, so CI and your users' devices can differ. The font check samples up to 100 right-to-left elements per check, each distinct font and text once.
+- Closed shadow roots and cross-origin iframes are not checked: their content cannot be read from the page. Open shadow roots and same-origin iframes are.
+- Tested on Chromium, Firefox and WebKit. The fallback-font check and the CSS pointer need Chromium DevTools; on Firefox and WebKit they are skipped. Neither looks inside shadow roots or iframes. Fonts are judged only where this machine has the fonts you declared, so CI and your users' devices can differ. The font check samples up to 100 right-to-left elements per check, each distinct font and text once.
 
 ## Releasing
 

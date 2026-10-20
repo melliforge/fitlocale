@@ -3,14 +3,14 @@ import type { BoxRecord } from '../rules/mirror';
 import { findLeaksInText } from '../rules/leaks';
 import { hasRtlLetters } from '../rules/bidi';
 import {
-  clip, directText, docBox, ignoreSelector, isIgnored, isVisible, keyOf, optionalSelector, selectorOf,
+  clip, composedElements, directText, docBox, frameElementOf, frameOffset, ignoreSelector, isIgnored, isVisible, keyOf, langOf, optionalSelector, selectorOf,
 } from './dom';
 
 const BOXED_TAGS = new Set(['img', 'svg', 'button', 'input', 'select']);
 
 /** Visible, non-ignored elements that carry their own text. */
 function textElements(ignoreSel: string): Element[] {
-  return Array.from(document.body.querySelectorAll('*'))
+  return composedElements()
     .filter(el => directText(el) !== '' && !isIgnored(el, ignoreSel) && isVisible(el));
 }
 
@@ -18,13 +18,15 @@ export function snapshotBoxes(ignore: string[], mirrorIgnore: string[]): BoxReco
   const ignoreSel = ignoreSelector(ignore);
   const mirrorSel = optionalSelector(mirrorIgnore);
   const records: BoxRecord[] = [];
-  for (const el of document.body.querySelectorAll('*')) {
+  for (const el of composedElements()) {
     const text = directText(el);
     if (text === '' && !BOXED_TAGS.has(el.tagName.toLowerCase())) continue;
     if (isIgnored(el, ignoreSel) || !isVisible(el)) continue;
+    const doc = el.ownerDocument;
     records.push({
       key: keyOf(el), selector: selectorOf(el), box: docBox(el), text: clip(text), ignored: isIgnored(el, mirrorSel),
       direction: getComputedStyle(el).direction === 'rtl' ? 'rtl' : 'ltr',
+      ...(frameElementOf(doc) ? { frame: { x: frameOffset(doc).x + window.scrollX, width: doc.documentElement.clientWidth } } : {}),
     });
   }
   return records;
@@ -60,7 +62,8 @@ const MIN_CANVAS = 40;
 /** Visible canvases big enough to hold a chart or drawing: they ignore the page direction. */
 export function findCanvases(ignore: string[]): RawIssue[] {
   const ignoreSel = ignoreSelector(ignore);
-  return Array.from(document.body.querySelectorAll('canvas'))
+  return composedElements()
+    .filter(el => el.localName === 'canvas')
     .filter(el => !isIgnored(el, ignoreSel) && isVisible(el))
     .filter(el => { const r = el.getBoundingClientRect(); return r.width >= MIN_CANVAS && r.height >= MIN_CANVAS; })
     .map(el => ({ rule: 'rtl/canvas' as const, key: keyOf(el), selector: selectorOf(el), box: docBox(el), text: '' }));
@@ -77,6 +80,8 @@ export function fontSamples(ignore: string[]) {
   const seen = new Set<string>();
   let rtlCount = 0, otherCount = 0;
   for (const el of textElements(ignoreSelector(ignore))) {
+    // The font report is read through DevTools, which only reaches the page's own document.
+    if (el.getRootNode() !== document) continue;
     const text = directText(el);
     const rtl = hasRtlLetters(text);
     if (rtl ? rtlCount >= MAX_RTL_SAMPLES : otherCount >= MAX_OTHER_SAMPLES) continue;
@@ -89,7 +94,7 @@ export function fontSamples(ignore: string[]) {
     else otherCount++;
     samples.push({
       key: keyOf(el), selector: selectorOf(el), box: docBox(el), text, fontFamily, rtl,
-      fontWeight: style.fontWeight, fontStyle: style.fontStyle, fontSize: style.fontSize, lang: el.closest('[lang]')?.getAttribute('lang') ?? '',
+      fontWeight: style.fontWeight, fontStyle: style.fontStyle, fontSize: style.fontSize, lang: langOf(el),
     });
     if (rtlCount >= MAX_RTL_SAMPLES && otherCount >= MAX_OTHER_SAMPLES) break;
   }
