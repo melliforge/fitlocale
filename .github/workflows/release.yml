@@ -7,24 +7,24 @@ on:
   push:
     tags: ['v*.*.*']
 
+# Two jobs: the one that installs dependencies and runs the tests has read access only. The one that can write
+# (the GitHub Release, the v0 tag, npm trusted publishing) installs nothing: it stages the tarball the tests passed on.
 permissions:
-  contents: write # create the GitHub Release
-  id-token: write # npm trusted publishing (OIDC) and provenance; no npm token is stored
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Test, stage on npm, create GitHub Release
+  test:
+    name: Test and pack
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
           cache: npm
 
       - name: Check the tag matches package.json
@@ -36,12 +36,6 @@ jobs:
             exit 1
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-          echo "PKG_NAME=$(node -p "require('./package.json').name")" >> "$GITHUB_ENV"
-          # Pre-releases such as 1.0.0-beta.1 go to the "next" dist-tag, not "latest".
-          if [[ "$VERSION" == *-* ]]; then echo "NPM_TAG=next" >> "$GITHUB_ENV"; else echo "NPM_TAG=latest" >> "$GITHUB_ENV"; fi
-
-      - name: Use npm 11 (trusted publishing and `npm stage` need a recent npm 11)
-        run: npm install -g npm@11
 
       - run: npm ci
       - run: npx playwright install --with-deps chromium
@@ -56,12 +50,57 @@ jobs:
       - name: Pack
         run: npm pack --ignore-scripts
 
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release
+          path: |
+            *.tgz
+            release-notes.md
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Stage on npm, create GitHub Release
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub Release, move the v0 tag
+      id-token: write # npm trusted publishing (OIDC) and provenance; no npm token is stored
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - uses: actions/download-artifact@v7
+        with:
+          name: release
+
+      - name: Unpack the tested tarball
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          tar -xzf ./*.tgz
+          PKG_NAME=$(node -p "require('./package/package.json').name")
+          PKG_VERSION=$(node -p "require('./package/package.json').version")
+          if [ "$VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the packed version $PKG_VERSION"
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "PKG_NAME=$PKG_NAME" >> "$GITHUB_ENV"
+          # Pre-releases such as 1.0.0-beta.1 go to the "next" dist-tag, not "latest".
+          if [[ "$VERSION" == *-* ]]; then echo "NPM_TAG=next" >> "$GITHUB_ENV"; else echo "NPM_TAG=latest" >> "$GITHUB_ENV"; fi
+
+      - name: Use npm 11 (trusted publishing and `npm stage` need a recent npm 11)
+        run: npm install -g npm@11
+
       - name: Stage on npm (approve it on npmjs.com to publish)
+        working-directory: package
         run: |
           if npm view "$PKG_NAME@$VERSION" version >/dev/null 2>&1; then
             echo "$PKG_NAME@$VERSION is already on npm; skipping."
           else
-            # Packs this checkout (the same files as the .tgz attached to the GitHub Release).
+            # The files of the tested tarball (also attached to the GitHub Release), unpacked: nothing is rebuilt here.
             npm stage publish --ignore-scripts --access public --tag "$NPM_TAG"
             echo "::notice::$PKG_NAME@$VERSION is staged on npm. Approve it at https://www.npmjs.com (Staged Packages) to publish."
           fi

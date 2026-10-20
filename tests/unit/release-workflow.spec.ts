@@ -41,3 +41,27 @@ test('the major tag moves only to the newest stable release, and never fails the
   expect(compare).toBeGreaterThan(0);
   expect(compare).toBeLessThan(step.indexOf('git tag -f'));
 });
+
+/** Each job of a workflow, by id, as text. */
+function jobsOf(workflow: string): Record<string, string> {
+  const body = workflow.slice(workflow.indexOf('\njobs:\n') + '\njobs:\n'.length);
+  const parts = body.split(/^ {2}(?=[\w-]+:\s*$)/m).filter(Boolean);
+  return Object.fromEntries(parts.map(p => [p.slice(0, p.indexOf(':')), p]));
+}
+
+test('the release installs and tests without write access; only a job that installs nothing can publish', () => {
+  const workflow = read('.github/workflows/release.yml');
+  const top = workflow.slice(0, workflow.indexOf('\njobs:\n'));
+  // A compromised dependency's install script or a test must not be able to push or publish.
+  expect(top).toMatch(/permissions:\s*\n\s+contents: read/);
+  expect(top).not.toContain('id-token: write');
+  const jobs = Object.values(jobsOf(workflow));
+  const writers = jobs.filter(j => /id-token: write|contents: write/.test(j));
+  expect(writers).toHaveLength(1);
+  const [publish] = writers;
+  expect(publish).toContain('npm stage publish');
+  expect(publish).toMatch(/needs: \w+/);
+  for (const step of ['npm ci', 'npm test', 'npm run', 'npx playwright']) expect(publish, step).not.toContain(step);
+  const tester = jobs.find(j => j.includes('npm test'))!;
+  expect(tester).not.toMatch(/id-token: write|contents: write/);
+});

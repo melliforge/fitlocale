@@ -63,23 +63,38 @@ function overlaps(ignoreSel: string): RawIssue[] {
     .filter(el => el.matches(INTERACTIVE) && !isIgnored(el, ignoreSel) && isVisible(el));
   // Per line fragment: a wrapped inline link's bounding box spans both lines and would "overlap" its neighbours.
   const fragments = controls.map(el => Array.from(el.getClientRects()).filter(r => r.width > 0 && r.height > 0));
-  const touches = (as: DOMRect[], bs: DOMRect[]) => as.some(a => bs.some(b => {
-    const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
-    const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-    return w > 0 && h > 0 && w * h >= 4;
-  }));
-  const reported = new Set<Element>();
+  // Sweep the fragments from top to bottom: only fragments that share some height can touch, so a page with
+  // thousands of links compares each with its neighbours on the same lines, not with every other link.
+  const items: Array<{ c: number; r: DOMRect }> = [];
+  fragments.forEach((rects, c) => { for (const r of rects) items.push({ c, r }); });
+  items.sort((x, y) => x.r.top - y.r.top);
+  const partners = new Map<number, Set<number>>(); // control index → later controls it touches
+  let active: typeof items = [];
+  for (const item of items) {
+    active = active.filter(other => other.r.bottom > item.r.top);
+    for (const other of active) {
+      if (other.c === item.c) continue;
+      const a = item.r, b = other.r;
+      const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+      const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      if (w > 0 && h > 0 && w * h >= 4) {
+        const i = Math.min(item.c, other.c), j = Math.max(item.c, other.c);
+        (partners.get(i) ?? partners.set(i, new Set()).get(i)!).add(j);
+      }
+    }
+    active.push(item);
+  }
   const issues: RawIssue[] = [];
   for (let i = 0; i < controls.length; i++) {
-    for (let j = i + 1; j < controls.length; j++) {
-      const a = controls[i], b = controls[j];
+    const later = partners.get(i);
+    if (!later) continue;
+    const a = controls[i];
+    for (const j of [...later].sort((x, y) => x - y)) {
+      const b = controls[j];
       // Rects of different documents (a frame's and the page's) are not in the same coordinates.
-      if (reported.has(a) || !sameDocument(a, b) || !touches(fragments[i], fragments[j])) continue;
-      // Only for touching pairs: walking up the composed tree for every pair would be slow on pages with many links.
-      if (!composedContains(a, b) && !composedContains(b, a)) {
-        reported.add(a);
-        issues.push(issue('overflow/overlap', a));
-      }
+      if (!sameDocument(a, b) || composedContains(a, b) || composedContains(b, a)) continue;
+      issues.push(issue('overflow/overlap', a));
+      break;
     }
   }
   return issues;

@@ -486,3 +486,20 @@ test.describe('DevTools checks', () => {
     expect(list(await localeCheck())).toContain('rtl/clipped-marks #t source');
   });
 });
+
+test.describe('a web font that never loads', () => {
+  test.use({ fitlocale: { failOn: 'never', screenshots: false, devtools: false } });
+
+  test('delays a check once, not at every text change', async ({ page, localeCheck }) => {
+    // The font request never answers, so document.fonts.ready never resolves.
+    await page.route('http://fonts.test/stuck.woff2', () => {});
+    await page.route('http://app.test/', route => route.fulfill({
+      contentType: 'text/html',
+      body: '<style>@font-face{font-family:Stuck;src:url(http://fonts.test/stuck.woff2)}</style><p>Hello</p><p style="font-family:Stuck">Later</p>',
+    }));
+    await page.goto('http://app.test/', { waitUntil: 'domcontentloaded' });
+    const t0 = Date.now();
+    await localeCheck(); // two viewports, two text changes each: four waits of up to 3 s before
+    expect(Date.now() - t0).toBeLessThan(7000);
+  });
+});

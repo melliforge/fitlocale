@@ -259,23 +259,3 @@ test('a slotted button inside a clickable shadow card is not an overlap', async 
   expect(issues.filter(i => i.rule === 'overflow/overlap')).toEqual([]);
 });
 
-test('the overlap pass does not walk up the tree for every pair of controls', async ({ page }) => {
-  // Machines differ too much for a time budget: compare the same links flat and nested 20 levels deep.
-  // Only a per-pair walk up the tree grows with depth (it made the pass ~3x slower); the rest is linear.
-  const links = Array.from({ length: 2000 }, (_, i) => `<a href=#>Link ${i}</a>`);
-  const time = async (html: string) => {
-    await load(page, html);
-    let best = Infinity;
-    for (let run = 0; run < 2; run++) {
-      best = Math.min(best, await page.evaluate(() => {
-        const t0 = performance.now();
-        window.__fitlocale.findOverflow([]);
-        return performance.now() - t0;
-      }));
-    }
-    return best;
-  };
-  const flat = await time(links.join(' '));
-  const deep = await time(links.map(a => `${'<span>'.repeat(20)}${a}${'</span>'.repeat(20)}`).join(' '));
-  expect(deep / flat, `flat ${flat.toFixed(0)} ms, deep ${deep.toFixed(0)} ms`).toBeLessThan(2);
-});

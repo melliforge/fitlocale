@@ -88,3 +88,21 @@ test('app-shell scroller: text below the fold is not reported as clipped', async
   await rewrite(page);
   expect(await overflow(page)).toEqual([]);
 });
+
+test('the overlap pass grows linearly with the number of controls', async ({ page }) => {
+  // Machines differ too much for a time budget: 4x the links costs ~4x when only nearby controls are compared, 16x for all pairs.
+  const time = async (n: number) => {
+    await load(page, Array.from({ length: n }, (_, i) => `<a href=#>Link ${i}</a>`).join(' '));
+    let best = Infinity;
+    for (let run = 0; run < 2; run++) {
+      best = Math.min(best, await page.evaluate(() => {
+        const t0 = performance.now();
+        window.__fitlocale.findOverflow([]);
+        return performance.now() - t0;
+      }));
+    }
+    return best;
+  };
+  const small = await time(750), large = await time(3000);
+  expect(large / small, `750 links ${small.toFixed(0)} ms, 3000 links ${large.toFixed(0)} ms`).toBeLessThan(8);
+});

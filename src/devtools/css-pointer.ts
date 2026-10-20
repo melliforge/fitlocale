@@ -23,21 +23,33 @@ function explicit(props: CdpProperty[]): CdpProperty[] {
 const valueOf = (p: CdpProperty) => p.value.replace(/\s*!important\s*$/i, '');
 
 const MAP_TIMEOUT_MS = 3000;
+/** Larger maps are not read: parsing one would hold it all in memory, for one line number. */
+export const MAX_MAP_BYTES = 20 * 1024 * 1024;
+
+const origin = (url: string) => { try { return new URL(url).origin; } catch { return null; } };
 
 /**
  * Fetch a source map from Node (the context's cookies, a timeout, and nothing seen by the page: no extra request,
  * no console error for a map that is not deployed), or decode a data: URL. Null on any failure.
+ * The page names the map's URL, so only http(s) maps on the stylesheet's or the page's own origin are fetched,
+ * without following redirects: a check never sends requests (and cookies) to other hosts.
  */
-async function loadMap(page: Page, url: string, cache: Map<string, SourceMap | null>): Promise<SourceMap | null> {
+async function loadMap(page: Page, url: string, sheetUrl: string, cache: Map<string, SourceMap | null>): Promise<SourceMap | null> {
   if (cache.has(url)) return cache.get(url)!;
   let text: string | null = null;
   try {
     if (url.startsWith('data:')) {
-      const [, meta, data] = /^data:([^,]*),(.*)$/s.exec(url) ?? [];
-      text = meta?.endsWith(';base64') ? Buffer.from(data, 'base64').toString('utf8') : decodeURIComponent(data ?? '');
-    } else {
-      const res = await page.context().request.get(url, { timeout: MAP_TIMEOUT_MS, failOnStatusCode: false });
-      text = res.ok() ? await res.text() : null;
+      if (url.length <= MAX_MAP_BYTES * 2) {
+        const [, meta, data] = /^data:([^,]*),(.*)$/s.exec(url) ?? [];
+        text = meta?.endsWith(';base64') ? Buffer.from(data, 'base64').toString('utf8') : decodeURIComponent(data ?? '');
+      }
+    } else if (/^https?:/.test(url) && [origin(sheetUrl), origin(page.url())].includes(origin(url))) {
+      const res = await page.context().request.get(url, { timeout: MAP_TIMEOUT_MS, failOnStatusCode: false, maxRedirects: 0 });
+      const declared = Number(res.headers()['content-length'] ?? 0);
+      if (res.ok() && declared <= MAX_MAP_BYTES) {
+        const body = await res.body();
+        text = body.length <= MAX_MAP_BYTES ? body.toString('utf8') : null;
+      }
     }
   } catch {
     text = null;
@@ -88,7 +100,7 @@ async function sourceFor(page: Page, devtools: Devtools, key: string, maps: Map<
     try {
       mapUrl = header.sourceMapURL.startsWith('data:') ? header.sourceMapURL : new URL(header.sourceMapURL, url).href;
     } catch { /* an unresolvable map URL: keep the generated location */ }
-    const map = mapUrl ? await loadMap(page, mapUrl, maps) : null;
+    const map = mapUrl ? await loadMap(page, mapUrl, url, maps) : null;
     // Map positions are relative to the stylesheet text, not to the HTML document holding it.
     const original = map && originalPosition(map, decl.line + 1, decl.column + 1);
     if (original) source.original = { url: resolveSource(original.source, mapUrl!, map.sourceRoot), line: original.line, column: original.column };

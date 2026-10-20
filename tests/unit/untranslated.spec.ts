@@ -79,3 +79,15 @@ test.describe('findUntranslated', () => {
     expect(issues).toHaveLength(100);
   });
 });
+
+test('messages with many placeholders are matched in linear time', () => {
+  const template = Array.from({ length: 6 }, (_, i) => `{a${i}}`).join(', ') + ' and more.';
+  const match = sourceMatcher([template]);
+  // Contains the template's longest literal but does not end with it: the worst case for a backtracking regex.
+  const text = Array.from({ length: 80 }, (_, i) => `Wort${i}, Satz und mehr`).join(' ') + ' and more. x';
+  const t0 = performance.now();
+  expect(match(text)).toBe(false);
+  expect(performance.now() - t0).toBeLessThan(200);
+  expect(match('a, b, c, d, e, f and more.')).toBe(true);
+  expect(match('a, b, c, d, e and more.')).toBe(false);
+});
