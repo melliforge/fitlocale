@@ -24,6 +24,9 @@ test('docs and examples use the Action through its major tag', () => {
   expect(read('examples/github-workflow.yml')).toContain('melliforge/localization-layout-tester@v0');
 });
 
-test('the README shows the report', () => {
-  expect(read('README.md')).toContain('](https://melliforge.github.io/localization-layout-tester/report.png)');
+test('the README shows the report, and says which part it shows', () => {
+  const readme = read('README.md');
+  expect(readme).toContain('](https://melliforge.github.io/localization-layout-tester/report.png)');
+  // The image is the pseudo-long section: leaked keys on screen are reported in another section, not missed.
+  for (const page of [readme, read('docs/index.md')]) expect(page).toContain("*The pseudo-long section of a report");
 });
