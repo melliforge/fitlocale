@@ -6,6 +6,8 @@
 
 Catch layout bugs caused by translation before your users do. These are German labels cut off inside buttons, text spilling out of its box, translation keys showing on screen, the language silently switching back, and right-to-left (Arabic, Hebrew) layouts that never mirrored. fitlocale plugs into the Playwright tests you already have. It needs no approved screenshots and no translations yet, and it uses no AI guesses: every issue comes from a measured rule.
 
+![fitlocale report: each problem boxed on a screenshot of the page, with the rule, the element and a fix](https://melliforge.github.io/localization-layout-tester/report.png)
+
 ## Install
 
 ```bash
@@ -217,7 +219,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
-      - uses: melliforge/localization-layout-tester@v0.3.0
+      - uses: melliforge/localization-layout-tester@v0
         if: always()
 ```
 

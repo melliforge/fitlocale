@@ -22,3 +22,5 @@ features:
   - title: Every issue is measured
     details: Each report comes from a deterministic rule on the rendered page, with the element, a boxed screenshot and a suggested fix. No AI guesses.
 ---
+
+![A fitlocale report: each problem boxed on a screenshot of the page, with the rule, the element and a fix](/report.png)
