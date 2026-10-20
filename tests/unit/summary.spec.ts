@@ -56,3 +56,19 @@ test('the missing-baseline command writes the file where the tests look for it',
     { maxRows: 50, resultsPath: 'fitlocale-report/results.json' });
   expect(md).toContain('`npx fitlocale baseline fitlocale-report/results.json --out e2e/fitlocale-baseline.json`');
 });
+
+test('a repeated test (--repeat-each) gives one row per issue', () => {
+  const issue = makeIssue({ id: 'a000000000000000' });
+  const md = renderSummary(makeRun([makeCheck({ issues: [issue] }), makeCheck({ issues: [issue] })]), { maxRows: 50 });
+  expect(rows(md)).toHaveLength(1);
+});
+
+test('issues that do not fail the test are marked, and the headline counts failing ones', () => {
+  const md = renderSummary(makeRun([makeCheck({
+    issues: [makeIssue({ fails: true }), makeIssue({ selector: '#w', severity: 'warning', rule: 'overflow/ellipsis', fails: false })],
+  })]), { maxRows: 50 });
+  expect(md).toContain('**1 failing**');
+  const [errorRow, warningRow] = rows(md);
+  expect(errorRow.trim().endsWith('| yes |')).toBe(true);
+  expect(warningRow.trim().endsWith('|  |')).toBe(true);
+});

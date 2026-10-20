@@ -10,6 +10,14 @@ Each section becomes the notes of the matching GitHub Release.
 - `zh-TW` and `zh-CN` (and other pairs written in different scripts) no longer count as the same language, so text left in Simplified Chinese is reported on a Traditional Chinese page.
 - Regional language names ("português (Brasil)", "简体中文", "British English"), currency names, units ("5 kB") and ordinals ("19th") are no longer reported as hardcoded text.
 - Text inside `display: contents` elements is no longer dropped from text blocks.
+- A test id shared by repeated components (a list of cards with one `data-testid`) no longer gives all of them the same selector and issue id, which could hide a new issue behind an accepted one. They now get their DOM path, like a non-unique `id`.
+- `baseline: ''` or a directory now gives a clear error, and a baseline file of another version is refused.
+- `fitlocale summary` shows each issue once under `--repeat-each`, and marks which issues fail the test. `results.json` issues carry `fails`.
+- The GitHub Action, with no local fitlocale, runs the CLI of its own major version (`fitlocale@0` for `@v0`) instead of the latest release.
+
+### Changed
+
+- If your tests use one test id on several elements, their issue ids change once: regenerate the baseline with `npx fitlocale baseline`.
 
 ## [0.3.0] - 2026-10-20
 

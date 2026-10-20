@@ -1,10 +1,10 @@
 import { test as base, expect } from '@playwright/test';
 import type { TestInfo } from '@playwright/test';
 import { resolve } from 'node:path';
-import { applyBaseline, failureSummary } from './baseline';
+import { applyBaseline, failureSummary, markFailing } from './baseline';
 import { configDirOf, probeLocale, runLocaleCheck } from './check';
 import { resolveOptions, type FitlocaleOptions } from './options';
-import type { CheckResult, Severity } from './types';
+import type { CheckResult } from './types';
 
 export { expect };
 export * from './locales';
@@ -36,8 +36,6 @@ function optionsFor(testInfo: TestInfo, fitlocale: Partial<FitlocaleOptions>): F
 /** Warn about a missing baseline file once per worker; each test also gets an annotation. */
 let warnedMissingBaseline = false;
 
-const RANK: Record<Severity, number> = { info: 1, warning: 2, error: 3 };
-const THRESHOLD: Record<FitlocaleOptions['failOn'], number> = { error: 3, warning: 2, never: Infinity };
 
 export const test = base.extend<FitlocaleFixtures>({
   fitlocale: [{}, { option: true }],
@@ -79,11 +77,12 @@ export const test = base.extend<FitlocaleFixtures>({
           console.warn(`fitlocale: ${note}`);
         }
       }
+      markFailing(result.issues, counts, options.failOn);
       await testInfo.attach('fitlocale:result', { body: JSON.stringify(result), contentType: 'application/json' });
       for (const shot of result.screenshots) {
         await testInfo.attach('fitlocale:screenshot', { path: shot.path, contentType: 'image/png' });
       }
-      const failing = result.issues.filter(i => counts(i) && RANK[i.severity] >= THRESHOLD[options.failOn]);
+      const failing = result.issues.filter(i => i.fails);
       const accepted = result.issues.filter(i => i.baselined).length;
       expect.soft(failing.length, failureSummary(failing, accepted, result.baseline?.path)).toBe(0);
       return result;

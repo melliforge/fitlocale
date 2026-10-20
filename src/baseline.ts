@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { relative, sep } from 'node:path';
-import type { CheckResult, Issue, Mode, RuleId, RunResults } from './types';
+import type { CheckResult, Issue, Mode, RuleId, RunResults, Severity } from './types';
 
 /** Where an issue was found: Playwright project, test title path and the check's position in the test. */
 export interface IdScope { project: string; titlePath: string[]; checkIndex: number }
@@ -28,12 +28,19 @@ const NOTE = 'Accepted fitlocale issues: only issues not listed here fail the te
 
 /** The accepted issue ids, or null when the file does not exist yet. */
 export function readBaseline(file: string): Set<string> | null {
+  if (file === '' || (existsSync(file) && statSync(file).isDirectory())) {
+    throw new Error(`fitlocale: baseline option must be a file path, got "${file}"`);
+  }
   if (!existsSync(file)) return null;
   let data: unknown;
   try {
     data = JSON.parse(readFileSync(file, 'utf8'));
   } catch (err) {
     throw new Error(`fitlocale: baseline file ${file} is not valid JSON: ${(err as Error).message}`, { cause: err });
+  }
+  const version = (data as { version?: unknown } | null)?.version;
+  if (version !== undefined && version !== 1) {
+    throw new Error(`fitlocale: baseline file ${file} has version ${String(version)}; this fitlocale reads version 1`);
   }
   const issues = (data as { issues?: unknown } | null)?.issues;
   if (!Array.isArray(issues)) throw new Error(`fitlocale: baseline file ${file} has no "issues" list`);
@@ -84,4 +91,12 @@ export function failureSummary(failing: Issue[], accepted: number, baselinePath?
   const lines = [`fitlocale found ${failing.length} issue(s):`, ...failing.map(i => `  ${i.rule} ${i.selector} (${i.mode})`)];
   if (accepted > 0 && baselinePath) lines.push(`(${accepted} more accepted in ${baselinePath})`);
   return lines.join('\n');
+}
+
+const RANK: Record<Severity, number> = { info: 1, warning: 2, error: 3 };
+const THRESHOLD: Record<'error' | 'warning' | 'never', number> = { error: 3, warning: 2, never: Infinity };
+
+/** Set `issue.fails`: it counts (new, or baseline off) and reaches `failOn`. */
+export function markFailing(issues: Issue[], counts: (issue: Issue) => boolean, failOn: 'error' | 'warning' | 'never'): void {
+  for (const issue of issues) issue.fails = counts(issue) && RANK[issue.severity] >= THRESHOLD[failOn];
 }
