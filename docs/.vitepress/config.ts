@@ -33,11 +33,22 @@ export default defineConfig({
     logo: '/favicon.svg',
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
+      { text: 'Reference', link: '/reference/rules' },
       { text: 'Changelog', link: `${REPO}/blob/main/CHANGELOG.md` },
       { text: 'npm', link: 'https://www.npmjs.com/package/fitlocale' },
     ],
     sidebar: [
       { text: 'Getting started', items: [{ text: 'Install and first check', link: '/guide/getting-started' }] },
+      {
+        text: 'Reference',
+        items: [
+          { text: 'Rules', link: '/reference/rules' },
+          { text: 'Options', link: '/reference/options' },
+          { text: 'CLI', link: '/reference/cli' },
+          { text: 'GitHub Action', link: '/reference/github-action' },
+          { text: 'Results format', link: '/reference/results' },
+        ],
+      },
     ],
     search: { provider: 'local' },
     socialLinks: [{ icon: 'github', link: REPO }],

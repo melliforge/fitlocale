@@ -1,15 +1,6 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
-
-/** Every Markdown page of the docs site (internal docs never live in the repo). */
-export function docsPages(dir = 'docs'): string[] {
-  return readdirSync(dir).flatMap(name => {
-    const path = join(dir, name);
-    if (name === 'superpowers' || name === '.vitepress' || name === 'node_modules') return [];
-    return statSync(path).isDirectory() ? docsPages(path) : name.endsWith('.md') ? [path] : [];
-  });
-}
+import { docsPages } from './docs-helpers';
 
 function frontmatter(path: string): Record<string, string> {
   const m = /^---\n([\s\S]*?)\n---/.exec(readFileSync(path, 'utf8'));
