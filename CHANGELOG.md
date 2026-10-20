@@ -5,6 +5,8 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-20
+
 ### Added
 
 - Open shadow roots and same-origin iframes are checked like the rest of the page. Issues inside them have selectors that work with `page.locator()` (`host >> …`, `iframe >> internal:control=enter-frame >> …`) and boxes placed on the full-page screenshot. Closed shadow roots and cross-origin iframes are skipped.
@@ -121,7 +123,8 @@ First public release.
 - CLI: `fitlocale pseudo` writes pseudo-locale message files, and `fitlocale report` re-renders a report.
 - CommonJS and ESM builds with TypeScript types.
 
-[Unreleased]: https://github.com/melliforge/localization-layout-tester/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/melliforge/localization-layout-tester/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/melliforge/localization-layout-tester/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/melliforge/localization-layout-tester/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/melliforge/localization-layout-tester/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/melliforge/localization-layout-tester/compare/v0.1.1...v0.2.0
