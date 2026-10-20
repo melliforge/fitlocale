@@ -1,6 +1,7 @@
-import type { RawIssue } from '../types';
+import type { Box, RawIssue } from '../types';
 import type { BoxRecord } from '../rules/mirror';
 import { findLeaksInText } from '../rules/leaks';
+import { hasRtlLetters } from '../rules/bidi';
 import {
   clip, directText, docBox, ignoreSelector, isIgnored, isVisible, keyOf, optionalSelector, selectorOf,
 } from './dom';
@@ -63,4 +64,29 @@ export function findCanvases(ignore: string[]): RawIssue[] {
     .filter(el => !isIgnored(el, ignoreSel) && isVisible(el))
     .filter(el => { const r = el.getBoundingClientRect(); return r.width >= MIN_CANVAS && r.height >= MIN_CANVAS; })
     .map(el => ({ rule: 'rtl/canvas' as const, key: keyOf(el), selector: selectorOf(el), box: docBox(el), text: '' }));
+}
+
+const MAX_RTL_SAMPLES = 100;
+const MAX_OTHER_SAMPLES = 20;
+
+/** Text elements to ask DevTools about: right-to-left ones, plus a few others that show which fonts this machine has. */
+export function fontSamples(ignore: string[]) {
+  const samples: Array<{ key: string; selector: string; box: Box; text: string; fontFamily: string; rtl: boolean }> = [];
+  const seen = new Set<string>();
+  let rtlCount = 0, otherCount = 0;
+  for (const el of textElements(ignoreSelector(ignore))) {
+    const text = directText(el);
+    const rtl = hasRtlLetters(text);
+    if (rtl ? rtlCount >= MAX_RTL_SAMPLES : otherCount >= MAX_OTHER_SAMPLES) continue;
+    const fontFamily = getComputedStyle(el).fontFamily;
+    const id = `${fontFamily}|${text}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    if (rtl) rtlCount++;
+    else otherCount++;
+    samples.push({ key: keyOf(el), selector: selectorOf(el), box: docBox(el), text, fontFamily, rtl });
+    if (rtlCount >= MAX_RTL_SAMPLES && otherCount >= MAX_OTHER_SAMPLES) break;
+  }
+  const loadedFamilies = Array.from(document.fonts).filter(f => f.status === 'loaded').map(f => f.family.replace(/^(["'])(.*)\1$/, '$2'));
+  return { samples, loadedFamilies };
 }
