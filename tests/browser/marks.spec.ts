@@ -47,8 +47,12 @@ test('a CSS scale never changes the verdict', async ({ page }) => {
   const box = (lh: number) => `height:${lh * 20}px;line-height:${lh};font-size:20px;overflow:hidden;white-space:nowrap`;
   const scaled = (lh: number, scale: number) =>
     `<div style="transform:scale(${scale});transform-origin:0 0"><div id=t style="${box(lh)}">${TEXT}</div></div>`;
-  for (const scale of [0.5, 2]) {
-    expect(await find(page, scaled(1.3, scale)), `tight, scale ${scale}`).toEqual(['rtl/clipped-marks #t']);
-    expect(await find(page, scaled(1.6, scale)), `room enough, scale ${scale}`).toEqual([]);
+  expect(await find(page, scaled(1, 1)), 'tight').toEqual(['rtl/clipped-marks #t']);
+  expect(await find(page, scaled(2, 1)), 'room enough').toEqual([]);
+  // Fonts differ between machines, so compare with the unscaled verdict line-height by line-height:
+  // the borderline heights are where a tolerance measured in the wrong scale shows.
+  for (let lh = 1; lh <= 2; lh = Math.round((lh + 0.05) * 100) / 100) {
+    const plain = await find(page, scaled(lh, 1));
+    for (const scale of [0.5, 2]) expect(await find(page, scaled(lh, scale)), `line-height ${lh}, scale ${scale}`).toEqual(plain);
   }
 });

@@ -55,7 +55,8 @@ export function findClippedMarks(ignore: string[]): RawIssue[] {
     const baseline = rects[0].top + m.fontBoundingBoxAscent * scale;
     const inkTop = baseline - m.actualBoundingBoxAscent * scale;
     const inkBottom = baseline + m.actualBoundingBoxDescent * scale;
-    if (inkTop < clipBox.top - EPS || inkBottom > clipBox.bottom + EPS) {
+    // EPS is in the element's own pixels, like the rest of the measurement.
+    if (inkTop < clipBox.top - EPS * scale || inkBottom > clipBox.bottom + EPS * scale) {
       issues.push({ rule: 'rtl/clipped-marks', key: keyOf(el), selector: selectorOf(el), box: docBox(el), text: clip(text) });
     }
   }

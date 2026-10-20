@@ -18,7 +18,7 @@ Each section becomes the notes of the matching GitHub Release.
 - Icons turned sideways (a 90° rotation) are no longer judged, `rotate: y 180deg` counts as a flip, and a class added to an SVG root is no longer mistaken for a redrawn icon.
 - Values containing emoji are no longer measured for text order, and a value such as `$$5` now appears in messages as written.
 - CSS pointers through webpack-style source maps (`webpack://app/./src/x.scss`) and relative `sources` (`../../src/x.scss`) now show readable project paths.
-- `rtl/clipped-marks` no longer reports roomy labels inside a CSS `transform: scale()`: the text is measured in the element's own scale. Text clipped by an ancestor of a scaled element is not judged.
+- `rtl/clipped-marks` no longer reports roomy labels inside a CSS `transform: scale()`: the text is measured in the element's own scale. Text clipped by an ancestor of a scaled element is not judged. The 1px tolerance is in the element's own scale too, so a borderline clip gets the same verdict at any scale.
 
 ### Changed
 
