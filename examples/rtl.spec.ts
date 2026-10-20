@@ -20,13 +20,14 @@ test('home page in Arabic', async ({ page, useLocale, localeCheck }) => {
 // #endregion guide
 
 // What the guide says these tests find in the demo app.
-test.afterEach(async ({}, testInfo) => {
+test.afterEach(async ({ browserName }, testInfo) => {
   const issues = checksOf(testInfo).flatMap(c => c.issues);
   const rules = new Set(issues.map(i => i.rule));
   if (testInfo.title === 'home page, forced right-to-left') {
     for (const rule of ['rtl/not-mirrored', 'rtl/icon-not-mirrored', 'rtl/icon-mirrored', 'rtl/canvas']) expect(rules, rule).toContain(rule);
     const badge = issues.find(i => i.rule === 'rtl/not-mirrored' && i.selector === '#promo-badge');
-    expect(badge?.source?.replacement).toBe('inset-inline-start: 16px');
+    // The CSS pointer needs Chromium DevTools; other browsers keep the generic fix.
+    expect(badge?.source?.replacement).toBe(browserName === 'chromium' ? 'inset-inline-start: 16px' : undefined);
   } else {
     for (const rule of ['rtl/bidi-order', 'rtl/canvas', 'rtl/clipped-marks']) expect(rules, rule).toContain(rule);
     expect(issues.find(i => i.selector === '#course-title')?.visual).toBe('++C');

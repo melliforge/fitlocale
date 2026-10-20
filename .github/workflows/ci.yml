@@ -23,11 +23,12 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run typecheck
       - run: npm test
         env:
           CI: true
+          BROWSERS: chromium,firefox,webkit
       - name: Build the docs site
         if: matrix.node == 22
         run: npm run docs:build

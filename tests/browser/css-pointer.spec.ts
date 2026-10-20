@@ -8,6 +8,8 @@ import { attachCssSources } from '../../src/devtools/css-pointer';
 import type { Issue } from '../../src/types';
 import { makeIssue } from '../unit/fixtures';
 
+test.skip(({ browserName }) => browserName !== 'chromium', 'needs Chromium DevTools');
+
 // A real HTTP server: DevTools has no stylesheet text (so no line numbers) for responses fulfilled by page.route.
 let server: Server | null = null;
 let ORIGIN = '';

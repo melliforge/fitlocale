@@ -4,6 +4,8 @@ import { ensureInjected } from '../../src/inject';
 import { openDevtools } from '../../src/devtools/session';
 import { findFontFallback } from '../../src/devtools/fonts';
 
+test.skip(({ browserName }) => browserName !== 'chromium', 'needs Chromium DevTools');
+
 // A Latin-only font that ships with Playwright: it has no Arabic letters.
 const LATIN_FONT = globSync('node_modules/playwright-core/lib/vite/traceViewer/codicon*.ttf')[0];
 

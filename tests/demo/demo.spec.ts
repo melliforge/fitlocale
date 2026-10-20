@@ -14,7 +14,7 @@ test.use({
   },
 });
 
-test('home page: finds every planted bug, no false alarms', async ({ page, localeCheck }) => {
+test('home page: finds every planted bug, no false alarms', async ({ page, localeCheck, browserName }) => {
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('data-ready', '1');
   const result = await localeCheck();
@@ -30,9 +30,13 @@ test('home page: finds every planted bug, no false alarms', async ({ page, local
     'rtl/icon-not-mirrored #next-chevron',
     'rtl/not-mirrored #promo-badge',
   ]);
-  // The fix points at the stylesheet line that keeps the badge on the left.
-  const line = readFileSync('demo/styles.css', 'utf8').split('\n').findIndex(l => l.startsWith('.promo {')) + 1;
+  // The fix points at the stylesheet line that keeps the badge on the left (Chromium DevTools only).
   const badge = result.issues.find(i => i.rule === 'rtl/not-mirrored' && i.selector === '#promo-badge')!;
+  if (browserName !== 'chromium') {
+    expect(badge.source).toBeUndefined();
+    return;
+  }
+  const line = readFileSync('demo/styles.css', 'utf8').split('\n').findIndex(l => l.startsWith('.promo {')) + 1;
   expect(badge.source).toMatchObject({ property: 'left', value: '16px', replacement: 'inset-inline-start: 16px', line });
   expect(badge.source!.url).toMatch(/\/styles\.css$/);
   expect(badge.fix).toMatch(/^In http:\/\/localhost:4310\/styles\.css:\d+ \(\.promo\), replace "left: 16px" with "inset-inline-start: 16px"\.$/);

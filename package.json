@@ -84,6 +84,7 @@
     "build:browser": "node scripts/build-browser.mjs",
     "build": "npm run build:browser && tsdown",
     "test": "npm run build && playwright test",
+    "test:browsers": "BROWSERS=chromium,firefox,webkit npm test",
     "typecheck": "npm run build && tsc --noEmit",
     "prepublishOnly": "npm run typecheck && npm test",
     "docs:dev": "vitepress dev docs",

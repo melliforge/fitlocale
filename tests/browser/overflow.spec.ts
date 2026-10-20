@@ -73,8 +73,10 @@ test('wrapped inline links do not count as overlapping', async ({ page }) => {
 test('numbers and symbols are not lengthened, so fixed-size badges stay clean', async ({ page }) => {
   await load(page, `<span style="display:inline-block;width:24px;height:24px;overflow:hidden;white-space:nowrap">3</span>
     <span style="display:inline-block;width:40px;overflow:hidden;white-space:nowrap">12.50</span>`);
+  // Fonts differ between engines (12.50 is wider than 40px in some): compare with the page before rewriting.
+  const before = await overflow(page);
   await rewrite(page);
-  expect(await overflow(page)).toEqual([]);
+  expect(await overflow(page)).toEqual(before);
 });
 
 const shell = (inner: string) => `<div style="height:300px;overflow:hidden">

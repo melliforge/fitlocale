@@ -7,6 +7,7 @@ Each section becomes the notes of the matching GitHub Release.
 
 ### Added
 
+- Firefox and WebKit are tested in CI next to Chromium. Every check runs there except the fallback-font check and the CSS pointer, which need Chromium DevTools and are skipped.
 - Overflow checks in real locales: set `localeMessages: 'locales/{locale}.json'` and a page switched with `useLocale()` gets the truncation and overflow checks, with only the issues its translation causes. A page whose text matches none of those messages gets one `i18n/locale-messages-not-matched` warning.
 
 ### Fixed

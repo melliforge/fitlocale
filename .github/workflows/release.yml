@@ -44,11 +44,12 @@ jobs:
         run: npm install -g npm@11
 
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run typecheck
       - run: npm test
         env:
           CI: true
+          BROWSERS: chromium,firefox,webkit
 
       - name: Release notes from CHANGELOG.md
         run: node scripts/release-notes.mjs "$VERSION" > release-notes.md

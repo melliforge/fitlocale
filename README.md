@@ -163,7 +163,7 @@ test.use({ fitlocale: { icons: { glyph: 'mirror', compass: 'invariant' } } });
 | `failOn` | `'error'` | Fail the test on `'error'`, on `'warning'` and up, or `'never'` |
 | `baseline` | `'fitlocale-baseline.json'` | Accepted issues file, relative to `playwright.config` (see [Baseline](#baseline)), or `false` to fail on every issue |
 | `screenshots` | `true` | Save a full-page screenshot when a mode finds issues |
-| `devtools` | `true` | Use Chromium DevTools for the fallback-font check and to point mirroring issues at their CSS |
+| `devtools` | `true` | Use Chromium DevTools for the fallback-font check and to point mirroring issues at their CSS; skipped on Firefox and WebKit |
 
 ## Rules
 
@@ -250,8 +250,7 @@ npx fitlocale summary fitlocale-report/results.json             # Markdown summa
 ## Limitations
 
 - Text inside shadow roots and iframes is not checked yet.
-- Chromium only for now: Firefox and WebKit are not tested yet.
-- The fallback-font check and the CSS pointer need Chromium DevTools. Fonts are judged only where this machine has the fonts you declared, so CI and your users' devices can differ. The font check samples up to 100 right-to-left elements per check, each distinct font and text once.
+- Tested on Chromium, Firefox and WebKit. The fallback-font check and the CSS pointer need Chromium DevTools; on Firefox and WebKit they are skipped. Fonts are judged only where this machine has the fonts you declared, so CI and your users' devices can differ. The font check samples up to 100 right-to-left elements per check, each distinct font and text once.
 
 ## Releasing
 

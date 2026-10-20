@@ -451,16 +451,28 @@ test.describe('DevTools checks', () => {
     });
   });
 
-  test('by default a mirroring issue points at its CSS', async ({ page, localeCheck }) => {
+  test('by default a mirroring issue points at its CSS', async ({ page, localeCheck, browserName }) => {
+    test.skip(browserName !== 'chromium', 'needs Chromium DevTools');
     await page.setContent(POSITIONED);
     const issue = notMirrored(await localeCheck());
     expect(issue.source).toMatchObject({ selector: 'style attribute', property: 'left', replacement: 'inset-inline-start: 16px' });
   });
 
+  test('off Chromium, the DevTools checks are skipped quietly', async ({ page, localeCheck, browserName }) => {
+    test.skip(browserName === 'chromium', 'Chromium has DevTools');
+    await page.setContent(POSITIONED.replace('</body>', '<p dir=rtl lang=ar style="font-family: Arial">مرحبا</p></body>'));
+    const result = await localeCheck();
+    const issue = notMirrored(result);
+    expect(issue.source).toBeUndefined();
+    expect(issue.fix).toBe(FIXES['rtl/not-mirrored']);
+    expect(result.issues.filter(i => i.rule === 'rtl/font-fallback')).toEqual([]);
+  });
+
   test.describe('several viewports', () => {
     test.use({ fitlocale: { viewports: [{ width: 1280, height: 800 }, { width: 390, height: 844 }], failOn: 'never' } });
 
-    test('the CSS is read while the viewport that found the issue is active', async ({ page, localeCheck }) => {
+    test('the CSS is read while the viewport that found the issue is active', async ({ page, localeCheck, browserName }) => {
+      test.skip(browserName !== 'chromium', 'needs Chromium DevTools');
       await page.setContent(`<style>.side { width: 100px } @media (min-width: 768px) { .side { position: absolute; left: 10px } }</style>
         <body style="margin:0"><div id=side class=side>Side</div></body>`);
       const issue = notMirrored(await localeCheck());
