@@ -5,6 +5,12 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+### Fixed
+
+- `zh-TW` and `zh-CN` (and other pairs written in different scripts) no longer count as the same language, so text left in Simplified Chinese is reported on a Traditional Chinese page.
+- Regional language names ("português (Brasil)", "简体中文", "British English"), currency names, units ("5 kB") and ordinals ("19th") are no longer reported as hardcoded text.
+- Text inside `display: contents` elements is no longer dropped from text blocks.
+
 ## [0.3.0] - 2026-10-20
 
 ### Breaking

@@ -100,3 +100,16 @@ test('sameLanguage compares primary language subtags', () => {
   expect(sameLanguage('en', 'de')).toBe(false);
   expect(sameLanguage('EN', 'en-xa')).toBe(true);
 });
+
+test('sameLanguage also compares scripts', () => {
+  expect(sameLanguage('zh-TW', 'zh-CN')).toBe(false);
+  expect(sameLanguage('en-GB', 'en-US')).toBe(true);
+  expect(sameLanguage('sr', 'sr-Latn')).toBe(false);
+  expect(sameLanguage('pt-BR', 'pt')).toBe(true);
+});
+
+for (const text of ['português (Brasil)', '简体中文', '繁體中文', 'British English', '5 kB', '42.00 euros', 'Oct 19th']) {
+  test(`regional language names, units, currencies and ordinals are not hardcoded: ${text}`, () => {
+    expect(findHardcoded([block(text)], PSEUDO)).toEqual([]);
+  });
+}

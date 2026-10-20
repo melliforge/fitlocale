@@ -25,6 +25,7 @@ function readBlock(block: Element, ignoreSel: string): { text: string; controls:
   const controls: InlineControl[] = [];
   const append = (s: string) => {
     for (const ch of s) {
+      if (text.length > MAX_BLOCK_TEXT) return; // one extra character, so trimming then capping gives what the full text would
       if (/\s/.test(ch)) {
         if (text !== '' && !text.endsWith(' ')) text += ' ';
       } else {
@@ -44,7 +45,10 @@ function readBlock(block: Element, ignoreSel: string): { text: string; controls:
         append(' ');
         continue;
       }
-      if (isIgnored(el, ignoreSel) || !el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) continue;
+      if (text.length > MAX_BLOCK_TEXT) break;
+      // display: contents has no box, so checkVisibility() is false for it; its children are checked on their own.
+      const contents = getComputedStyle(el).display === 'contents';
+      if (isIgnored(el, ignoreSel) || (!contents && !el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }))) continue;
       if (!isInline(el)) {
         append(' '); // a block of its own
         continue;
