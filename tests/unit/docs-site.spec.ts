@@ -78,3 +78,9 @@ test('overflow on pseudo-locale pages is documented with its real mode', () => {
   expect(rules).not.toContain('**Modes:** `pseudo-long`, and pages in a pseudo locale');
   expect(rules.match(/`pseudo-long`; `source` on pages in a pseudo locale/g)).toHaveLength(4);
 });
+
+test('top menu labels are distinct, not singular and plural of one word', () => {
+  const nav = readFileSync('docs/.vitepress/config.ts', 'utf8').split(/^\s+nav: \[/m)[1].split(/^\s+\],/m)[0];
+  const labels = [...nav.matchAll(/text: '([^']+)'/g)].map(m => m[1].toLowerCase().replace(/s$/, ''));
+  expect(new Set(labels).size).toBe(labels.length);
+});
