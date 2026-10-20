@@ -88,12 +88,14 @@ const FONT_TIMEOUT_MS = 3000;
 /**
  * Let the page settle after a text or direction change: wait for web fonts the new text needs
  * (capped, so a font that never loads cannot hang the check), then for two frames.
+ * Resolves false when the fonts were not ready in time.
  */
-const settle = (page: Page) =>
-  page.evaluate(async timeout => {
-    await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, timeout))]);
+const settle = (page: Page, waitForFonts: boolean) =>
+  page.evaluate(async ([timeout, fonts]) => {
+    const ready = !fonts || await Promise.race([document.fonts.ready.then(() => true), new Promise<boolean>(r => setTimeout(() => r(false), timeout))]);
     await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-  }, FONT_TIMEOUT_MS);
+    return ready;
+  }, [FONT_TIMEOUT_MS, waitForFonts] as const);
 
 const CONTEXT_DESTROYED = /Execution context was destroyed/;
 
@@ -167,6 +169,9 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
     return devtools;
   };
   let skippedRtl = false; // report an already-RTL page once, not once per viewport
+  // A font that never loads would cost the full timeout at every text change: after one timeout, stop waiting for fonts.
+  let fontsLoad = true;
+  const settleHere = async () => { if (!await settle(page, fontsLoad)) fontsLoad = false; };
   let fellBack = false; // the page shows another locale than the one useLocale() asked for
   // In a real locale with localeMessages: maps the page's text back to the source text. Built before the page is touched.
   const toSource = expectedLocale !== null && !isSource && !isPseudo && options.localeMessages
@@ -180,12 +185,12 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
     let approx = asIs;
     try {
       if (await approximate()) {
-        await settle(page);
+        await settleHere();
         approx = await findOverflow();
       }
     } finally {
       await page.evaluate(() => (window as unknown as Api).__fitlocale.restoreText());
-      await settle(page);
+      await settleHere();
     }
     return subtractSource(asIs, approx);
   };
@@ -281,7 +286,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
         const sourceOverflow = await page.evaluate(ig => (window as unknown as Api).__fitlocale.findOverflow(ig), options.ignore);
         try {
           await page.evaluate(([e, ig]) => (window as unknown as Api).__fitlocale.rewriteText(e, ig), [options.expansion, options.ignore] as const);
-          await settle(page);
+          await settleHere();
           const found = subtractSource(
             await page.evaluate(ig => (window as unknown as Api).__fitlocale.findOverflow(ig), options.ignore),
             sourceOverflow,
@@ -309,7 +314,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
           await page.evaluate(([ig, mi]) => (window as unknown as Api).__fitlocale.rememberBoxes(ig, mi), lists);
           await page.evaluate(([ig, ic]) => (window as unknown as Api).__fitlocale.rememberIcons(ig, ic), iconArgs);
           await page.evaluate(() => (window as unknown as Api).__fitlocale.setDir('rtl'));
-          await settle(page);
+          await settleHere();
           const found = [
             ...await page.evaluate(([ig, mi]) => (window as unknown as Api).__fitlocale.findNotMirrored(ig, mi), lists),
             ...await page.evaluate(([ig, ic]) => (window as unknown as Api).__fitlocale.findIconIssues(ig, ic), iconArgs),
