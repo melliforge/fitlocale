@@ -50,3 +50,36 @@ jobs:
           name: test-results-node-${{ matrix.node }}
           path: test-results/
           retention-days: 7
+
+  oldest:
+    # The oldest Node and Playwright the package declares (engines, peerDependencies): installed from the packed
+    # tarball into a project of its own, the way a user's project gets it. Keep in step with package.json.
+    name: Node 16.17 · Playwright 1.40 · packed package
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.40.0-jammy
+      options: --user 1001
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm pack --ignore-scripts --pack-destination compat
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '16.17'
+      - name: Install the packed package as a user's project would
+        working-directory: compat
+        run: npm install --no-audit --no-fund ./fitlocale-*.tgz @playwright/test@1.40.0
+      - name: Run the compat tests
+        working-directory: compat
+        run: npx playwright test
+        env:
+          CI: true
+          BROWSERS: chromium,firefox,webkit
+      - name: Check the report, the CLI and require()
+        working-directory: compat
+        run: node after.mjs

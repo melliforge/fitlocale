@@ -11,3 +11,7 @@ docs/superpowers/
 .idea/
 docs/.vitepress/dist
 docs/.vitepress/cache
+# The compat project installs the packed package fresh in CI
+compat/*.tgz
+compat/package-lock.json
+compat/fitlocale-baseline.json

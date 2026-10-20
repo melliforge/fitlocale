@@ -13,7 +13,7 @@ fitlocale plugs into the Playwright tests you already have. It needs no approved
 npm install -D fitlocale
 ```
 
-It needs Node 22+ and `@playwright/test` 1.45+, and runs on Chromium, Firefox and WebKit.
+It needs Node 16.17+ and `@playwright/test` 1.40+, and runs on Chromium, Firefox and WebKit.
 
 ## Add the reporter
 

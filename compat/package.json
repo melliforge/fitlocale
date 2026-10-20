@@ -1,0 +1,6 @@
+{
+  "name": "fitlocale-compat",
+  "private": true,
+  "description": "A user's project on the oldest supported Node and Playwright: CI installs the packed fitlocale tarball here.",
+  "type": "module"
+}

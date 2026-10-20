@@ -10,7 +10,16 @@ const EPS = 1;
 const MAX_INK_WIDTH = 8192;
 const CLIPPING = new Set(['hidden', 'clip']);
 
-let ctx: OffscreenCanvasRenderingContext2D | null = null;
+let ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null = null;
+
+/** A canvas off the page: WebKit before 16.4 (Playwright before 1.45) has no OffscreenCanvas, so fall back to a detached one. */
+function newCanvas(width: number, height: number): OffscreenCanvas | HTMLCanvasElement {
+  if (typeof OffscreenCanvas === 'function') return new OffscreenCanvas(width, height);
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  return canvas;
+}
 
 /**
  * How far the drawn ink of `text` reaches above and below its baseline, read from the pixels of a drawing.
@@ -24,8 +33,8 @@ function inkExtent(font: string, size: number, text: string, cache: Map<string, 
   const natural = ctx!.measureText(text).width + 2 * size;
   const squeeze = Math.min(1, MAX_INK_WIDTH / natural);
   const width = Math.ceil(natural * squeeze), height = Math.ceil(4 * size), baseline = 2 * size;
-  const canvas = new OffscreenCanvas(Math.max(1, width), Math.max(1, height));
-  const g = canvas.getContext('2d', { willReadFrequently: true });
+  const canvas = newCanvas(Math.max(1, width), Math.max(1, height));
+  const g = canvas.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
   let ink: InkExtent | null = null;
   if (g) {
     g.font = font;
@@ -69,7 +78,7 @@ function singleLineRects(el: Element): DOMRect[] | null {
 /** Right-to-left text whose accent marks or descenders (measured ink) reach past the box that clips it. */
 export function findClippedMarks(ignore: string[]): RawIssue[] {
   const issues: RawIssue[] = [];
-  ctx ??= new OffscreenCanvas(1, 1).getContext('2d');
+  ctx ??= newCanvas(1, 1).getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
   if (!ctx) return issues;
   const inks = new Map<string, InkExtent | null>();
   for (const el of textElements(ignoreSelector(ignore))) {
