@@ -56,3 +56,60 @@ test('a CSS scale never changes the verdict', async ({ page }) => {
     for (const scale of [0.5, 2]) expect(await find(page, scaled(lh, scale)), `line-height ${lh}, scale ${scale}`).toEqual(plain);
   }
 });
+
+/**
+ * Builds a single-line box around `text` and returns, from this test's own drawing (left to right, whatever the page
+ * direction), the box heights whose clip sits `delta` px below the drawn ink.
+ */
+async function clipAt(page: Page, text: string) {
+  const div = (height: number) =>
+    `<div id=t style="padding-top:20px;height:${height}px;overflow:hidden;font-size:20px;line-height:normal;white-space:nowrap">${text}</div>`;
+  await load(page, `<html dir="rtl" lang="ar"><body style="margin:0">${div(200)}</body></html>`);
+  const { baseline, descent } = await page.evaluate(() => {
+    const el = document.getElementById('t')!;
+    const s = getComputedStyle(el);
+    const g = new OffscreenCanvas(1200, 120).getContext('2d', { willReadFrequently: true })!;
+    g.direction = 'ltr';
+    g.textAlign = 'left';
+    g.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;
+    g.fillText(el.textContent!, 20, 60);
+    const data = g.getImageData(0, 0, 1200, 120).data;
+    let bottom = 0;
+    for (let y = 0; y < 120; y++) for (let x = 0; x < 1200; x++) if (data[(y * 1200 + x) * 4 + 3] > 0) bottom = y;
+    const range = document.createRange();
+    range.selectNodeContents(el.firstChild!);
+    const rect = range.getClientRects()[0];
+    return { baseline: rect.top - el.getBoundingClientRect().top + g.measureText(el.textContent!).fontBoundingBoxAscent, descent: bottom + 1 - 60 };
+  });
+  return { descent, verdict: (clipBelowInk: number) => find(page, div(Math.round(baseline + descent + clipBelowInk - 20))) };
+}
+
+test('marks are judged by their drawn pixels', async ({ page }) => {
+  // Canvas metrics for marks differ between engines (WebKit misreports them): the verdict must follow the ink as drawn.
+  const { descent, verdict } = await clipAt(page, TEXT);
+  expect(await verdict(-3), `clip 3px into the drawn ink (descent ${descent})`).toEqual(['rtl/clipped-marks #t']);
+  expect(await verdict(3), `clip 3px below the drawn ink (descent ${descent})`).toEqual([]);
+});
+
+test('marks at the end of a right-to-left line are measured too', async ({ page }) => {
+  const { descent, verdict } = await clipAt(page, `كلا كلا كلا كلا ${TEXT}`);
+  expect(await verdict(-3), `clip 3px into the drawn ink (descent ${descent})`).toEqual(['rtl/clipped-marks #t']);
+});
+
+test('a very long line is still measured', async ({ page }) => {
+  // Wider than the largest canvas Chromium draws on.
+  expect(await find(page, `<div id=t style="height:14px;line-height:1;font-size:20px;overflow:hidden;white-space:nowrap">${`${TEXT} `.repeat(3000)}</div>`))
+    .toEqual(['rtl/clipped-marks #t']);
+});
+
+test('pixel ink stays fast on many elements', async ({ page }) => {
+  const divs = Array.from({ length: 300 }, (_, i) =>
+    `<div style="height:30px;overflow:hidden;white-space:nowrap;font-size:${[14, 16, 20][i % 3]}px">${TEXT} ${i % 30}</div>`).join('');
+  await load(page, `<html dir="rtl" lang="ar"><body>${divs}</body></html>`);
+  const ms = await page.evaluate(() => {
+    const t0 = performance.now();
+    window.__fitlocale.findClippedMarks([]);
+    return performance.now() - t0;
+  });
+  expect(ms).toBeLessThan(1500);
+});

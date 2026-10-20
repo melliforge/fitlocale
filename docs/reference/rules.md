@@ -233,7 +233,7 @@ A canvas ignores the page direction: check its chart or drawing by hand. This no
 
 ### `rtl/font-fallback`
 
-**Severity:** warning · **Modes:** `source`, on right-to-left pages (Chromium)
+**Severity:** warning · **Modes:** `source`, on right-to-left pages (Chromium only: it needs DevTools)
 
 Arabic or Hebrew text is drawn in a fallback font, because none of your fonts has these letters. Only the fonts drawing those letters count. A `font-family` is judged only when every font it names (generic families aside) is on the machine running the tests.
 

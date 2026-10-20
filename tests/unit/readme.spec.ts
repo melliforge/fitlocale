@@ -1,11 +1,18 @@
 import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 
-// The test suite runs on Chromium only, so the README must not promise more.
-test('README claims only the browsers the suite runs on', () => {
+// The README may claim only the browsers CI actually runs.
+test('README names the browsers CI runs', () => {
   const readme = readFileSync('README.md', 'utf8');
-  expect(readme).not.toMatch(/works with[^.\n]*(firefox|webkit)/i);
-  expect(readme).toContain('Chromium only');
+  expect(readme).toContain('Chromium, Firefox and WebKit');
+  expect(readme).not.toContain('Chromium only');
+  expect(readFileSync('.github/workflows/ci.yml', 'utf8')).toContain('BROWSERS: chromium,firefox,webkit');
+});
+
+// Layout tests depend on the fonts installed: CI runs in Playwright's own image, the one used to verify locally (Docker).
+test('CI runs in the Playwright image of the installed version', () => {
+  const version = JSON.parse(readFileSync('node_modules/@playwright/test/package.json', 'utf8')).version;
+  expect(readFileSync('.github/workflows/ci.yml', 'utf8')).toContain(`image: mcr.microsoft.com/playwright:v${version}-noble`);
 });
 
 test('README documents the baseline file and the GitHub Action', () => {

@@ -122,4 +122,4 @@ Save a full-page screenshot when a mode finds issues, for the HTML report.
 
 `boolean` · default `true`
 
-Use Chromium DevTools for the fallback-font check and to point mirroring issues at their CSS line. Turn it off to save time on very large pages.
+Use Chromium DevTools for the fallback-font check and to point mirroring issues at their CSS line. On Firefox and WebKit these two are skipped, and mirroring issues keep the generic fix. Turn it off to save time on very large pages.
