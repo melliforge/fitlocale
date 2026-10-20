@@ -5,6 +5,8 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-20
+
 ### Fixed
 
 - A web font that never loads no longer adds 3 seconds at every text change: a check waits for fonts once, then goes on. A page with such a font took about 12 seconds per check; it now takes about 3. On WebKit, such a page made the check hang until the test timed out.
@@ -130,7 +132,8 @@ First public release.
 - CLI: `fitlocale pseudo` writes pseudo-locale message files, and `fitlocale report` re-renders a report.
 - CommonJS and ESM builds with TypeScript types.
 
-[Unreleased]: https://github.com/melliforge/localization-layout-tester/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/melliforge/localization-layout-tester/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/melliforge/localization-layout-tester/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/melliforge/localization-layout-tester/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/melliforge/localization-layout-tester/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/melliforge/localization-layout-tester/compare/v0.2.0...v0.2.1
