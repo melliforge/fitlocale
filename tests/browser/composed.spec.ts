@@ -188,3 +188,21 @@ test.describe('restoring', () => {
     expect(await snapshot(page)).toEqual(before);
   });
 });
+
+test.describe('right-to-left inside frames', () => {
+  test.use({ fitlocale: { viewports: 'current', failOn: 'never', modes: ['pseudo-rtl'] } });
+
+  test('a badge that does not mirror inside a frame is reported', async ({ page, localeCheck }) => {
+    await page.setContent(composed('<p>x</p>', '<body style="margin:0"><div id=b style="position:absolute;left:16px">Neu</div></body>'));
+    expect(ruleList((await localeCheck()).issues, 'rtl/not-mirrored')).toEqual(['#f >> internal:control=enter-frame >> #b']);
+  });
+
+  test('frames get their direction back', async ({ page, localeCheck }) => {
+    const frame = (dir: string) => `<iframe srcdoc="<html${dir}><body><p>Text</p></body></html>"></iframe>`;
+    await page.setContent(`<p>Text</p>${frame('')}${frame(' dir=ltr')}${frame(' dir=rtl')}`);
+    const dirs = () => page.evaluate(() => Array.from(document.querySelectorAll('iframe'), f => f.contentDocument!.documentElement.getAttribute('dir')));
+    expect(await dirs()).toEqual([null, 'ltr', 'rtl']);
+    await localeCheck();
+    expect(await dirs()).toEqual([null, 'ltr', 'rtl']);
+  });
+});

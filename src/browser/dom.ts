@@ -47,7 +47,7 @@ const isShadowRoot = (node: Node): node is ShadowRoot => node.nodeType === Node.
 export const frameElementOf = (doc: Document): Element | null => doc.defaultView?.frameElement ?? null;
 
 /** The document of a visible, same-origin iframe that has loaded, or null (closed to us, hidden, or not a frame). */
-function frameDocument(el: Element): Document | null {
+export function frameDocument(el: Element): Document | null {
   if (el.localName !== 'iframe') return null;
   let doc: Document | null;
   try {

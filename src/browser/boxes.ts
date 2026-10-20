@@ -3,7 +3,7 @@ import type { BoxRecord } from '../rules/mirror';
 import { findLeaksInText } from '../rules/leaks';
 import { hasRtlLetters } from '../rules/bidi';
 import {
-  clip, composedElements, directText, docBox, ignoreSelector, isIgnored, isVisible, keyOf, langOf, optionalSelector, selectorOf,
+  clip, composedElements, directText, docBox, frameElementOf, frameOffset, ignoreSelector, isIgnored, isVisible, keyOf, langOf, optionalSelector, selectorOf,
 } from './dom';
 
 const BOXED_TAGS = new Set(['img', 'svg', 'button', 'input', 'select']);
@@ -18,13 +18,15 @@ export function snapshotBoxes(ignore: string[], mirrorIgnore: string[]): BoxReco
   const ignoreSel = ignoreSelector(ignore);
   const mirrorSel = optionalSelector(mirrorIgnore);
   const records: BoxRecord[] = [];
-  for (const el of document.body.querySelectorAll('*')) {
+  for (const el of composedElements()) {
     const text = directText(el);
     if (text === '' && !BOXED_TAGS.has(el.tagName.toLowerCase())) continue;
     if (isIgnored(el, ignoreSel) || !isVisible(el)) continue;
+    const doc = el.ownerDocument;
     records.push({
       key: keyOf(el), selector: selectorOf(el), box: docBox(el), text: clip(text), ignored: isIgnored(el, mirrorSel),
       direction: getComputedStyle(el).direction === 'rtl' ? 'rtl' : 'ltr',
+      ...(frameElementOf(doc) ? { frame: { x: frameOffset(doc).x + window.scrollX, width: doc.documentElement.clientWidth } } : {}),
     });
   }
   return records;
