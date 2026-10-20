@@ -5,6 +5,10 @@ description: The results.json written by the fitlocale reporter and the baseline
 
 # Results format
 
+::: tip Next release
+The `id`, `baselined`, `visual`, `used`, `declared` and `source` fields, `CheckResult.baseline` and the baseline file arrive in the next fitlocale release on npm (after 0.2.1). They are on `main` today.
+:::
+
 The reporter writes `results.json` next to `index.html`. It is stable, so tools and AI coding agents can act on it.
 
 ```ts

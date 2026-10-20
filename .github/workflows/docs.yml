@@ -8,10 +8,9 @@ on:
     paths: ['docs/**', 'examples/**', '.github/workflows/docs.yml']
   workflow_dispatch:
 
+# The build job runs npm ci (and its install scripts): it gets read access only. Deploy rights are on the deploy job.
 permissions:
   contents: read
-  pages: write # deploy to GitHub Pages
-  id-token: write # prove the deployment comes from this workflow
 
 concurrency:
   group: pages
@@ -23,13 +22,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # last-updated dates and the sitemap's lastmod read git history
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run docs:build
-      - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
           path: docs/.vitepress/dist
@@ -37,7 +37,12 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     needs: build
+    # A manual run from another branch builds the site but never deploys it.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    permissions:
+      pages: write # deploy to GitHub Pages
+      id-token: write # prove the deployment comes from this workflow
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

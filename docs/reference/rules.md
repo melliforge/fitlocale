@@ -18,7 +18,7 @@ Issues already present in the source render are not reported in the pseudo modes
 
 ### `overflow/clipped`
 
-**Severity:** error · **Modes:** `pseudo-long`, and pages in a pseudo locale
+**Severity:** error · **Modes:** `pseudo-long`; `source` on pages in a pseudo locale
 
 Text no longer fits its box and the overflow is hidden, so part of it is cut off.
 
@@ -30,7 +30,7 @@ Text no longer fits its box and the overflow is hidden, so part of it is cut off
 
 ### `overflow/ellipsis`
 
-**Severity:** warning · **Modes:** `pseudo-long`, and pages in a pseudo locale
+**Severity:** warning · **Modes:** `pseudo-long`; `source` on pages in a pseudo locale
 
 Text is truncated with an ellipsis or a line clamp that does not happen in the source language.
 
@@ -42,7 +42,7 @@ Text is truncated with an ellipsis or a line clamp that does not happen in the s
 
 ### `overflow/escapes-box`
 
-**Severity:** error · **Modes:** `pseudo-long`, and pages in a pseudo locale
+**Severity:** error · **Modes:** `pseudo-long`; `source` on pages in a pseudo locale
 
 Text spills outside its box (the overflow is visible), usually over its neighbours.
 
@@ -54,7 +54,7 @@ Text spills outside its box (the overflow is visible), usually over its neighbou
 
 ### `overflow/overlap`
 
-**Severity:** error · **Modes:** `pseudo-long`, and pages in a pseudo locale
+**Severity:** error · **Modes:** `pseudo-long`; `source` on pages in a pseudo locale
 
 A link, button or input overlaps a neighbouring control, so one of them is hard to click.
 

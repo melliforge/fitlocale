@@ -1,5 +1,6 @@
 ---
 layout: home
+titleTemplate: false
 title: fitlocale - translation layout testing for Playwright
 description: Catch truncated labels, overflowing text, untranslated strings and right-to-left layout bugs in your Playwright tests.
 hero:

@@ -43,3 +43,34 @@ test('the site deploys from main only, and every pull request builds it', () => 
 test('the README links to the docs site', () => {
   expect(readFileSync('README.md', 'utf8')).toContain('https://melliforge.github.io/localization-layout-tester/');
 });
+
+test('rendered titles stay within 60 characters, " | fitlocale" suffix included', () => {
+  for (const page of docsPages()) {
+    const fm = frontmatter(page);
+    const rendered = fm.titleTemplate === 'false' ? fm.title : `${fm.title} | fitlocale`;
+    expect(rendered.length, `${page}: ${rendered}`).toBeLessThanOrEqual(60);
+  }
+});
+
+test('the docs workflow gives deploy rights to the deploy job only, from main, with full history', () => {
+  const docs = readFileSync('.github/workflows/docs.yml', 'utf8');
+  const [top, jobs] = docs.split(/^jobs:\n/m);
+  expect(top).not.toContain('pages: write');
+  expect(top).not.toContain('id-token: write');
+  const [build, deploy] = jobs.split(/^ {2}deploy:\n/m);
+  expect(build).not.toContain('pages: write');
+  expect(build).toContain('fetch-depth: 0'); // last-updated dates and sitemap lastmod read git history
+  expect(deploy).toContain('pages: write');
+  expect(deploy).toContain('id-token: write');
+  expect(deploy).toContain("if: github.ref == 'refs/heads/main'");
+});
+
+test('pages documenting unreleased fields say so', () => {
+  expect(readFileSync('docs/reference/results.md', 'utf8')).toContain('::: tip Next release');
+});
+
+test('overflow on pseudo-locale pages is documented with its real mode', () => {
+  const rules = readFileSync('docs/reference/rules.md', 'utf8');
+  expect(rules).not.toContain('**Modes:** `pseudo-long`, and pages in a pseudo locale');
+  expect(rules.match(/`pseudo-long`; `source` on pages in a pseudo locale/g)).toHaveLength(4);
+});
