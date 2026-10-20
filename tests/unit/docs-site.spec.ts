@@ -27,3 +27,19 @@ test('every page has a search-friendly title and description', () => {
   }
   expect(existsSync('docs/index.md')).toBe(true);
 });
+
+test('the site deploys from main only, and every pull request builds it', () => {
+  const docs = readFileSync('.github/workflows/docs.yml', 'utf8');
+  const on = docs.split(/^on:\n/m)[1].split(/^\S/m)[0];
+  expect(on).toMatch(/push:\n\s+branches: \[main\]/);
+  expect(on).toContain('workflow_dispatch');
+  expect(on).not.toContain('pull_request');
+  expect(docs).toContain('pages: write');
+  expect(docs).toContain('id-token: write');
+  expect(docs).toMatch(/path: docs\/\.vitepress\/dist/);
+  expect(readFileSync('.github/workflows/ci.yml', 'utf8')).toContain('npm run docs:build');
+});
+
+test('the README links to the docs site', () => {
+  expect(readFileSync('README.md', 'utf8')).toContain('https://melliforge.github.io/localization-layout-tester/');
+});

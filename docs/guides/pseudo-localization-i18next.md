@@ -5,6 +5,10 @@ description: Generate an en-XA pseudo locale for i18next, then find hardcoded st
 
 # Pseudo-localization with i18next and Playwright
 
+::: tip Next release
+Parts of this page arrive in the next fitlocale release on npm (after 0.2.1). They are on `main` today.
+:::
+
 Pseudo-localization is a fake language made from your source language: every string accented, made longer, and wrapped in markers.
 
 ```

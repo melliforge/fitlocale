@@ -5,6 +5,10 @@ description: Install fitlocale, add the reporter to playwright.config, and check
 
 # Getting started
 
+::: tip Next release
+Parts of this page arrive in the next fitlocale release on npm (after 0.2.1). They are on `main` today.
+:::
+
 fitlocale plugs into the Playwright tests you already have. It needs no approved screenshots and no translations to start.
 
 ## Install

@@ -28,6 +28,9 @@ jobs:
       - run: npm test
         env:
           CI: true
+      - name: Build the docs site
+        if: matrix.node == 22
+        run: npm run docs:build
       - name: fitlocale report
         if: always()
         uses: ./

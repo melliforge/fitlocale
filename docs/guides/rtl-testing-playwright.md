@@ -5,6 +5,10 @@ description: Test right-to-left (Arabic, Hebrew) layouts in Playwright - mirrori
 
 # How to test RTL layout in Playwright
 
+::: tip Next release
+Parts of this page arrive in the next fitlocale release on npm (after 0.2.1). They are on `main` today.
+:::
+
 Right-to-left support is more than `dir="rtl"`. When a page switches to Arabic or Hebrew:
 - the layout must mirror, but only selectively;
 - arrows must flip, but play buttons and clocks must not;

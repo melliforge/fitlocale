@@ -5,6 +5,10 @@ description: The fitlocale GitHub Action - a table of new translation layout iss
 
 # GitHub Action
 
+::: tip Next release
+Parts of this page arrive in the next fitlocale release on npm (after 0.2.1). They are on `main` today.
+:::
+
 Run your Playwright tests as usual, then add the fitlocale step with `if: always()`, so it runs when tests fail too:
 
 ```yaml
