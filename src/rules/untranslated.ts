@@ -7,8 +7,25 @@ export type SourceMatcher = (text: string) => boolean;
 
 const ICU = /\{\s*\w+\s*,\s*(plural|select|selectordinal)\s*,/;
 const PLACEHOLDER = /\{\{\s*[\w.]+\s*\}\}|\$\{[^}]*\}|\{[^{}]*\}|%(?:\d+\$)?[sdif@]/g;
-const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const normalize = (s: string) => s.replace(/\s+/g, ' ').trim();
+
+/**
+ * Does `text` read as `literals` with at least one character between each two (a filled placeholder)?
+ * Left to right, each literal at its first place after the previous one: linear, unlike a regex with lazy groups,
+ * which backtracks for seconds on a long paragraph against a message with several placeholders.
+ */
+function fills(text: string, literals: string[]): boolean {
+  const first = literals[0], last = literals[literals.length - 1];
+  if (!text.startsWith(first) || !text.endsWith(last)) return false;
+  const end = text.length - last.length;
+  let pos = first.length;
+  for (let i = 1; i < literals.length - 1; i++) {
+    const at = text.indexOf(literals[i], pos + 1);
+    if (at < 0) return false;
+    pos = at + literals[i].length;
+  }
+  return end - pos >= 1;
+}
 
 /**
  * Matches rendered text against source messages: HTML tags stripped, placeholders filled with anything.
@@ -16,7 +33,7 @@ const normalize = (s: string) => s.replace(/\s+/g, ' ').trim();
  */
 export function sourceMatcher(values: string[]): SourceMatcher {
   const exact = new Set<string>();
-  const patterns: Array<{ re: RegExp; chunk: string }> = [];
+  const patterns: Array<{ literals: string[]; chunk: string }> = [];
   for (const value of values) {
     if (ICU.test(value) || value.includes('$t(') || value.includes('@:')) continue;
     const text = normalize(value.replace(/<[^>]*>/g, ''));
@@ -27,12 +44,12 @@ export function sourceMatcher(values: string[]): SourceMatcher {
       continue;
     }
     const chunk = literals.reduce((a, b) => (b.length > a.length ? b : a), '');
-    patterns.push({ re: new RegExp(`^${literals.map(escape).join('[\\s\\S]+?')}$`), chunk });
+    patterns.push({ literals, chunk });
   }
   return rendered => {
     const text = normalize(rendered);
     if (exact.has(text)) return true;
-    return patterns.some(p => text.includes(p.chunk) && p.re.test(text));
+    return patterns.some(p => text.includes(p.chunk) && fills(text, p.literals));
   };
 }
 
