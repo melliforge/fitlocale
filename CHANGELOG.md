@@ -5,6 +5,10 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+### Added
+
+- Overflow checks in real locales: set `localeMessages: 'locales/{locale}.json'` and a page switched with `useLocale()` gets the truncation and overflow checks, with only the issues its translation causes. A page whose text matches none of those messages gets one `i18n/locale-messages-not-matched` warning.
+
 ### Fixed
 
 - `zh-TW` and `zh-CN` (and other pairs written in different scripts) no longer count as the same language, so text left in Simplified Chinese is reported on a Traditional Chinese page. A `lang` that names only the language (`zh`), or is written with an underscore (`de_DE`), still matches the page.

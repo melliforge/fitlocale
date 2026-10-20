@@ -80,6 +80,8 @@ You can also pass any `async (page, locale) => { … }`.
 
 In a real locale, set `sourceMessages` and fitlocale also reports text that is identical to a source-language message (`i18n/untranslated`), such as an English sentence left in the German messages.
 
+Set `localeMessages: 'locales/{locale}.json'` too, and real locales get the overflow and truncation checks: fitlocale puts the source text back wherever it finds a translation, measures again, and reports only what the translation causes. Text it cannot find in your messages is left out, never guessed.
+
 ## Integrated pseudo-locale mode
 
 The pseudo modes above rewrite the page's text in the browser. For a deeper check, let your app load pseudo-locale messages itself:

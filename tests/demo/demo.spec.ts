@@ -10,6 +10,7 @@ test.use({
     failOn: 'never',
     setLocale: byLocalStorage('lang'),
     sourceMessages: 'demo/locales/en.json',
+    localeMessages: 'demo/locales/{locale}.json',
   },
 });
 
@@ -68,7 +69,7 @@ test('pseudo locale en-XA: hardcoded and concatenated text, real overflow', asyn
   ]);
 });
 
-test('German: text left in English is found', async ({ page, localeCheck, useLocale }) => {
+test('German: text left in English, and text that no longer fits', async ({ page, localeCheck, useLocale }) => {
   await page.goto('/');
   await useLocale('de');
   await expect(page.locator('html')).toHaveAttribute('data-ready', '1');
@@ -78,6 +79,7 @@ test('German: text left in English is found', async ({ page, localeCheck, useLoc
     'leak/bad-value #price',
     'leak/placeholder #inbox-count',
     'leak/raw-key #welcome',
+    'overflow/clipped #save-btn',
   ]);
 });
 

@@ -45,6 +45,16 @@ test.use({ fitlocale: { viewports: [{ width: 1440, height: 900 }, { width: 360, 
 
 For languages that run longer than German, raise [`expansion`](/reference/options#expansion), for example to `0.6`.
 
+## In your real locales
+
+Once translations exist, check the languages you ship as well. Point [`localeMessages`](/reference/options#localemessages) at your message files and switch the page with `useLocale()`:
+
+<<< @/../examples/real-locales.spec.ts#real-locales
+
+fitlocale puts the English text back wherever it finds a translation in your messages, measures again, and reports only what overflows in German and not in English, so a truncation that is there by design stays out of the report. Text it cannot find in your messages, such as user names, is left out rather than guessed.
+
+On the demo app, this finds the German save button whose label no longer fits.
+
 ## An app that already has issues
 
 The first run reports everything it finds, but fails no test: there is no baseline file yet. Accept the current issues, then commit the file:
