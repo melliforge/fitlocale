@@ -153,6 +153,7 @@ test.use({ fitlocale: { icons: { glyph: 'mirror', compass: 'invariant' } } });
 | `setLocale` | — | How your app switches language (needed by `useLocale`) |
 | `localeProbe` | `<html lang>` | How to read the current locale |
 | `sourceMessages` | — | Path to your source message JSON (relative to `playwright.config`), to recognise raw keys and untranslated text |
+| `localeMessages` | — | Path to each locale's message JSON with `{locale}` (for example `locales/{locale}.json`), for overflow checks in real locales; needs `sourceMessages` |
 | `ignore` | `[]` | Selectors to skip (code, `script`, `[data-fitlocale-ignore]` and similar are always skipped) |
 | `mirrorIgnore` | logos, `video`, `audio`, `code`, `pre` | Elements that legitimately keep their place in RTL |
 | `icons` | `{}` | Your icon names and whether they flip in right-to-left: `'mirror'`, `'invariant'` or `'ignore'` |

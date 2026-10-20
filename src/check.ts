@@ -1,9 +1,9 @@
-import { readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import type { Frame, FullConfig, Page, TestInfo } from '@playwright/test';
 import { ensureInjected } from './inject';
 import type { FitlocaleOptions } from './options';
-import { flattenKeys, flattenValues, type Messages } from './pseudo';
+import { flattenKeys, flattenValues } from './pseudo';
+import { readMessages } from './messages';
 import { findConcatenated, findHardcoded, hasPseudoMarkers } from './rules/i18n';
 import { isRtlLocale } from './rules/icons';
 import { openDevtools, type Devtools } from './devtools/session';
@@ -41,18 +41,7 @@ export function configDirOf(config: Pick<FullConfig, 'configFile'>): string {
 function loadMessages(path: string, baseDir: string): { keys: string[]; values: string[] } {
   const file = resolve(baseDir, path);
   if (!messagesCache.has(file)) {
-    let text: string;
-    try {
-      text = readFileSync(file, 'utf8');
-    } catch (err) {
-      throw new Error(`fitlocale: cannot read sourceMessages file ${file} (${(err as NodeJS.ErrnoException).code ?? (err as Error).message})`, { cause: err });
-    }
-    let messages: Messages;
-    try {
-      messages = JSON.parse(text) as Messages;
-    } catch (err) {
-      throw new Error(`fitlocale: sourceMessages file ${file} is not valid JSON: ${(err as Error).message}`, { cause: err });
-    }
+    const messages = readMessages(file, 'sourceMessages');
     messagesCache.set(file, { keys: flattenKeys(messages), values: flattenValues(messages) });
   }
   return messagesCache.get(file)!;
