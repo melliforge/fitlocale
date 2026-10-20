@@ -36,6 +36,26 @@ test('overlap', async ({ page }) => {
   expect(await overflow(page)).toEqual(['overflow/overlap #a']);
 });
 
+// A bar fixed or stuck to the screen (a bottom navigation, an open menu) covers the page as it scrolls by on purpose.
+test('a control under a fixed or sticky bar is not an overlap', async ({ page }) => {
+  // A list longer than the screen, with a bar pinned to the bottom of the screen over it (Elk's bottom navigation).
+  const list = Array.from({ length: 30 }, (_, i) => `<button style="display:block;height:40px">Item ${i}</button>`).join('');
+  for (const position of ['fixed', 'sticky']) {
+    await load(page, `<body style="margin:0">${list}
+      <nav style="position:${position};bottom:0;left:0;width:300px;height:60px;background:#eee">
+        <button style="height:60px">Home</button><button style="height:60px">Search</button></nav></body>`);
+    expect(await overflow(page), position).toEqual([]);
+  }
+});
+
+test('controls inside the same fixed bar can still overlap', async ({ page }) => {
+  await load(page, `<nav style="position:fixed;top:0;left:0;width:400px;height:40px">
+    <button id=a style="position:absolute;font-size:16px;inset-inline-start:0">Delete</button>
+    <button id=b style="position:absolute;font-size:16px;inset-inline-start:90px">Archive</button></nav>`);
+  await rewrite(page);
+  expect(await overflow(page)).toEqual(['overflow/overlap #a']);
+});
+
 test('hidden elements are never reported', async ({ page }) => {
   const btn = `<button style="width:120px;overflow:hidden;white-space:nowrap">Save changes</button>`;
   await load(page, `
