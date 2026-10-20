@@ -54,7 +54,7 @@ npx fitlocale baseline fitlocale-report/results.json
 git add fitlocale-baseline.json
 ```
 
-From then on, only new issues fail. Accepted ones stay in the report, marked "accepted". Run the command again after you fix some, to drop them from the file.
+From then on, only new issues fail. Accepted ones stay in the report, marked "accepted". Run the command again after you fix some, to drop them from the file. It accepts whatever that run found, new issues included, so run it on a run you have reviewed.
 
 ## In GitHub Actions
 

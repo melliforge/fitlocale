@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { classifyIcon, iconTokens, isRtlLocale } from '../../src/rules/icons';
+import { classifyIcon, iconTokenGroups, iconTokens, isRtlLocale } from '../../src/rules/icons';
 import { SEVERITY } from '../../src/types';
 
 type Manifest = Record<string, 'mirror' | 'invariant' | 'ignore'>;
 const c = (names: string, control = '', manifest: Manifest = {}, attr?: string) =>
-  classifyIcon(iconTokens(names), iconTokens(control), manifest, attr);
+  classifyIcon(iconTokenGroups(names), iconTokens(control), manifest, attr);
 
 test('iconTokens splits names into lower-case words', () => {
   expect(iconTokens('arrow_forward_ios')).toEqual(['arrow', 'forward', 'ios']);
@@ -53,4 +53,31 @@ test('media forward and step icons are not navigation arrows', () => {
   expect(c('fa-solid fa-forward-step', 'Forward')).toBe('invariant');
   expect(c('fa fa-forward', 'Forward')).toBeNull();
   expect(c('arrow_forward')).toBe('mirror');
+});
+
+test.describe('names are judged per class name', () => {
+  test('real icon-library names still count', () => {
+    expect(c('bi bi-chevron-right')).toBe('mirror');
+    expect(c('fa fa-arrow-left')).toBe('mirror');
+  });
+
+  test('a side word from a layout class does not make an icon directional', () => {
+    expect(c('chevron float-end')).toBeNull();
+  });
+
+  test('an icon naming both sides is symmetric', () => {
+    expect(c('lucide lucide-arrow-left-right')).toBeNull();
+  });
+
+  test('a warning triangle in a Continue button is not an arrow', () => {
+    expect(c('alert-triangle', 'Continue')).toBeNull();
+  });
+
+  test('free text is only a control name: an avatar named Nick West is not a west arrow', () => {
+    expect(c('', 'Nick West')).toBeNull();
+  });
+});
+
+test('iconTokenGroups keeps one token list per class name', () => {
+  expect(iconTokenGroups('fa fa-arrow-left', 'chevron_right')).toEqual([['fa'], ['fa', 'arrow', 'left'], ['chevron', 'right']]);
 });

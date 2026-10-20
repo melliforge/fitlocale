@@ -84,3 +84,10 @@ test('top menu labels are distinct, not singular and plural of one word', () => 
   const labels = [...nav.matchAll(/text: '([^']+)'/g)].map(m => m[1].toLowerCase().replace(/s$/, ''));
   expect(new Set(labels).size).toBe(labels.length);
 });
+
+test('every page names its canonical URL, the same as og:url', () => {
+  const config = readFileSync('docs/.vitepress/config.ts', 'utf8');
+  const url = /\['meta', \{ property: 'og:url', content: (.+?) \}\]/.exec(config)?.[1];
+  expect(url).toBeTruthy();
+  expect(config).toContain(`['link', { rel: 'canonical', href: ${url} }]`);
+});

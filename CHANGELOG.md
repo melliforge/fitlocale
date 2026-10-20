@@ -5,6 +5,25 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+### Fixed
+
+- `zh-TW` and `zh-CN` (and other pairs written in different scripts) no longer count as the same language, so text left in Simplified Chinese is reported on a Traditional Chinese page. A `lang` that names only the language (`zh`), or is written with an underscore (`de_DE`), still matches the page.
+- Regional language names ("português (Brasil)", "简体中文", "British English"), currency names, units ("5 kB") and ordinals ("19th") are no longer reported as hardcoded text.
+- Text inside `display: contents` elements is no longer dropped from text blocks.
+- A test id shared by repeated components (a list of cards with one `data-testid`) no longer gives all of them the same selector and issue id, which could hide a new issue behind an accepted one. They now get their DOM path, like a non-unique `id`.
+- `baseline: ''` or a directory now gives a clear error, and a baseline file of another version is refused.
+- `fitlocale summary` shows each issue once under `--repeat-each`, and marks which issues fail the test. `results.json` issues carry `fails`.
+- The GitHub Action, with no local fitlocale, runs the CLI of its own major version (`fitlocale@0` for `@v0`) instead of the latest release.
+- Icon names are judged one class name at a time: `chevron float-end` and two-way icons such as `arrow-left-right` are no longer reported, and neither is an avatar whose `alt` holds a name like "Nick West". Descriptions (`aria-label`, `title`, `alt`) now count only as the control's name, and a warning triangle in a "Continue" button is not an arrow.
+- Icons turned sideways (a 90° rotation) are no longer judged, `rotate: y 180deg` counts as a flip, and a class added to an SVG root is no longer mistaken for a redrawn icon.
+- Values containing emoji are no longer measured for text order, and a value such as `$$5` now appears in messages as written.
+- CSS pointers through webpack-style source maps (`webpack://app/./src/x.scss`) and relative `sources` (`../../src/x.scss`) now show readable project paths.
+- `rtl/clipped-marks` no longer reports roomy labels inside a CSS `transform: scale()`: the text is measured in the element's own scale. Text clipped by an ancestor of a scaled element is not judged. The 1px tolerance is in the element's own scale too, so a borderline clip gets the same verdict at any scale.
+
+### Changed
+
+- If your tests use one test id on several elements, their issue ids change once: regenerate the baseline with `npx fitlocale baseline`.
+
 ## [0.3.0] - 2026-10-20
 
 ### Breaking

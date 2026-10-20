@@ -82,3 +82,15 @@ test('a corrupt baseline file is an error, not "no baseline"', async ({ page, lo
   await page.setContent(TWO);
   await expect(localeCheck()).rejects.toThrow(/^fitlocale: baseline file .* is not valid JSON/);
 });
+
+test('issues on repeated components with one test id get their own ids', async ({ page, localeCheck }) => {
+  rmSync(BASE, { force: true });
+  await page.setContent(Array.from({ length: 5 }, () =>
+    '<button data-testid="buy" style="width:120px;overflow:hidden;white-space:nowrap">Add to basket</button>').join(''));
+  const result = await localeCheck();
+  const ids = clipped(result.issues).map(i => i.id);
+  expect(ids).toHaveLength(5);
+  expect(new Set(ids).size).toBe(5);
+  // No baseline file yet: nothing fails, and each issue says so.
+  expect(result.issues.every(i => i.fails === false)).toBe(true);
+});

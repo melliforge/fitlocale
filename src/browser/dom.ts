@@ -126,10 +126,17 @@ export function domPath(el: Element): string {
 /** Keys live outside the DOM, so the page is left exactly as it was. */
 let keys = new WeakMap<Element, string>();
 let testIdAttribute = 'data-testid';
+/** How many elements carry each test id, counted once per assignKeys(): selectorOf() runs for every text element. */
+let testIdCounts: Map<string, number> | null = null;
 
 export function assignKeys(testIdAttr = 'data-testid'): void {
   testIdAttribute = testIdAttr;
   keys = new WeakMap([[document.body, 'body']]);
+  testIdCounts = new Map();
+  for (const el of document.querySelectorAll(`[${CSS.escape(testIdAttr)}]`)) {
+    const value = el.getAttribute(testIdAttr)!;
+    testIdCounts.set(value, (testIdCounts.get(value) ?? 0) + 1);
+  }
   // Same keys as domPath(), built from the parent's key instead of walking up from every element.
   const visit = (parent: Element, path: string) => {
     let index = 0;
@@ -152,7 +159,12 @@ const cssString = (value: string) => `"${value.replace(/["\\]/g, '\\$&').replace
 /** A readable selector: the test id (Playwright's `testIdAttribute`), a unique id, else the DOM path. */
 export function selectorOf(el: Element): string {
   const testId = el.getAttribute(testIdAttribute);
-  if (testId) return `[${CSS.escape(testIdAttribute)}=${cssString(testId)}]`;
+  if (testId) {
+    const selector = `[${CSS.escape(testIdAttribute)}=${cssString(testId)}]`;
+    // A test id shared by repeated components names none of them: use the DOM path, as for a non-unique id.
+    const count = testIdCounts?.get(testId) ?? document.querySelectorAll(selector).length;
+    if (count === 1) return selector;
+  }
   const id = el.id && `#${CSS.escape(el.id)}`;
   if (id && document.querySelectorAll(id).length === 1) return id;
   return keyOf(el);

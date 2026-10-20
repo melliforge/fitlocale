@@ -5,13 +5,35 @@ import { findLeaksInText } from './leaks';
 
 const primary = (locale: string) => locale.trim().toLowerCase().split(/[-_]/)[0];
 
-/** `en-GB` and `en-US` share a language; so do `EN` and `en-XA`. */
-export function sameLanguage(a: string, b: string): boolean {
-  return primary(a) !== '' && primary(a) === primary(b);
+/** The script a locale is written in (`zh-TW` → Hant, `zh-CN` → Hans, `sr` → Cyrl), or '' for an invalid tag. */
+function scriptOf(locale: string): string {
+  try {
+    return new Intl.Locale(locale.trim().replace(/_/g, '-')).maximize().script ?? '';
+  } catch {
+    return '';
+  }
 }
 
-/** Text marked with a `lang` of another language (a language picker, a quotation) is left alone. */
-export const explicitlyOtherLanguage = (lang: string, pageLocale: string) => lang !== '' && !sameLanguage(lang, pageLocale);
+/** Both scripts are known and differ. A tag whose script can't be worked out matches any script. */
+function scriptsDiffer(a: string, b: string): boolean {
+  const [x, y] = [scriptOf(a), scriptOf(b)];
+  return x !== '' && y !== '' && x !== y;
+}
+
+/** `en-GB` and `en-US` share a language; so do `EN` and `en-XA`. `zh-TW` and `zh-CN` don't: different scripts. */
+export function sameLanguage(a: string, b: string): boolean {
+  return primary(a) !== '' && primary(a) === primary(b) && !scriptsDiffer(a, b);
+}
+
+/** `zh`, unlike `zh-TW` or `zh-Hant`, names a language and nothing more. */
+const languageOnly = (tag: string) => !/[-_]/.test(tag.trim());
+
+/**
+ * Text marked with a `lang` of another language (a language picker, a quotation) is left alone.
+ * A bare `lang="zh"` on a zh-TW page is the page's own language: many apps keep only the language part.
+ */
+export const explicitlyOtherLanguage = (lang: string, pageLocale: string) =>
+  lang !== '' && (languageOnly(lang) || languageOnly(pageLocale) ? primary(lang) !== primary(pageLocale) : !sameLanguage(lang, pageLocale));
 
 /** For each character: is it inside, or part of, a `⟦…⟧` pair? An unmatched `⟦` marks to the end; a stray `⟧` is marked. */
 export function markedMask(text: string): boolean[] {
@@ -82,19 +104,27 @@ const NATIVE_NAME_LOCALES = [
   'ko', 'lt', 'lv', 'ms', 'nb', 'nl', 'pl', 'pt', 'ro', 'ru', 'sk', 'sl', 'sr', 'sv', 'sw', 'th', 'tr', 'uk', 'ur', 'vi', 'zh',
 ];
 
+/** Regional and script variants whose own names appear in language pickers ("português (Brasil)", "简体中文"). */
+const VARIANT_NAME_LOCALES = ['pt-BR', 'pt-PT', 'zh-Hans', 'zh-Hant', 'en-GB', 'en-US', 'es-419', 'es-MX', 'fr-CA', 'de-AT', 'de-CH', 'sr-Latn'];
+const CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'INR', 'CAD', 'AUD', 'CHF', 'BRL', 'MXN', 'SAR', 'AED', 'EGP', 'TND', 'MAD', 'ILS', 'TRY'];
+const UNITS = [
+  'byte', 'kilobyte', 'megabyte', 'gigabyte', 'terabyte', 'meter', 'kilometer', 'mile', 'foot', 'inch', 'gram', 'kilogram', 'pound',
+  'liter', 'second', 'minute', 'hour', 'day', 'week', 'month', 'year', 'percent',
+] as const;
+
 const letterRuns = (s: string) => (s.match(/\p{L}+/gu) ?? []).map(w => w.toLowerCase());
 
 let nativeNames: Set<string> | null = null;
 const allowCache = new Map<string, Set<string>>();
 
-/** Words that are not UI text even without markers: words of formatted dates, times and relative times, AM/PM, native language names. */
+/** Words that are not UI text even without markers: formatted dates, times, relative times, currencies and units, AM/PM, language names. */
 function allowedWords(locales: string[]): Set<string> {
   const cacheKey = locales.join('|');
   const cached = allowCache.get(cacheKey);
   if (cached) return cached;
   if (!nativeNames) {
     nativeNames = new Set();
-    for (const code of NATIVE_NAME_LOCALES) {
+    for (const code of [...NATIVE_NAME_LOCALES, ...VARIANT_NAME_LOCALES]) {
       try {
         for (const w of letterRuns(new Intl.DisplayNames([code], { type: 'language' }).of(code) ?? '')) nativeNames.add(w);
       } catch { /* a runtime without this locale's data */ }
@@ -123,6 +153,19 @@ function allowedWords(locales: string[]): Set<string> {
           for (const w of letterRuns(new Intl.DateTimeFormat(locale, { timeZone, timeZoneName }).format(at))) words.add(w);
         }
       }
+      // Currency names and units ("42.00 euros", "5 kB", "3 km").
+      const names = new Intl.DisplayNames([locale], { type: 'currency' });
+      for (const currency of CURRENCIES) {
+        for (const w of letterRuns(names.of(currency) ?? '')) words.add(w);
+        for (const currencyDisplay of ['name', 'symbol', 'narrowSymbol', 'code'] as const) {
+          for (const w of letterRuns(new Intl.NumberFormat(locale, { style: 'currency', currency, currencyDisplay }).format(42))) words.add(w);
+        }
+      }
+      for (const unit of UNITS) {
+        for (const unitDisplay of ['long', 'short', 'narrow'] as const) {
+          for (const n of [1, 5]) for (const w of letterRuns(new Intl.NumberFormat(locale, { style: 'unit', unit, unitDisplay }).format(n))) words.add(w);
+        }
+      }
       // Relative times ("yesterday", "3 hours ago", "in 2 weeks").
       for (const style of ['long', 'short'] as const) {
         for (const numeric of ['auto', 'always'] as const) {
@@ -138,8 +181,8 @@ function allowedWords(locales: string[]): Set<string> {
   return words;
 }
 
-/** Emails, URLs, domains and file names. */
-const NOT_WORDS = /[@/]|\p{L}\.\p{L}/u;
+/** Emails, URLs, domains and file names; and ordinals ("19th", "2nd"). */
+const NOT_WORDS = /[@/]|\p{L}\.\p{L}|^\d+(st|nd|rd|th)\W*$/iu;
 
 /** Does `text` contain a word (2+ letters) that is not a date, time or language-name word? */
 function hasUiWords(text: string, allowed: Set<string>): boolean {

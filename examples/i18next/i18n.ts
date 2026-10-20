@@ -1,6 +1,6 @@
 import i18next from 'i18next';
 import en from './locales/en.json';
-// Generated with: npx fitlocale pseudo examples/i18next/locales/en.json --out examples/i18next/locales/en-XA.json
+// Generated with: npx fitlocale pseudo locales/en.json --out locales/en-XA.json
 import enXA from './locales/en-XA.json';
 
 export async function setupI18n(lng: string) {

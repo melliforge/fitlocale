@@ -132,7 +132,7 @@ source: { url, line, column, selector, property, value, replacement, original: {
 
 Both kinds of page also get an **informational note** for each `<canvas>` (`rtl/canvas`): charts drawn on a canvas ignore the page direction, so check them by hand. These notes never fail a test.
 
-Icons are recognised by their names: class, id, `aria-label`, `title`, `alt`, file name, SVG `<use>` and `<title>`, and the button or link around them ("Next", "Back"). Arrows pointing up or down are never reported. When a name is ambiguous, tell fitlocale:
+Icons are recognised by their names: class, id, `data-icon`, `data-testid`, file name, SVG `<use>` and Material ligature text, each class name on its own. Descriptions (`aria-label`, `title`, `alt`) and the button or link around them ("Next", "Back") count as the control's name. Arrows pointing up or down are never reported. When a name is ambiguous, tell fitlocale:
 
 ```html
 <svg class="my-glyph" data-fitlocale-icon="mirror">…</svg>   <!-- or "invariant", or "ignore" -->
@@ -201,7 +201,7 @@ Most apps already have some of these issues. So fitlocale fails only on new ones
 
 3. From then on, only issues missing from the baseline fail. Accepted ones still show in the report, marked "accepted".
 
-Run the command again after fixing issues, to drop them from the file. With sharded runs, pass every shard's `results.json`. The baseline file is looked up next to `playwright.config`: if you run the command from another folder, pass `--out` with the path the run's notice prints.
+Run the command again after fixing issues, to drop them from the file. It accepts whatever that run found, new issues included, so run it on a run you have reviewed. With sharded runs, pass every shard's `results.json`. The baseline file is looked up next to `playwright.config`: if you run the command from another folder, pass `--out` with the path the run's notice prints.
 
 Each issue is identified by its test, the check's position in that test, the rule, the mode, the locale, the viewport and the element's selector. Its text and the URL are not part of it. Give key elements a test id, so their selector survives markup changes. Set `baseline: false` to fail on every issue instead.
 
@@ -247,7 +247,7 @@ npx fitlocale summary fitlocale-report/results.json             # Markdown summa
 
 - Text inside shadow roots and iframes is not checked yet.
 - Chromium only for now: Firefox and WebKit are not tested yet.
-- The fallback-font check and the CSS pointer need Chromium DevTools. Fonts are judged only where this machine has the fonts you declared, so CI and your users' devices can differ.
+- The fallback-font check and the CSS pointer need Chromium DevTools. Fonts are judged only where this machine has the fonts you declared, so CI and your users' devices can differ. The font check samples up to 100 right-to-left elements per check, each distinct font and text once.
 
 ## Releasing
 

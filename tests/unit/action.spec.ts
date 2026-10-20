@@ -24,3 +24,9 @@ test('action inputs reach scripts through env, never inline', () => {
 test('this repo\'s CI runs the action', () => {
   expect(readFileSync('.github/workflows/ci.yml', 'utf8')).toContain('uses: ./');
 });
+
+test('the CLI fallback follows the Action major version, not the latest release', () => {
+  const action = readFileSync('action.yml', 'utf8');
+  expect(action).toContain('ACTION_REF: ${{ github.action_ref }}');
+  expect(action).toContain('npx --yes "fitlocale@${MAJOR}"');
+});

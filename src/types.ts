@@ -65,6 +65,8 @@ export interface Issue extends RawIssue {
   id?: string;
   /** True when the baseline file accepts this issue, so it does not fail the test. */
   baselined?: boolean;
+  /** True when this issue fails the test: it is new (or the baseline is off) and reaches `failOn`. */
+  fails?: boolean;
   /** For `rtl/not-mirrored`: the CSS declaration responsible (Chromium). */
   source?: CssSource;
 }

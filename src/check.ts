@@ -150,8 +150,9 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
   const enrich = (raw: RawIssue[], mode: Mode, viewport: Viewport, message?: string): Issue[] =>
     raw.map(r => ({
       ...r, mode, locale, viewport, url: page.url(), severity: SEVERITY[r.rule],
-      message: message ?? MESSAGES[r.rule].replace('{text}', r.text).replace('{visual}', r.visual ?? '').replace('{locale}', locale)
-        .replace('{used}', r.used ?? '').replace('{declared}', r.declared ?? ''),
+      // Replacer functions: a value like "$$5" must arrive as written, not as a replacement pattern.
+      message: message ?? MESSAGES[r.rule].replace('{text}', () => r.text).replace('{visual}', () => r.visual ?? '').replace('{locale}', () => locale)
+        .replace('{used}', () => r.used ?? '').replace('{declared}', () => r.declared ?? ''),
       ...(FIXES[r.rule] ? { fix: FIXES[r.rule] } : {}),
     }));
 

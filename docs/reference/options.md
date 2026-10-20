@@ -20,7 +20,7 @@ export default defineConfig<FitlocaleTestOptions>({
 
 `Array<'pseudo-long' | 'pseudo-rtl'>` · default `['pseudo-long', 'pseudo-rtl']`
 
-The pseudo modes run while the page shows the source locale: text made longer, and the page forced right-to-left.
+The pseudo modes: text made longer, and the page forced right-to-left. Both run while the page shows the source locale; forced right-to-left also runs on pages in a [pseudo locale](#pseudolocales), where the text is already long.
 
 ### `expansion`
 
@@ -56,7 +56,7 @@ test.use({ fitlocale: { setLocale: byPathPrefix() } }); // /en/x → /de/x
 
 `(page) => Promise<string>` · default: reads `<html lang>`
 
-How to read the current locale, for the persistence check, when your app does not keep `<html lang>` up to date.
+How to read the current locale, when your app does not keep `<html lang>` up to date. It is used for the persistence check, and without `useLocale()` to recognise a page in a pseudo locale.
 
 ### `sourceMessages`
 

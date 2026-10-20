@@ -34,3 +34,7 @@ test('numbers that read correctly right-to-left are not tokens', () => {
   expect(tokens('السعر $220 أو €15')).toEqual(['$220', '€15']);
   expect(tokens('لغة C# رائعة')).toEqual(['C#']);
 });
+
+test('tokens with emoji are not measured', () => {
+  expect(tokens('v2🚀 هنا')).toEqual([]);
+});

@@ -46,3 +46,14 @@ test('an inline-block badge inside a button is its own block', async ({ page }) 
   await load(page, `<button id=btn>⟦Save ~⟧ <span id=b style="display:inline-block">⟦3 ~⟧</span></button>`);
   expect((await blocks(page)).map(b => [b.selector, b.text])).toEqual([['#btn', '⟦Save ~⟧'], ['#b', '⟦3 ~⟧']]);
 });
+
+test('display: contents children are part of their block', async ({ page }) => {
+  await load(page, `<p id=p><span style="display:contents">⟦Free ~⟧</span> ⟦today ~⟧</p>`);
+  expect((await blocks(page)).map(b => [b.selector, b.text])).toEqual([['#p', '⟦Free ~⟧ ⟦today ~⟧']]);
+});
+
+test('a huge block is capped at 2,000 characters', async ({ page }) => {
+  await load(page, `<p id=p>${'word '.repeat(10_000)}</p>`);
+  const [b] = await blocks(page);
+  expect(b.text.length).toBe(2000);
+});

@@ -30,3 +30,14 @@ test('the README shows the report, and says which part it shows', () => {
   // The image is the pseudo-long section: leaked keys on screen are reported in another section, not missed.
   for (const page of [readme, read('docs/index.md')]) expect(page).toContain("*The pseudo-long section of a report");
 });
+
+test('the major tag moves only to the newest stable release, and never fails the release', () => {
+  const workflow = read('.github/workflows/release.yml');
+  const step = workflow.slice(workflow.indexOf('name: Move the major tag'));
+  expect(step).toContain('continue-on-error: true');
+  expect(step).toContain('git fetch --tags --force');
+  expect(step).toContain('--sort=-v:refname');
+  const compare = step.indexOf('"$GITHUB_REF_NAME"');
+  expect(compare).toBeGreaterThan(0);
+  expect(compare).toBeLessThan(step.indexOf('git tag -f'));
+});

@@ -50,9 +50,29 @@ export function originalPosition(map: SourceMap, line: number, column: number): 
       }
     }
     if (!best || !map.sources[best.source]) return null;
-    const root = map.sourceRoot ? map.sourceRoot.replace(/\/?$/, '/') : '';
-    return { source: root + map.sources[best.source], line: best.line + 1, column: best.column + 1 };
+    // The raw entry of `sources`; resolveSource() turns it into a path a reader can open.
+    return { source: map.sources[best.source], line: best.line + 1, column: best.column + 1 };
   } catch {
     return null;
   }
+}
+
+/**
+ * A readable path for a source-map `sources` entry: bundler prefixes dropped (`webpack://app/./src/x.scss` → src/x.scss),
+ * `sourceRoot` applied, and relative paths resolved against the map, then shown relative to its site.
+ */
+export function resolveSource(source: string, mapUrl: string, sourceRoot?: string): string {
+  const bundler = /^webpack:\/\/[^/]*\/(?:\.\/)?(.*)$/.exec(source);
+  if (bundler) return bundler[1];
+  if (/^[a-z][a-z\d+.-]*:/i.test(source)) return source; // already a URL
+  const joined = sourceRoot ? sourceRoot.replace(/\/?$/, '/') + source : source;
+  let base: URL;
+  try {
+    base = new URL(mapUrl);
+  } catch {
+    return joined.replace(/^\.\//, '');
+  }
+  if (base.protocol === 'data:') return joined.replace(/^\.\//, '');
+  const resolved = new URL(joined, base);
+  return resolved.origin === base.origin ? resolved.pathname.replace(/^\//, '') : resolved.href;
 }

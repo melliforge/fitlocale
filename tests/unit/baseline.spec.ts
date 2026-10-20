@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
-import { applyBaseline, buildBaseline, failureSummary, formatBaseline, issueId, readBaseline, type IdScope } from '../../src/baseline';
+import { applyBaseline, buildBaseline, failureSummary, formatBaseline, issueId, markFailing, readBaseline, type IdScope } from '../../src/baseline';
 import { makeCheck, makeIssue, makeRun } from './fixtures';
 
 const SCOPE: IdScope = { project: 'chromium', titlePath: ['tests/a.spec.ts', 'settings'], checkIndex: 0 };
@@ -137,4 +137,27 @@ test.describe('applyBaseline', () => {
     expect(failureSummary(failing, 2, 'fitlocale-baseline.json')).toBe(
       'fitlocale found 1 issue(s):\n  overflow/clipped #t (pseudo-long)\n(2 more accepted in fitlocale-baseline.json)');
   });
+});
+
+test.describe('baseline file errors', () => {
+  test('an empty path or a directory is not a baseline file', () => {
+    expect(() => readBaseline('')).toThrow(/must be a file path/);
+    expect(() => readBaseline(tmp())).toThrow(/must be a file path/);
+  });
+
+  test('another file version is refused', () => {
+    const file = join(tmp(), 'b.json');
+    writeFileSync(file, '{"version":2,"issues":[]}');
+    expect(() => readBaseline(file)).toThrow(/has version 2; this fitlocale reads version 1/);
+  });
+});
+
+test('markFailing sets fails from the baseline and failOn', () => {
+  const issues = [makeIssue({ severity: 'error' }), makeIssue({ severity: 'warning', selector: '#w' }), makeIssue({ severity: 'error', selector: '#a', baselined: true })];
+  markFailing(issues, i => !i.baselined, 'error');
+  expect(issues.map(i => i.fails)).toEqual([true, false, false]);
+  markFailing(issues, () => true, 'warning');
+  expect(issues.map(i => i.fails)).toEqual([true, true, true]);
+  markFailing(issues, () => true, 'never');
+  expect(issues.every(i => i.fails === false)).toBe(true);
 });

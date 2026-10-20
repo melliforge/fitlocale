@@ -20,4 +20,4 @@ It writes a table of new issues to the job summary and uploads the report direct
 | `report-dir` | `fitlocale-report` | The reporter's `outputDir` |
 | `artifact-name` | `fitlocale-report` | Name of the uploaded report. In a matrix or with shards, give each job its own name |
 | `max-rows` | `50` | Most issues listed in the job summary |
-| `fitlocale-command` | your `node_modules/.bin/fitlocale` | Command that runs the fitlocale CLI |
+| `fitlocale-command` | your `node_modules/.bin/fitlocale`, else `npx fitlocale` at the Action's major version (`fitlocale@0` for `@v0`) | Command that runs the fitlocale CLI |

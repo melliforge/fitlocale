@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { logicalReplacement, pickResponsible, type Declaration } from '../rules/logical';
-import { originalPosition, parseSourceMap, type SourceMap } from '../sourcemap';
+import { originalPosition, parseSourceMap, resolveSource, type SourceMap } from '../sourcemap';
 import type { CssSource, Issue } from '../types';
 import type { Devtools } from './session';
 
@@ -91,7 +91,7 @@ async function sourceFor(page: Page, devtools: Devtools, key: string, maps: Map<
     const map = mapUrl ? await loadMap(page, mapUrl, maps) : null;
     // Map positions are relative to the stylesheet text, not to the HTML document holding it.
     const original = map && originalPosition(map, decl.line + 1, decl.column + 1);
-    if (original) source.original = { url: original.source, line: original.line, column: original.column };
+    if (original) source.original = { url: resolveSource(original.source, mapUrl!, map.sourceRoot), line: original.line, column: original.column };
   }
   return source;
 }

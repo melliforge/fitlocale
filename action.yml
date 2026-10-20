@@ -18,7 +18,7 @@ inputs:
     description: 'Most issues listed in the job summary table.'
     default: '50'
   fitlocale-command:
-    description: "Command that runs the fitlocale CLI. Default: the project's node_modules/.bin/fitlocale, else npx --yes fitlocale@latest."
+    description: "Command that runs the fitlocale CLI. Default: the project's node_modules/.bin/fitlocale, else npx fitlocale at this Action's major version (fitlocale@0 for @v0)."
     default: ''
 
 runs:
@@ -30,13 +30,19 @@ runs:
         REPORT_DIR: ${{ inputs.report-dir }}
         MAX_ROWS: ${{ inputs.max-rows }}
         FITLOCALE_COMMAND: ${{ inputs.fitlocale-command }}
+        ACTION_REF: ${{ github.action_ref }}
       run: |
-        if [ -n "$FITLOCALE_COMMAND" ]; then FL="$FITLOCALE_COMMAND"
-        elif [ -x node_modules/.bin/fitlocale ]; then FL=node_modules/.bin/fitlocale
-        else FL="npx --yes fitlocale@latest"; fi
+        # Without a local install, use the CLI of this Action's major version: @v0 → fitlocale@0, a branch → latest.
+        MAJOR=$(printf '%s' "$ACTION_REF" | sed -nE 's/^v([0-9]+).*/\1/p')
+        [ -n "$MAJOR" ] || MAJOR=latest
+        fl() {
+          # $FITLOCALE_COMMAND is unquoted on purpose: it may be a command with arguments.
+          if [ -n "$FITLOCALE_COMMAND" ]; then $FITLOCALE_COMMAND "$@"
+          elif [ -x node_modules/.bin/fitlocale ]; then node_modules/.bin/fitlocale "$@"
+          else npx --yes "fitlocale@${MAJOR}" "$@"; fi
+        }
         if [ -f "$REPORT_DIR/results.json" ]; then
-          # $FL is unquoted on purpose: it may be a command with arguments.
-          $FL summary "$REPORT_DIR/results.json" --max-rows "$MAX_ROWS" >> "$GITHUB_STEP_SUMMARY" \
+          fl summary "$REPORT_DIR/results.json" --max-rows "$MAX_ROWS" >> "$GITHUB_STEP_SUMMARY" \
             || echo "::warning::fitlocale summary failed; the report artifact is still uploaded."
         else
           {

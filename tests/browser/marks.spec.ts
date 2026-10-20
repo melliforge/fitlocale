@@ -34,3 +34,25 @@ test('visually hidden text is not reported', async ({ page }) => {
 test('overflow on an inline span clips nothing', async ({ page }) => {
   expect(await find(page, `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px">حفظ التغييرات</span>`)).toEqual([]);
 });
+
+test('a box with a fractional height is not mistaken for a scaled one', async ({ page }) => {
+  // offsetHeight rounds 16.5px to 17: a ratio of 0.97 is rounding, not a transform
+  for (const lh of [1, 1.1]) {
+    expect(await find(page, `<div style="height:12px;overflow:hidden;font-size:15px"><span id=t style="display:inline-block;line-height:${lh}">${TEXT}</span></div>`), `line-height ${lh}`)
+      .toEqual(['rtl/clipped-marks #t']);
+  }
+});
+
+test('a CSS scale never changes the verdict', async ({ page }) => {
+  const box = (lh: number) => `height:${lh * 20}px;line-height:${lh};font-size:20px;overflow:hidden;white-space:nowrap`;
+  const scaled = (lh: number, scale: number) =>
+    `<div style="transform:scale(${scale});transform-origin:0 0"><div id=t style="${box(lh)}">${TEXT}</div></div>`;
+  expect(await find(page, scaled(1, 1)), 'tight').toEqual(['rtl/clipped-marks #t']);
+  expect(await find(page, scaled(2, 1)), 'room enough').toEqual([]);
+  // Fonts differ between machines, so compare with the unscaled verdict line-height by line-height:
+  // the borderline heights are where a tolerance measured in the wrong scale shows.
+  for (let lh = 1; lh <= 2; lh = Math.round((lh + 0.05) * 100) / 100) {
+    const plain = await find(page, scaled(lh, 1));
+    for (const scale of [0.5, 2]) expect(await find(page, scaled(lh, scale)), `line-height ${lh}, scale ${scale}`).toEqual(plain);
+  }
+});
