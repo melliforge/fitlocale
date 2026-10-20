@@ -11,6 +11,13 @@ Each section becomes the notes of the matching GitHub Release.
 
 ### Fixed
 
+Found by running fitlocale on two real apps, Excalidraw and Elk:
+
+- Each viewport is measured once the page has redrawn for it. Apps that draw their phone layout a frame after the resize got false overflow reports at the phone viewport: 80 on Excalidraw.
+- The padding of pseudo-long text is split into word-sized runs (`~~~~~~~~ ~~~~`), so it wraps like real text. One long run stuck out of narrow boxes that translations wrap in.
+- A control under a bar fixed or stuck to the screen (a bottom navigation, an open menu) is no longer reported as overlapping it.
+- Host names such as `m.webtoo.ls` are no longer reported as raw keys: any two-letter ending counts as a country's domain.
+- With `localeMessages`, a regional file is laid over its language file when both exist (`ar.json`, then `ar-EG.json`). Reading only the regional file matched nothing when it held just the differences.
 - `rtl/clipped-marks` no longer fails on WebKit builds without `OffscreenCanvas` (those of Playwright before 1.45): it draws on an ordinary canvas there.
 
 ## [0.4.1] - 2026-10-20
