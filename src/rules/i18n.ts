@@ -8,19 +8,32 @@ const primary = (locale: string) => locale.trim().toLowerCase().split(/[-_]/)[0]
 /** The script a locale is written in (`zh-TW` → Hant, `zh-CN` → Hans, `sr` → Cyrl), or '' for an invalid tag. */
 function scriptOf(locale: string): string {
   try {
-    return new Intl.Locale(locale.trim()).maximize().script ?? '';
+    return new Intl.Locale(locale.trim().replace(/_/g, '-')).maximize().script ?? '';
   } catch {
     return '';
   }
 }
 
-/** `en-GB` and `en-US` share a language; so do `EN` and `en-XA`. `zh-TW` and `zh-CN` don't: different scripts. */
-export function sameLanguage(a: string, b: string): boolean {
-  return primary(a) !== '' && primary(a) === primary(b) && scriptOf(a) === scriptOf(b);
+/** Both scripts are known and differ. A tag whose script can't be worked out matches any script. */
+function scriptsDiffer(a: string, b: string): boolean {
+  const [x, y] = [scriptOf(a), scriptOf(b)];
+  return x !== '' && y !== '' && x !== y;
 }
 
-/** Text marked with a `lang` of another language (a language picker, a quotation) is left alone. */
-export const explicitlyOtherLanguage = (lang: string, pageLocale: string) => lang !== '' && !sameLanguage(lang, pageLocale);
+/** `en-GB` and `en-US` share a language; so do `EN` and `en-XA`. `zh-TW` and `zh-CN` don't: different scripts. */
+export function sameLanguage(a: string, b: string): boolean {
+  return primary(a) !== '' && primary(a) === primary(b) && !scriptsDiffer(a, b);
+}
+
+/** `zh`, unlike `zh-TW` or `zh-Hant`, names a language and nothing more. */
+const languageOnly = (tag: string) => !/[-_]/.test(tag.trim());
+
+/**
+ * Text marked with a `lang` of another language (a language picker, a quotation) is left alone.
+ * A bare `lang="zh"` on a zh-TW page is the page's own language: many apps keep only the language part.
+ */
+export const explicitlyOtherLanguage = (lang: string, pageLocale: string) =>
+  lang !== '' && (languageOnly(lang) || languageOnly(pageLocale) ? primary(lang) !== primary(pageLocale) : !sameLanguage(lang, pageLocale));
 
 /** For each character: is it inside, or part of, a `⟦…⟧` pair? An unmatched `⟦` marks to the end; a stray `⟧` is marked. */
 export function markedMask(text: string): boolean[] {

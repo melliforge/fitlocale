@@ -37,8 +37,9 @@ export function findClippedMarks(ignore: string[]): RawIssue[] {
     const ownClip = CLIPPING.has(s.overflowY) && s.display !== 'inline';
     // Under a CSS transform the rects are scaled but layout sizes (clientHeight) and the canvas are not:
     // measure in the element's own scale. A clip from an ancestor under a transform is not judged.
-    const scale = el instanceof HTMLElement && el.offsetHeight > 0 ? box.height / el.offsetHeight : 1;
-    const scaled = Math.abs(scale - 1) > 0.01;
+    // offsetHeight is rounded, so a difference under a pixel is a fractional height, not a transform.
+    const scaled = el instanceof HTMLElement && el.offsetHeight > 0 && Math.abs(box.height - el.offsetHeight) > 1;
+    const scale = scaled ? box.height / (el as HTMLElement).offsetHeight : 1;
     if (scaled && !ownClip) continue;
     const clipBox: Rect | null = ownClip
       ? (scaled

@@ -49,6 +49,17 @@ test.describe('findUntranslated', () => {
     expect(findUntranslated([block('Billing details', 'en')], match, DE)).toEqual([]);
   });
 
+  test('a page lang naming only the language still counts as the page language', () => {
+    // apps often keep only the language part (zh) or write de_DE; the page is still checked
+    for (const [lang, pageLocale] of [['zh', 'zh-TW'], ['zh', 'zh-HK'], ['sr', 'sr-Latn'], ['de_DE', 'de-DE'], ['zh-TW', 'zh']]) {
+      expect(findUntranslated([block('Billing details', lang)], match, { pageLocale, sourceLocale: 'en' }), `${lang} on ${pageLocale}`).toHaveLength(1);
+    }
+  });
+
+  test('a lang naming another script of the language is another language', () => {
+    expect(findUntranslated([block('Billing details', 'zh-CN')], match, { pageLocale: 'zh-TW', sourceLocale: 'en' })).toEqual([]);
+  });
+
   test('a regional variant of the source language is not checked', () => {
     expect(findUntranslated([block('Billing details', 'en-GB')], match, { pageLocale: 'en-GB', sourceLocale: 'en-US' })).toEqual([]);
   });
