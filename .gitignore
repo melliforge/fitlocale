@@ -9,3 +9,5 @@ docs/superpowers/
 .superpowers/
 .DS_Store
 .idea/
+docs/.vitepress/dist
+docs/.vitepress/cache

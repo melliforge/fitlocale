@@ -85,7 +85,10 @@
     "build": "npm run build:browser && tsdown",
     "test": "npm run build && playwright test",
     "typecheck": "npm run build && tsc --noEmit",
-    "prepublishOnly": "npm run typecheck && npm test"
+    "prepublishOnly": "npm run typecheck && npm test",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "peerDependencies": {
     "@playwright/test": ">=1.45.0"
@@ -95,7 +98,8 @@
     "@types/node": "^26.6.5",
     "esbuild": "^0.28.2",
     "tsdown": "^0.23.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitepress": "1.6.4"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
