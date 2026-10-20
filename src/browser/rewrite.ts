@@ -4,12 +4,12 @@ import { ignoreSelector, isIgnored, isVisible, withLayoutCache } from './dom';
 let rewritten: Array<{ node: Text; original: string; written: string }> = [];
 let savedDir: string | null | undefined; // undefined = nothing saved
 
-/** Rewrite visible, letter-bearing text nodes with `transform`, recording them for `restoreText()`. */
-function rewriteVisibleText(transform: (text: string) => string, ignore: string[], select: (text: string) => boolean): number {
+const hasLetters = (text: string) => /\p{L}/u.test(text);
+
+/** Visible text nodes outside ignored areas whose text passes `select`. */
+function visibleTextNodes(ignore: string[], select: (text: string) => boolean): Text[] {
   const ignoreSel = ignoreSelector(ignore);
-  restoreText();
-  // Measure everything first, then write: writing as we go would force a layout per text node.
-  const targets = withLayoutCache(() => {
+  return withLayoutCache(() => {
     const found: Text[] = [];
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     const visible = new Map<Element, boolean>();
@@ -21,6 +21,13 @@ function rewriteVisibleText(transform: (text: string) => string, ignore: string[
     }
     return found;
   });
+}
+
+/** Rewrite visible text nodes whose text passes `select` with `transform`, recording them for `restoreText()`. */
+function rewriteVisibleText(transform: (text: string) => string, ignore: string[], select: (text: string) => boolean): number {
+  restoreText();
+  // Measure everything first, then write: writing as we go would force a layout per text node.
+  const targets = visibleTextNodes(ignore, select);
   for (const node of targets) {
     const original = node.nodeValue ?? '';
     const written = transform(original);
@@ -33,7 +40,18 @@ function rewriteVisibleText(transform: (text: string) => string, ignore: string[
 
 export function rewriteText(expansion: number, ignore: string[]): number {
   // Translation never lengthens numbers, prices or symbols, so text without letters stays as it is.
-  return rewriteVisibleText(text => pseudoLong(text, { expansion }), ignore, text => /\p{L}/u.test(text));
+  return rewriteVisibleText(text => pseudoLong(text, { expansion }), ignore, hasLetters);
+}
+
+/** The distinct texts of the visible, letter-bearing text nodes (the ones `rewriteText` rewrites). */
+export function visibleTexts(ignore: string[]): string[] {
+  return [...new Set(visibleTextNodes(ignore, hasLetters).map(node => node.nodeValue ?? ''))];
+}
+
+/** Rewrite each visible text node whose text is a key of `replacements` into its value. Undo with `restoreText()`. */
+export function replaceText(replacements: Record<string, string>, ignore: string[]): number {
+  const listed = (text: string) => Object.prototype.hasOwnProperty.call(replacements, text);
+  return rewriteVisibleText(text => replacements[text], ignore, text => hasLetters(text) && listed(text));
 }
 
 /** Approximate the source-language text of a pseudo-locale page (markers, padding and accents removed). */

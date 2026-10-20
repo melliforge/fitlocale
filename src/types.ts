@@ -15,6 +15,7 @@ export type RuleId =
   | 'i18n/concatenated'
   | 'i18n/untranslated'
   | 'i18n/pseudo-not-loaded'
+  | 'i18n/locale-messages-not-matched'
   | 'rtl/icon-not-mirrored'
   | 'rtl/icon-mirrored'
   | 'rtl/bidi-order'
@@ -103,6 +104,7 @@ export const SEVERITY: Record<RuleId, Severity> = {
   'i18n/concatenated': 'warning',
   'i18n/untranslated': 'warning',
   'i18n/pseudo-not-loaded': 'error',
+  'i18n/locale-messages-not-matched': 'warning',
   'rtl/icon-not-mirrored': 'warning',
   'rtl/icon-mirrored': 'warning',
   'rtl/bidi-order': 'warning',
@@ -127,6 +129,7 @@ export const MESSAGES: Record<RuleId, string> = {
   'i18n/concatenated': 'This sentence is built from several separately translated pieces. Word order differs between languages, so translate it as one message with placeholders.',
   'i18n/untranslated': 'This text is identical to a source-language message, so it was probably left untranslated.',
   'i18n/pseudo-not-loaded': 'The page is in pseudo locale "{locale}", but none of its text has pseudo-locale markers, so the pseudo-locale messages were not loaded.',
+  'i18n/locale-messages-not-matched': 'None of the visible text matches the "{locale}" messages in localeMessages, so overflow was not checked in this locale.',
   'rtl/icon-not-mirrored': 'This directional icon (arrow, chevron, back or next) points the same way in right-to-left; it should usually flip.',
   'rtl/icon-mirrored': 'This icon flipped in right-to-left, but media controls, clocks, check marks and logos keep their direction.',
   'rtl/bidi-order': 'Mixed-direction text is shown in the wrong order: "{text}" appears as "{visual}".',
@@ -149,6 +152,7 @@ export const FIXES: Partial<Record<RuleId, string>> = {
   'i18n/concatenated': 'Use one message with placeholders, for example "You have {count} messages", or your library\'s rich-text component for links inside a sentence.',
   'i18n/untranslated': 'Add the translation to this locale\'s message file.',
   'i18n/pseudo-not-loaded': 'Generate the messages with `fitlocale pseudo` and register the locale in your i18n setup like any other language.',
+  'i18n/locale-messages-not-matched': 'Point localeMessages at the message files this page renders, with {locale} where the locale code goes.',
   'rtl/icon-not-mirrored': 'Flip it in right-to-left, for example [dir="rtl"] .icon { transform: scaleX(-1); }, or mark it data-fitlocale-icon="invariant" if it must not flip.',
   'rtl/icon-mirrored': 'Exclude it from your right-to-left flip rule.',
   'rtl/bidi-order': 'Isolate the value: wrap it in <bdi>, or set dir="auto" (or dir="ltr") on its element.',

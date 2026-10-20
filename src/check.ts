@@ -3,7 +3,7 @@ import type { Frame, FullConfig, Page, TestInfo } from '@playwright/test';
 import { ensureInjected } from './inject';
 import type { FitlocaleOptions } from './options';
 import { flattenKeys, flattenValues } from './pseudo';
-import { readMessages } from './messages';
+import { backTranslatorFor, readMessages } from './messages';
 import { findConcatenated, findHardcoded, hasPseudoMarkers } from './rules/i18n';
 import { isRtlLocale } from './rules/icons';
 import { openDevtools, type Devtools } from './devtools/session';
@@ -166,6 +166,27 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
     return devtools;
   };
   let skippedRtl = false; // report an already-RTL page once, not once per viewport
+  // In a real locale with localeMessages: maps the page's text back to the source text. Built before the page is touched.
+  const toSource = expectedLocale !== null && !isSource && !isPseudo && options.localeMessages
+    ? backTranslatorFor(options, locale, baseDir)
+    : null;
+
+  const findOverflow = () => page.evaluate(ig => (window as unknown as Api).__fitlocale.findOverflow(ig), options.ignore);
+  /** Overflow on the page as it is, minus what it also has once `approximate()` puts back (roughly) the source text. */
+  const overflowAgainst = async (approximate: () => Promise<boolean>): Promise<RawIssue[]> => {
+    const asIs = await findOverflow();
+    let approx = asIs;
+    try {
+      if (await approximate()) {
+        await settle(page);
+        approx = await findOverflow();
+      }
+    } finally {
+      await page.evaluate(() => (window as unknown as Api).__fitlocale.restoreText());
+      await settle(page);
+    }
+    return subtractSource(asIs, approx);
+  };
 
   try {
     for (const [index, viewport] of viewports.entries()) {
@@ -223,22 +244,31 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
         issues.push(...sourceIssues);
       }
 
+      if (toSource) {
+        // The page is translated: compare it with the source text put back wherever the messages say what it was.
+        // Read per viewport, since responsive pages show different text at different widths.
+        const texts = await page.evaluate(ig => (window as unknown as Api).__fitlocale.visibleTexts(ig), options.ignore);
+        const back = texts.map(text => [text, toSource(text)] as const);
+        const replacements = Object.fromEntries(back.filter((pair): pair is readonly [string, string] => pair[1] !== null && pair[1] !== pair[0]));
+        let found: Issue[] = [];
+        if (index === 0 && texts.length > 0 && back.every(([, source]) => source === null)) {
+          const box = { x: 0, y: 0, ...(await page.evaluate(() => (window as unknown as Api).__fitlocale.documentSize())) };
+          found = enrich([{ rule: 'i18n/locale-messages-not-matched', key: 'html', selector: 'html', box, text: '' }], 'source', viewport);
+        } else if (Object.keys(replacements).length > 0) {
+          const raw = await overflowAgainst(async () =>
+            await page.evaluate(([r, ig]) => (window as unknown as Api).__fitlocale.replaceText(r, ig), [replacements, options.ignore] as const) > 0);
+          found = enrich(raw, 'source', viewport);
+        }
+        if (found.length) await shoot('source', viewport);
+        issues.push(...found);
+      }
+
       if (!isSource && !isPseudo) continue;
 
       if (isPseudo) {
         // The text is already long: compare the page as it is with an approximation of its source text.
-        const findOverflow = () => page.evaluate(ig => (window as unknown as Api).__fitlocale.findOverflow(ig), options.ignore);
-        const asIs = await findOverflow();
-        let approx: RawIssue[] = [];
-        try {
-          await page.evaluate(ig => (window as unknown as Api).__fitlocale.unpseudoText(ig), options.ignore);
-          await settle(page);
-          approx = await findOverflow();
-        } finally {
-          await page.evaluate(() => (window as unknown as Api).__fitlocale.restoreText());
-        }
-        await settle(page);
-        const found = subtractSource(asIs, approx);
+        const found = await overflowAgainst(async () =>
+          await page.evaluate(ig => (window as unknown as Api).__fitlocale.unpseudoText(ig), options.ignore) > 0);
         if (found.length) await shoot('source', viewport);
         issues.push(...enrich(found, 'source', viewport));
       }

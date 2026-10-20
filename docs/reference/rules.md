@@ -12,13 +12,13 @@ Every issue comes from one of these rules. Each is measured on the rendered page
 - `pseudo-long`: text made about 40% longer;
 - `pseudo-rtl`: the page forced right-to-left.
 
-Issues already present in the source render are not reported in the pseudo modes (the noise rule).
+Issues already present in the source render are not reported in the pseudo modes, nor in a real locale with `localeMessages` (the noise rule).
 
 ## Overflow
 
 ### `overflow/clipped`
 
-**Severity:** error · **Modes:** `pseudo-long`; `source` on pages in a pseudo locale
+**Severity:** error · **Modes:** `pseudo-long`; `source` on pages in a pseudo locale, and in a real locale with `localeMessages`
 
 Text no longer fits its box and the overflow is hidden, so part of it is cut off.
 
@@ -30,7 +30,7 @@ Text no longer fits its box and the overflow is hidden, so part of it is cut off
 
 ### `overflow/ellipsis`
 
-**Severity:** warning · **Modes:** `pseudo-long`; `source` on pages in a pseudo locale
+**Severity:** warning · **Modes:** `pseudo-long`; `source` on pages in a pseudo locale, and in a real locale with `localeMessages`
 
 Text is truncated with an ellipsis or a line clamp that does not happen in the source language.
 
@@ -42,7 +42,7 @@ Text is truncated with an ellipsis or a line clamp that does not happen in the s
 
 ### `overflow/escapes-box`
 
-**Severity:** error · **Modes:** `pseudo-long`; `source` on pages in a pseudo locale
+**Severity:** error · **Modes:** `pseudo-long`; `source` on pages in a pseudo locale, and in a real locale with `localeMessages`
 
 Text spills outside its box (the overflow is visible), usually over its neighbours.
 
@@ -54,7 +54,7 @@ Text spills outside its box (the overflow is visible), usually over its neighbou
 
 ### `overflow/overlap`
 
-**Severity:** error · **Modes:** `pseudo-long`; `source` on pages in a pseudo locale
+**Severity:** error · **Modes:** `pseudo-long`; `source` on pages in a pseudo locale, and in a real locale with `localeMessages`
 
 A link, button or input overlaps a neighbouring control, so one of them is hard to click.
 
@@ -153,6 +153,14 @@ Text is identical to a source-language message (of at least two words), so it wa
 The page is in a pseudo locale, but no text has pseudo-locale markers: the pseudo-locale messages were not loaded.
 
 **Fix:** generate them with `fitlocale pseudo` and register the locale in your i18n setup like any other language.
+
+### `i18n/locale-messages-not-matched`
+
+**Severity:** warning · **Modes:** `source`, in a locale switched with `useLocale()`, with `localeMessages` set
+
+None of the visible text matches the messages `localeMessages` points at for this locale, so overflow was not checked in it. The path probably points at other files than the ones the page renders, such as another namespace.
+
+**Fix:** point `localeMessages` at the message files this page renders, with `{locale}` where the locale code goes.
 
 ## Right-to-left
 

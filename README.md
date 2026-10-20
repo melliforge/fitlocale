@@ -188,6 +188,7 @@ test.use({ fitlocale: { icons: { glyph: 'mirror', compass: 'invariant' } } });
 | `i18n/concatenated` | warning | In a pseudo locale, one sentence built from several separately translated pieces |
 | `i18n/untranslated` | warning | In a real locale, text identical to a source-language message |
 | `i18n/pseudo-not-loaded` | error | The page is in a pseudo locale, but no text has pseudo-locale markers: the messages were not loaded |
+| `i18n/locale-messages-not-matched` | warning | In a real locale, no visible text matches the `localeMessages` files, so overflow was not checked |
 
 ## Baseline
 
