@@ -355,6 +355,13 @@ test.describe('real locale with locale messages', () => {
     expect(await page.content()).toBe(before);
   });
 
+  test('a page that fell back to another locale gets the persistence error only', async ({ page, localeCheck, useLocale }) => {
+    await page.setContent(GERMAN);
+    await useLocale('de');
+    await page.evaluate(() => { document.documentElement.lang = 'en'; document.querySelector('#s')!.textContent = 'Völlig anderer Text'; });
+    expect(list(await localeCheck())).toEqual(['locale/persistence html source']);
+  });
+
   test.describe('two viewports', () => {
     test.use({ fitlocale: { viewports: [{ width: 1280, height: 800 }, { width: 390, height: 844 }], failOn: 'never', setLocale: setLang, ...fixtures } });
 

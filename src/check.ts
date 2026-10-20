@@ -166,6 +166,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
     return devtools;
   };
   let skippedRtl = false; // report an already-RTL page once, not once per viewport
+  let fellBack = false; // the page shows another locale than the one useLocale() asked for
   // In a real locale with localeMessages: maps the page's text back to the source text. Built before the page is touched.
   const toSource = expectedLocale !== null && !isSource && !isPseudo && options.localeMessages
     ? backTranslatorFor(options, locale, baseDir)
@@ -203,6 +204,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
         if (expectedLocale !== null) {
           const actual = await probeLocale(page, options);
           if (!sameLocale(actual, expectedLocale)) {
+            fellBack = true;
             const box = { x: 0, y: 0, ...(await page.evaluate(() => (window as unknown as Api).__fitlocale.documentSize())) };
             const neverReflected = ctx.probeAfterSwitch != null && !sameLocale(ctx.probeAfterSwitch, expectedLocale);
             const template = neverReflected ? LOCALE_NOT_REFLECTED_MESSAGE : MESSAGES['locale/persistence'];
@@ -244,7 +246,8 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
         issues.push(...sourceIssues);
       }
 
-      if (toSource) {
+      // A page that fell back to another locale has no translation to compare: the persistence error says it all.
+      if (toSource && !fellBack) {
         // The page is translated: compare it with the source text put back wherever the messages say what it was.
         // Read per viewport, since responsive pages show different text at different widths.
         const texts = await page.evaluate(ig => (window as unknown as Api).__fitlocale.visibleTexts(ig), options.ignore);
