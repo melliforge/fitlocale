@@ -202,7 +202,11 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
 
   try {
     for (const [index, viewport] of viewports.entries()) {
-      if (options.viewports !== 'current') await page.setViewportSize(viewport);
+      if (options.viewports !== 'current') {
+        await page.setViewportSize(viewport);
+        // Responsive apps draw their layout for the new size a frame or two later: measure that one.
+        await settleHere();
+      }
       await ensureInjected(page);
       await page.evaluate(attr => (window as unknown as Api).__fitlocale.assignKeys(attr), ctx.testIdAttribute ?? 'data-testid');
 
