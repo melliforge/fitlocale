@@ -45,6 +45,7 @@ export default defineConfig({
         items: [
           { text: 'Test RTL layout in Playwright', link: '/guides/rtl-testing-playwright' },
           { text: 'Catch text truncation in CI', link: '/guides/text-truncation-ci' },
+          { text: 'Pseudo-localization with i18next', link: '/guides/pseudo-localization-i18next' },
         ],
       },
       {

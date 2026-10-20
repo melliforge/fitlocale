@@ -116,7 +116,7 @@ The page language changed back during the test, for example after a navigation t
 
 ### `i18n/hardcoded`
 
-**Severity:** warning · **Modes:** `source`, on a page in a pseudo locale
+**Severity:** warning · **Modes:** `source`, on a page in a [pseudo locale](/guides/pseudo-localization-i18next)
 
 Text without pseudo-locale markers did not come from your message files: it is hardcoded, or it is data. Dates, times, emails, URLs, numbers and language names are not reported.
 

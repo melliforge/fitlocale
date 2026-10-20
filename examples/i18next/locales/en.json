@@ -1,0 +1,5 @@
+{
+  "nav": { "home": "Home", "orders": "Your orders" },
+  "welcome": "Welcome back, {{name}}",
+  "cart": { "saved": "You saved", "order": "on this order" }
+}

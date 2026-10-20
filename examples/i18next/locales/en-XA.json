@@ -1,0 +1,11 @@
+{
+  "nav": {
+    "home": "⟦Hömé ~⟧",
+    "orders": "⟦Ýöür ördérš ~~~~⟧"
+  },
+  "welcome": "⟦Wélçömé báçk, {{name}} ~~~~~⟧",
+  "cart": {
+    "saved": "⟦Ýöü šávéd ~~~⟧",
+    "order": "⟦öñ thîš ördér ~~~~~⟧"
+  }
+}
