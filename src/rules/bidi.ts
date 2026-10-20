@@ -19,7 +19,8 @@ export function mixedTokens(text: string): Array<{ start: number; end: number; t
     // Western digits with %, -, # or dates read correctly right-to-left in Arabic text: only Latin text,
     // phone prefixes (+1) and currency amounts ($220) are values whose order matters.
     const value = /[A-Za-z]/.test(token) || /^\+\d/.test(token) || /[$€£¥₹]/.test(token);
-    if (value && /[^A-Za-z0-9]/.test(token) && !RTL_LETTER.test(token)) tokens.push({ start, end, text: token });
+    // Emoji are drawn as pictures, not letters: their place says nothing about text direction.
+    if (value && /[^A-Za-z0-9]/.test(token) && !RTL_LETTER.test(token) && !/\p{Extended_Pictographic}/u.test(token)) tokens.push({ start, end, text: token });
   }
   return tokens;
 }

@@ -80,3 +80,31 @@ test('Material ligature icons are checked', async ({ page }) => {
   const html = '<span id=m class="material-icons" style="display:inline-block;width:16px;height:16px;overflow:hidden">arrow_back</span>';
   expect(await run(page, '', html)).toEqual(['rtl/icon-not-mirrored #m']);
 });
+
+test('rotate: y 180deg counts as a horizontal flip', async ({ page }) => {
+  expect(await run(page, '[dir=rtl] .icon-chevron { rotate: y 180deg }', NEXT)).toEqual([]);
+});
+
+test('an icon turned sideways is not judged', async ({ page }) => {
+  expect(await run(page, '.icon-chevron { transform: rotate(90deg) scaleX(-1) }', NEXT)).toEqual([]);
+});
+
+test('a framework adding a class to the svg root is not a redraw', async ({ page }) => {
+  await load(page, NEXT);
+  const found = await page.evaluate(() => {
+    const fl = window.__fitlocale;
+    fl.rememberIcons([], {});
+    fl.setDir('rtl');
+    document.getElementById('n')!.classList.add('is-rtl'); // same drawing, so it still did not flip
+    try {
+      return fl.findIconIssues([], {}).map(i => `${i.rule} ${i.selector}`);
+    } finally {
+      fl.setDir(null);
+    }
+  });
+  expect(found).toEqual(['rtl/icon-not-mirrored #n']);
+});
+
+test('an avatar with a name in alt is not an icon name', async ({ page }) => {
+  expect(await run(page, '', '<img id=a alt="Nick West" width=32 height=32 src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">')).toEqual([]);
+});

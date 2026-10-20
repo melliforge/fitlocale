@@ -132,7 +132,7 @@ source: { url, line, column, selector, property, value, replacement, original: {
 
 Both kinds of page also get an **informational note** for each `<canvas>` (`rtl/canvas`): charts drawn on a canvas ignore the page direction, so check them by hand. These notes never fail a test.
 
-Icons are recognised by their names: class, id, `aria-label`, `title`, `alt`, file name, SVG `<use>` and `<title>`, and the button or link around them ("Next", "Back"). Arrows pointing up or down are never reported. When a name is ambiguous, tell fitlocale:
+Icons are recognised by their names: class, id, `data-icon`, `data-testid`, file name, SVG `<use>` and Material ligature text, each class name on its own. Descriptions (`aria-label`, `title`, `alt`) and the button or link around them ("Next", "Back") count as the control's name. Arrows pointing up or down are never reported. When a name is ambiguous, tell fitlocale:
 
 ```html
 <svg class="my-glyph" data-fitlocale-icon="mirror">…</svg>   <!-- or "invariant", or "ignore" -->

@@ -346,6 +346,12 @@ test.describe('right-to-left depth', () => {
     expect(found).toContain('rtl/bidi-order #c source');
   });
 
+  test('values with $ signs appear in messages as written', async ({ page, localeCheck }) => {
+    await page.setContent('<html dir="rtl" lang="ar"><body><p id=c>السعر $$5 اليوم</p></body></html>');
+    const issue = (await localeCheck()).issues.find(i => i.rule === 'rtl/bidi-order');
+    expect(issue?.message).toContain('"$$5"');
+  });
+
   test('a right-to-left page gets bidi and canvas checks, but no icon checks', async ({ page, localeCheck }) => {
     await page.setContent(`<html dir="rtl" lang="ar"><body><p id=c>تعلم C++ اليوم</p>
       <canvas id=chart width=200 height=100></canvas>${NEXT_ICON}</body></html>`);

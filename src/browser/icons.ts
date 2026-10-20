@@ -1,5 +1,5 @@
 import type { Box, RawIssue } from '../types';
-import { classifyIcon, iconTokens, type IconKind, type IconOverride } from '../rules/icons';
+import { classifyIcon, iconTokenGroups, iconTokens, type IconKind, type IconOverride } from '../rules/icons';
 import { ICON_FONT_IGNORE, clip, docBox, ignoreSelector, isIgnored, isVisible, keyOf, selectorOf } from './dom';
 
 export interface IconRecord { key: string; selector: string; box: Box; kind: IconKind; name: string; sign: number; signature: string }
@@ -36,12 +36,17 @@ function ownNames(el: Element): string[] {
   const use = el.querySelector('use');
   const useHref = use?.getAttribute('href') ?? use?.getAttribute('xlink:href') ?? '';
   const text = (el.textContent ?? '').trim();
+  // Name-like values only: free text (alt, aria-label, title) is a description, judged as a control name.
   return [
-    attr('class'), el.id, attr('data-icon'), attr('data-testid'), attr('aria-label'), attr('title'), attr('alt'),
+    attr('class'), el.id, attr('data-icon'), attr('data-testid'),
     fileName(el.getAttribute('src')), useHref.includes('#') ? useHref.split('#').pop()! : fileName(useHref),
-    el.querySelector('title')?.textContent ?? '', LIGATURE.test(text) ? text : '',
+    LIGATURE.test(text) ? text : '',
   ];
 }
+
+/** The icon's own descriptions: they name what the icon does, like a button's text ("Next", "Back"). */
+const freeText = (el: Element) =>
+  [el.getAttribute('aria-label'), el.getAttribute('title'), el.getAttribute('alt'), el.querySelector('title')?.textContent].filter(Boolean).join(' ');
 
 const controlOf = (el: Element) => el.parentElement?.closest(CONTROL) ?? null;
 
@@ -68,18 +73,39 @@ function angleCos(value: string): number {
   return Math.cos(rad);
 }
 
-/** -1 when the element and its ancestors draw it horizontally flipped, else 1. */
+/** Where the drawing's x axis ends up: 1 still left-to-right, -1 reversed, 0 turned sideways (unknown). */
+function horizontal(factor: number): number {
+  if (Math.abs(factor) < 0.1) return 0;
+  return factor < 0 ? -1 : 1;
+}
+
+/** The x-axis factor of a computed `rotate` value: a turn about y or z can reverse it, one about x cannot. */
+function rotateFactor(value: string): number {
+  const v = value.trim();
+  if (!v || v === 'none') return 1;
+  const parts = v.split(/\s+/);
+  const cos = angleCos(parts[parts.length - 1]);
+  if (parts.length === 1 || parts[0] === 'z') return cos;
+  if (parts[0] === 'y') return cos;
+  if (parts[0] === 'x') return 1;
+  // A vector axis "x y z angle": treat it by its dominant axis.
+  const [x, y, z] = parts.slice(0, 3).map(Number).map(Math.abs);
+  return x >= y && x >= z ? 1 : cos;
+}
+
+/** -1 when the element and its ancestors draw it horizontally flipped, 1 when not, 0 when turned sideways. */
 function flipSign(el: Element): number {
   // Icon fonts often flip only the glyph: [dir=rtl] .bi-chevron-right::before { transform: scaleX(-1) }.
-  const glyph = /matrix(?:3d)?\(\s*(-?[\d.e+-]+)/.exec(getComputedStyle(el, '::before').transform);
-  let sign = glyph && parseFloat(glyph[1]) < 0 ? -1 : 1;
-  for (let n: Element | null = el; n; n = n.parentElement) {
+  const matrixA = (transform: string) => {
+    const m = /matrix(?:3d)?\(\s*(-?[\d.e+-]+)/.exec(transform);
+    return m ? parseFloat(m[1]) : 1;
+  };
+  let sign = horizontal(matrixA(getComputedStyle(el, '::before').transform));
+  for (let n: Element | null = el; n && sign !== 0; n = n.parentElement) {
     const s = getComputedStyle(n);
-    const matrix = /matrix(?:3d)?\(\s*(-?[\d.e+-]+)/.exec(s.transform);
-    if (matrix && parseFloat(matrix[1]) < 0) sign = -sign;
-    if (s.scale && s.scale !== 'none' && parseFloat(s.scale) < 0) sign = -sign;
-    // Only a rotation about the z axis turns the drawing around; `rotate: y 180deg` is a 3D flip we leave alone.
-    if (s.rotate && s.rotate !== 'none' && !/^[xy]\s|^\S+\s+\S+\s+\S+\s/.test(s.rotate.trim()) && angleCos(s.rotate) < -1e-6) sign = -sign;
+    sign *= horizontal(matrixA(s.transform));
+    if (s.scale && s.scale !== 'none') sign *= horizontal(parseFloat(s.scale));
+    if (s.rotate) sign *= horizontal(rotateFactor(s.rotate));
   }
   return sign;
 }
@@ -96,7 +122,8 @@ function signature(el: Element): string {
   const s = getComputedStyle(el);
   const parts = [pseudoContent(el, '::before'), pseudoContent(el, '::after'), s.backgroundImage, s.backgroundPosition, (el.textContent ?? '').trim()];
   if (el instanceof HTMLImageElement) parts.push(el.currentSrc || el.src);
-  if (el.tagName.toLowerCase() === 'svg') parts.push(hash(el.outerHTML));
+  // The drawing inside the svg, not the root's own attributes: a framework adding a class is not a redraw.
+  if (el.tagName.toLowerCase() === 'svg') parts.push(hash(el.innerHTML));
   return parts.join('|');
 }
 
@@ -109,10 +136,10 @@ export function snapshotIcons(ignore: string[], manifest: Record<string, IconOve
     if (!isIcon(el) || isIgnored(el, ignoreSel) || !isVisible(el)) continue;
     lastIcon = el;
     const control = controlOf(el);
-    const own = iconTokens(...ownNames(el));
-    const kind = classifyIcon(own, iconTokens(controlName(control)), manifest, overrideAttribute(el, control));
+    const own = iconTokenGroups(...ownNames(el));
+    const kind = classifyIcon(own, iconTokens(controlName(control), freeText(el)), manifest, overrideAttribute(el, control));
     records.push({
-      key: keyOf(el), selector: selectorOf(el), box: docBox(el), kind, name: clip(own.join(' ')), sign: flipSign(el), signature: signature(el),
+      key: keyOf(el), selector: selectorOf(el), box: docBox(el), kind, name: clip(own.flat().join(' ')), sign: flipSign(el), signature: signature(el),
     });
   }
   return records;
@@ -125,6 +152,7 @@ export function compareIcons(before: IconRecord[], after: IconRecord[]): RawIssu
   for (const rtl of after) {
     const was = ltr.get(rtl.key);
     if (!was) continue;
+    if (was.sign === 0 || rtl.sign === 0) continue; // turned sideways: we cannot tell which way it points
     const flipped = was.sign !== rtl.sign;
     const redrawn = was.signature !== rtl.signature;
     const issue = (rule: RawIssue['rule']) => ({ rule, key: rtl.key, selector: rtl.selector, box: rtl.box, text: rtl.name });

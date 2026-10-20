@@ -14,6 +14,9 @@ Each section becomes the notes of the matching GitHub Release.
 - `baseline: ''` or a directory now gives a clear error, and a baseline file of another version is refused.
 - `fitlocale summary` shows each issue once under `--repeat-each`, and marks which issues fail the test. `results.json` issues carry `fails`.
 - The GitHub Action, with no local fitlocale, runs the CLI of its own major version (`fitlocale@0` for `@v0`) instead of the latest release.
+- Icon names are judged one class name at a time: `chevron float-end` and two-way icons such as `arrow-left-right` are no longer reported, and neither is an avatar whose `alt` holds a name like "Nick West". Descriptions (`aria-label`, `title`, `alt`) now count only as the control's name, and a warning triangle in a "Continue" button is not an arrow.
+- Icons turned sideways (a 90° rotation) are no longer judged, `rotate: y 180deg` counts as a flip, and a class added to an SVG root is no longer mistaken for a redrawn icon.
+- Values containing emoji are no longer measured for text order, and a value such as `$$5` now appears in messages as written.
 
 ### Changed
 

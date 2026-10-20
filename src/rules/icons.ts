@@ -3,13 +3,16 @@
 export type IconOverride = 'mirror' | 'invariant' | 'ignore';
 export type IconKind = IconOverride | null;
 
+const words = (name: string) => name.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+
 /** Lower-case words of icon names: `arrow_forward_ios` → arrow, forward, ios; `ArrowLeft` → arrow, left. */
 export function iconTokens(...names: string[]): string[] {
-  return names
-    .map(n => n.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase())
-    .join(' ')
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter(Boolean);
+  return words(names.join(' '));
+}
+
+/** One word list per class name or attribute value: `fa fa-arrow-left` → [fa], [fa, arrow, left]. */
+export function iconTokenGroups(...names: string[]): string[][] {
+  return names.flatMap(n => n.split(/\s+/)).map(words).filter(g => g.length > 0);
 }
 
 /** Media controls, clocks, check marks and logos keep their direction in right-to-left. */
@@ -26,6 +29,9 @@ const HORIZONTAL_PAIRS = new Set(['first page', 'last page']);
 const SHAPES = new Set(['arrow', 'chevron', 'caret', 'angle', 'triangle']);
 const SIDES = new Set(['left', 'right', 'start', 'end', 'forward', 'back', 'backward']);
 const CONTROL_WORDS = new Set(['next', 'back', 'previous', 'forward', 'continue']);
+/** Shapes that a button's name ("Next") can make directional; a triangle is more often a warning sign. */
+const CONTROL_SHAPES = new Set(['arrow', 'chevron', 'caret', 'angle']);
+const OPPOSITES: Array<[string, string]> = [['left', 'right'], ['start', 'end']];
 
 const pairs = (tokens: string[]) => tokens.slice(1).map((t, i) => `${tokens[i]} ${t}`);
 const hasAny = (tokens: string[], set: Set<string>) => tokens.some(t => set.has(t));
@@ -34,13 +40,18 @@ const hasAny = (tokens: string[], set: Set<string>) => tokens.some(t => set.has(
  * Should this icon flip in right-to-left? Precedence: the data-fitlocale-icon attribute, the `icons` option,
  * invariant names, vertical names (unknown), directional names. `null` means unknown: never reported.
  */
-export function classifyIcon(own: string[], controlName: string[], manifest: Record<string, IconOverride>, attribute?: string | null): IconKind {
+export function classifyIcon(own: string[][], controlName: string[], manifest: Record<string, IconOverride>, attribute?: string | null): IconKind {
   if (attribute === 'mirror' || attribute === 'invariant' || attribute === 'ignore') return attribute;
-  for (const t of own) if (Object.prototype.hasOwnProperty.call(manifest, t)) return manifest[t];
-  if (hasAny(own, INVARIANT) || hasAny(pairs(own), INVARIANT_PAIRS)) return 'invariant';
-  if (hasAny(own, VERTICAL) || hasAny(controlName, VERTICAL)) return null;
-  if (hasAny(own, HORIZONTAL) || hasAny(pairs(own), HORIZONTAL_PAIRS)) return 'mirror';
-  if (hasAny(own, SHAPES) && (hasAny(own, SIDES) || hasAny(controlName, CONTROL_WORDS))) return 'mirror';
+  const all = own.flat();
+  for (const t of all) if (Object.prototype.hasOwnProperty.call(manifest, t)) return manifest[t];
+  if (own.some(g => hasAny(g, INVARIANT) || hasAny(pairs(g), INVARIANT_PAIRS))) return 'invariant';
+  if (hasAny(all, VERTICAL) || hasAny(controlName, VERTICAL)) return null;
+  if (own.some(g => hasAny(g, HORIZONTAL) || hasAny(pairs(g), HORIZONTAL_PAIRS))) return 'mirror';
+  // A shape and a side count together only within one name (icon-chevron-right, not "chevron float-end"),
+  // and a name with both sides (arrow-left-right) points both ways.
+  const symmetric = (g: string[]) => OPPOSITES.some(([a, b]) => g.includes(a) && g.includes(b));
+  if (own.some(g => hasAny(g, SHAPES) && hasAny(g, SIDES) && !symmetric(g))) return 'mirror';
+  if (own.some(g => hasAny(g, CONTROL_SHAPES) && !hasAny(g, SIDES)) && hasAny(controlName, CONTROL_WORDS)) return 'mirror';
   return null;
 }
 

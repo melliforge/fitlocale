@@ -201,7 +201,8 @@ An icon flipped in right-to-left, but media controls, clocks, check marks and lo
 Mixed-direction text is drawn in the wrong order inside Arabic or Hebrew text: `C++` shows as `++C`, `$220` as `220$`, `+1` as `1+`. Each character is measured, so values drawn in order are never reported.
 
 ```html
-<p dir="rtl">تعلّم C++ اليوم</p>
+<!-- on a right-to-left page, for example <html dir="rtl" lang="ar"> -->
+<p>تعلّم C++ اليوم</p>
 ```
 
 **Fix:** isolate the value with `<bdi>`, or set `dir="auto"` (or `dir="ltr"`) on its element.
