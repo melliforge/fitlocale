@@ -79,3 +79,10 @@ jobs:
             gh release create "$GITHUB_REF_NAME" "$PKG_NAME-$VERSION.tgz" \
               --title "$PKG_NAME $VERSION" --notes-file release-notes.md --verify-tag $PRERELEASE
           fi
+
+      # Workflows can use the Action as melliforge/localization-layout-tester@v0: point that tag at this release.
+      - name: Move the major tag (v0) to this release
+        if: env.NPM_TAG == 'latest'
+        run: |
+          git tag -f "v${VERSION%%.*}" "$GITHUB_SHA"
+          git push -f origin "refs/tags/v${VERSION%%.*}"

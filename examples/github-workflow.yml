@@ -18,5 +18,5 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
       # A table of new issues in the job summary, and the HTML report as an artifact.
-      - uses: melliforge/localization-layout-tester@v0.3.0
+      - uses: melliforge/localization-layout-tester@v0
         if: always()
