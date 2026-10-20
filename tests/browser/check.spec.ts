@@ -149,6 +149,24 @@ test('the page is put back exactly as it was', async ({ page, localeCheck }) => 
   expect(await page.evaluate(() => document.documentElement.outerHTML)).toBe(before);
 });
 
+test.describe('a page that redraws after a resize', () => {
+  test.use({ fitlocale: { viewports: [{ width: 1280, height: 800 }, { width: 390, height: 844 }], failOn: 'never' } });
+
+  // Responsive apps (Excalidraw's phone layout) render again a frame after the window resizes, with new elements.
+  // A label clipped on purpose in both renders must still be dropped as present in the source.
+  test('is measured once it has redrawn', async ({ page, localeCheck }) => {
+    // A phone layout of a different shape, drawn two frames after the resize, as React apps do.
+    const LABEL = 'style="width:20px;overflow:hidden;white-space:nowrap">Save changes';
+    await page.setContent(`<div id=wrap></div><script>
+      const draw = () => { wrap.innerHTML = innerWidth < 600 ? '<section><p ${LABEL}</p></section>' : '<div ${LABEL}</div>'; };
+      draw();
+      addEventListener('resize', () => requestAnimationFrame(() => requestAnimationFrame(draw)));
+    </script>`);
+    const result = await localeCheck();
+    expect(result.issues.filter(i => i.rule.startsWith('overflow/'))).toEqual([]);
+  });
+});
+
 test.describe('two viewports on an RTL page', () => {
   test.use({ fitlocale: { viewports: [{ width: 1280, height: 800 }, { width: 390, height: 844 }], failOn: 'never' } });
 

@@ -104,6 +104,9 @@ function transform(s: string): Transformed {
   return { out, textLength };
 }
 
+/** Longest run of padding: about a word. */
+const PAD_RUN = 8;
+
 /** Accent and lengthen `text`, keeping placeholders, ICU syntax, nested/linked messages, HTML tags and entities intact. */
 export function pseudoLong(text: string, opts: PseudoOptions = {}): string {
   if (text.trim() === '') return text;
@@ -111,7 +114,9 @@ export function pseudoLong(text: string, opts: PseudoOptions = {}): string {
   const [, lead, core, trail] = /^(\s*)([\s\S]*?)(\s*)$/.exec(text)!;
   const { out, textLength } = transform(core);
   const pad = Math.max(2, Math.ceil(textLength * expansion));
-  return `${lead}${MARK_START}${out} ${'~'.repeat(pad - 1)}${MARK_END}${trail}`;
+  // Word-sized runs: real translations wrap at spaces, and one long run would stick out of narrow boxes instead.
+  const padding = '~'.repeat(pad - 1).replace(new RegExp(`~{${PAD_RUN}}(?=~)`, 'g'), '$& ');
+  return `${lead}${MARK_START}${out} ${padding}${MARK_END}${trail}`;
 }
 
 const UNACCENT: Record<string, string> = Object.fromEntries(Object.entries(ACCENTS).map(([plain, accented]) => [accented, plain]));
@@ -119,7 +124,7 @@ const UNACCENT: Record<string, string> = Object.fromEntries(Object.entries(ACCEN
 /** Undo `pseudoLong`, approximately: drop the markers and padding, and take the accents off. */
 export function unpseudo(text: string): string {
   return text
-    .replace(/ ~*\u27E7/g, '')
+    .replace(/ [~ ]*\u27E7/g, '')
     .replace(/[\u27E6\u27E7]/g, '')
     .replace(/[^\x00-\x7F]/g, ch => UNACCENT[ch] ?? ch);
 }

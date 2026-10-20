@@ -1,6 +1,6 @@
 import type { RawIssue, RuleId } from '../types';
 import {
-  clip, clipRects, composedContains, composedElements, directText, directTextNodes, docBox, ignoreSelector, isIgnored, isVisible, keyOf,
+  clip, clipRects, composedContains, composedElements, composedParent, directText, directTextNodes, docBox, ignoreSelector, isIgnored, isVisible, keyOf,
   rangeFor, sameDocument, selectorOf, type Rect,
 } from './dom';
 import { textElements } from './boxes';
@@ -58,6 +58,24 @@ function issue(rule: RuleId, el: Element): RawIssue {
   return { rule, key: keyOf(el), selector: selectorOf(el), box: docBox(el), text: clip(directText(el)) };
 }
 
+/**
+ * The nearest element, `el` included, fixed or stuck to the screen: such a bar (a bottom navigation, an open menu)
+ * covers the page on purpose, so only controls in the same one can overlap. Null for the page itself.
+ */
+function pinnedLayer(el: Element, cache: Map<Element, Element | null>): Element | null {
+  // A loop, not recursion: pages can nest thousands deep.
+  const path: Element[] = [];
+  let layer: Element | null = null;
+  for (let e: Element | null = el; e; e = composedParent(e)) {
+    if (cache.has(e)) { layer = cache.get(e)!; break; }
+    path.push(e);
+    const position = getComputedStyle(e).position;
+    if (position === 'fixed' || position === 'sticky') { layer = e; break; }
+  }
+  for (const e of path) cache.set(e, layer);
+  return layer;
+}
+
 function overlaps(ignoreSel: string): RawIssue[] {
   const controls = composedElements()
     .filter(el => el.matches(INTERACTIVE) && !isIgnored(el, ignoreSel) && isVisible(el));
@@ -85,6 +103,7 @@ function overlaps(ignoreSel: string): RawIssue[] {
     active.push(item);
   }
   const issues: RawIssue[] = [];
+  const layers = new Map<Element, Element | null>();
   for (let i = 0; i < controls.length; i++) {
     const later = partners.get(i);
     if (!later) continue;
@@ -93,6 +112,7 @@ function overlaps(ignoreSel: string): RawIssue[] {
       const b = controls[j];
       // Rects of different documents (a frame's and the page's) are not in the same coordinates.
       if (!sameDocument(a, b) || composedContains(a, b) || composedContains(b, a)) continue;
+      if (pinnedLayer(a, layers) !== pinnedLayer(b, layers)) continue;
       issues.push(issue('overflow/overlap', a));
       break;
     }

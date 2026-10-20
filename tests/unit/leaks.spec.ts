@@ -15,6 +15,17 @@ test('raw keys', () => {
   }
 });
 
+// Every two-letter ending is a country's domain (m.webtoo.ls is a Mastodon server shown on every Elk page).
+test('host names with a country domain are not raw keys', () => {
+  for (const t of ['m.webtoo.ls', 'social.example.fm', 'cdn.assets.ws']) expect(r(t), t).toEqual([]);
+  expect(r('settings.lang.en', ['settings.lang.en'])).toEqual(['leak/raw-key:settings.lang.en']);
+});
+
+// The commonest leak: a new feature's key, from a namespace the source messages do not have yet.
+test('a key missing from the source messages is still a raw key', () => {
+  expect(r('dashboard.welcome.title', ['settings.title', 'nav.home'])).toEqual(['leak/raw-key:dashboard.welcome.title']);
+});
+
 test('placeholders', () => {
   expect(r('You have {count} messages')).toEqual(['leak/placeholder:{count}']);
   expect(r('Hi {{ name }}')).toEqual(['leak/placeholder:{{ name }}']);

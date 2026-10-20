@@ -56,7 +56,7 @@ Text spills outside its box (the overflow is visible), usually over its neighbou
 
 **Severity:** error · **Modes:** `pseudo-long`; `source` on pages in a pseudo locale, and in a real locale with `localeMessages`
 
-A link, button or input overlaps a neighbouring control, so one of them is hard to click.
+A link, button or input overlaps a neighbouring control, so one of them is hard to click. A bar fixed or stuck to the screen, such as a bottom navigation or an open menu, covers the page on purpose: only controls in the same bar, or both in the page, are compared.
 
 ```html
 <div style="position:relative"><button style="position:absolute;left:0">Delete</button><button style="position:absolute;left:70px">Archive</button></div>
@@ -70,7 +70,7 @@ A link, button or input overlaps a neighbouring control, so one of them is hard 
 
 **Severity:** error · **Modes:** `source`
 
-A translation key is shown instead of translated text: an element whose whole text is a dotted key of three or more parts, such as `dashboard.welcome.title`, or any key from your `sourceMessages` (so set it to catch short keys like `nav.home`).
+A translation key is shown instead of translated text: an element whose whole text is a dotted key of three or more parts, such as `dashboard.welcome.title`, or any key from your `sourceMessages` (so set it to catch short keys like `nav.home`). Host and file names (`m.webtoo.ls`, `report.final.pdf`) are not keys.
 
 ```html
 <p>dashboard.welcome.title</p>

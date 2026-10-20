@@ -29,10 +29,13 @@ function isRawKey(token: string, knownKeys?: ReadonlySet<string>): boolean {
   if (!KEY_TOKEN.test(token)) return false;
   if (knownKeys?.has(token)) return true;
   const segments = token.split('.');
+  const last = segments[segments.length - 1].toLowerCase();
   return segments.length >= 3
     && !token.startsWith('www.')
     && !segments.some(s => /^\d+$/.test(s))
-    && !NOT_KEY_SUFFIXES.has(segments[segments.length - 1].toLowerCase());
+    // Any two-letter ending is a country's domain (m.webtoo.ls).
+    && !/^[a-z]{2}$/.test(last)
+    && !NOT_KEY_SUFFIXES.has(last);
 }
 
 /** Find text that is clearly broken i18n output: raw keys, unfilled placeholders, broken values. */

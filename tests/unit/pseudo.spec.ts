@@ -51,3 +51,17 @@ test('unpseudo turns pseudo-long text back into the source text', () => {
   }
   expect(unpseudo('plain')).toBe('plain');
 });
+
+// Real translations wrap at spaces: one long run of padding would stick out of narrow boxes that real text wraps in.
+test('long padding is split into word-sized runs', () => {
+  const text = 'Save data by preventing attachments from automatically loading.';
+  const out = pseudoLong(text);
+  const padding = /⟦.*? (~[~ ]*)⟧$/.exec(out)![1];
+  expect(padding.replace(/ /g, '')).toBe('~'.repeat(Math.ceil(text.length * 0.4) - 1));
+  for (const run of padding.split(' ')) expect(run.length).toBeLessThanOrEqual(8);
+  expect(unpseudo(out)).toBe(text);
+});
+
+test('unpseudo also removes padding written as one run, as older pseudo files have it', () => {
+  expect(unpseudo('⟦Šávé dátá ~~~~~~~~~~~~~~~~⟧')).toBe('Save data');
+});

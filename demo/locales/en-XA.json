@@ -7,7 +7,7 @@
     "help": "⟦Hélp ~⟧",
     "back": "⟦Báçk ~⟧"
   },
-  "title": "⟦Ýöür áççöüñt šéttîñgš áñd évérýthîñg áböüt ýöür šübšçrîptîöñ ~~~~~~~~~~~~~~~~~~~~~~~⟧",
+  "title": "⟦Ýöür áççöüñt šéttîñgš áñd évérýthîñg áböüt ýöür šübšçrîptîöñ ~~~~~~~~ ~~~~~~~~ ~~~~~~~⟧",
   "inbox": {
     "count": "⟦Ýöü hávé {count} méššágéš ~~~~~~~⟧"
   },
@@ -34,7 +34,7 @@
     "order": "⟦öñ thîš ördér ~~~~~⟧"
   },
   "help": {
-    "line": "⟦Réád thé <a href=\"#\">hélp çéñtér</a> fîršt ~~~~~~~~~~⟧"
+    "line": "⟦Réád thé <a href=\"#\">hélp çéñtér</a> fîršt ~~~~~~~~ ~~⟧"
   },
   "course": {
     "title": "⟦Léárñ Ç++ tödáý ~~~~~⟧"

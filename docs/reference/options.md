@@ -70,7 +70,7 @@ Path to your source-language message JSON, relative to `playwright.config`. With
 
 Path to each locale's message JSON, with `{locale}` where the locale code goes, relative to `playwright.config`: for example `'locales/{locale}.json'`. With it, a page switched with `useLocale()` gets the overflow checks too, and only the issues its translation causes are reported. fitlocale puts the source text back in place of each translation it finds in the file, measures again, and leaves out what overflows in the source language as well.
 
-For `useLocale('de-CH')`, fitlocale reads `de-CH.json`, else `de_CH.json`, else `de.json`. It needs `sourceMessages`, since each translation is matched to the source text with the same key.
+For `useLocale('de-CH')`, fitlocale reads `de-CH.json`, else `de_CH.json`, else `de.json`. When both a regional file and `de.json` exist, the regional file is laid over `de.json`, as vue-i18n and i18next fall back from one to the other. It needs `sourceMessages`, since each translation is matched to the source text with the same key.
 
 ### `ignore`
 
