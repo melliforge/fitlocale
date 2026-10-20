@@ -23,7 +23,7 @@ npx fitlocale report fitlocale-report/results.json --out another-dir
 
 Re-renders the offline `index.html` from a `results.json`, copying its screenshots along.
 
-## `fitlocale baseline` <Badge type="tip" text="next release" />
+## `fitlocale baseline`
 
 ```bash
 npx fitlocale baseline fitlocale-report/results.json
@@ -32,7 +32,7 @@ npx fitlocale baseline shard-1/results.json shard-2/results.json --out e2e/fitlo
 
 Accepts every issue in one or more `results.json` files (one per shard) into the baseline file (default `fitlocale-baseline.json`). The file is sorted and readable, so it diffs cleanly in pull requests. The tests look for it next to `playwright.config`: pass `--out` when you run the command from another folder.
 
-## `fitlocale summary` <Badge type="tip" text="next release" />
+## `fitlocale summary`
 
 ```bash
 npx fitlocale summary fitlocale-report/results.json --max-rows 50 >> "$GITHUB_STEP_SUMMARY"
