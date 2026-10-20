@@ -56,3 +56,41 @@ test('a CSS scale never changes the verdict', async ({ page }) => {
     for (const scale of [0.5, 2]) expect(await find(page, scaled(lh, scale)), `line-height ${lh}, scale ${scale}`).toEqual(plain);
   }
 });
+
+test('marks are judged by their drawn pixels', async ({ page }) => {
+  // Canvas metrics for marks differ between engines (WebKit misreports them): the verdict must follow the ink as drawn.
+  const div = (height: number) =>
+    `<div id=t style="padding-top:20px;height:${height}px;overflow:hidden;font-size:20px;line-height:normal;white-space:nowrap">${TEXT}</div>`;
+  await load(page, `<html dir="rtl" lang="ar"><body style="margin:0">${div(200)}</body></html>`);
+  // This test's own measurement: the baseline in the box, and how far the drawn ink reaches below it.
+  const { baseline, descent } = await page.evaluate(() => {
+    const el = document.getElementById('t')!;
+    const s = getComputedStyle(el);
+    const g = new OffscreenCanvas(400, 120).getContext('2d', { willReadFrequently: true })!;
+    g.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;
+    g.fillText(el.textContent!, 20, 60);
+    const data = g.getImageData(0, 0, 400, 120).data;
+    let bottom = 0;
+    for (let y = 0; y < 120; y++) for (let x = 0; x < 400; x++) if (data[(y * 400 + x) * 4 + 3] > 0) bottom = y;
+    const range = document.createRange();
+    range.selectNodeContents(el.firstChild!);
+    const rect = range.getClientRects()[0];
+    return { baseline: rect.top - el.getBoundingClientRect().top + g.measureText(el.textContent!).fontBoundingBoxAscent, descent: bottom + 1 - 60 };
+  });
+  const verdict = (clipBelowBaseline: number) =>
+    find(page, div(Math.round(baseline + clipBelowBaseline - 20)));
+  expect(await verdict(descent - 3), `clip 3px into the drawn ink (descent ${descent})`).toEqual(['rtl/clipped-marks #t']);
+  expect(await verdict(descent + 3), `clip 3px below the drawn ink (descent ${descent})`).toEqual([]);
+});
+
+test('pixel ink stays fast on many elements', async ({ page }) => {
+  const divs = Array.from({ length: 300 }, (_, i) =>
+    `<div style="height:30px;overflow:hidden;white-space:nowrap;font-size:${[14, 16, 20][i % 3]}px">${TEXT} ${i % 30}</div>`).join('');
+  await load(page, `<html dir="rtl" lang="ar"><body>${divs}</body></html>`);
+  const ms = await page.evaluate(() => {
+    const t0 = performance.now();
+    window.__fitlocale.findClippedMarks([]);
+    return performance.now() - t0;
+  });
+  expect(ms).toBeLessThan(1500);
+});

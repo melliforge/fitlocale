@@ -8,6 +8,37 @@ const CLIPPING = new Set(['hidden', 'clip']);
 
 let ctx: OffscreenCanvasRenderingContext2D | null = null;
 
+/**
+ * How far the drawn ink of `text` reaches above and below its baseline, read from the pixels of a drawing.
+ * Canvas metrics are not used for this: WebKit misreports the size of combining marks.
+ */
+function inkExtent(font: string, size: number, text: string, cache: Map<string, InkExtent | null>): InkExtent | null {
+  const id = `${font}\n${text}`;
+  if (cache.has(id)) return cache.get(id)!;
+  ctx!.font = font;
+  const width = Math.ceil(ctx!.measureText(text).width + 2 * size), height = Math.ceil(4 * size), baseline = 2 * size;
+  const canvas = new OffscreenCanvas(Math.max(1, width), Math.max(1, height));
+  const g = canvas.getContext('2d', { willReadFrequently: true });
+  let ink: InkExtent | null = null;
+  if (g) {
+    g.font = font;
+    g.fillText(text, size, baseline);
+    const data = g.getImageData(0, 0, canvas.width, canvas.height).data;
+    const inked = (y: number) => {
+      for (let x = 0, i = y * canvas.width * 4 + 3; x < canvas.width; x++, i += 4) if (data[i] > 0) return true;
+      return false;
+    };
+    let top = 0, bottom = canvas.height - 1;
+    while (top < canvas.height && !inked(top)) top++;
+    while (bottom > top && !inked(bottom)) bottom--;
+    if (top < canvas.height) ink = { ascent: baseline - top, descent: bottom + 1 - baseline };
+  }
+  cache.set(id, ink);
+  return ink;
+}
+
+interface InkExtent { ascent: number; descent: number }
+
 /** The client rects of an element's own text, or null when it spans more than one line. */
 function singleLineRects(el: Element): DOMRect[] | null {
   const range = document.createRange();
@@ -26,6 +57,7 @@ export function findClippedMarks(ignore: string[]): RawIssue[] {
   const issues: RawIssue[] = [];
   ctx ??= new OffscreenCanvas(1, 1).getContext('2d');
   if (!ctx) return issues;
+  const inks = new Map<string, InkExtent | null>();
   for (const el of textElements(ignoreSelector(ignore))) {
     const text = directText(el);
     if (!hasRtlLetters(text)) continue;
@@ -49,12 +81,14 @@ export function findClippedMarks(ignore: string[]): RawIssue[] {
     if (!clipBox || clipBox.bottom - clipBox.top <= 2) continue;
     const rects = singleLineRects(el);
     if (!rects) continue; // wrapped text: R3, single-line text only
-    ctx.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;
-    const m = ctx.measureText(text);
+    const font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;
+    const ink = inkExtent(font, parseFloat(s.fontSize) || 16, text, inks);
+    if (!ink) continue;
+    ctx.font = font;
     // A text rect is the font's ascent-to-descent box: the baseline sits fontBoundingBoxAscent below its top.
-    const baseline = rects[0].top + m.fontBoundingBoxAscent * scale;
-    const inkTop = baseline - m.actualBoundingBoxAscent * scale;
-    const inkBottom = baseline + m.actualBoundingBoxDescent * scale;
+    const baseline = rects[0].top + ctx.measureText(text).fontBoundingBoxAscent * scale;
+    const inkTop = baseline - ink.ascent * scale;
+    const inkBottom = baseline + ink.descent * scale;
     // EPS is in the element's own pixels, like the rest of the measurement.
     if (inkTop < clipBox.top - EPS * scale || inkBottom > clipBox.bottom + EPS * scale) {
       issues.push({ rule: 'rtl/clipped-marks', key: keyOf(el), selector: selectorOf(el), box: docBox(el), text: clip(text) });

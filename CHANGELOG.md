@@ -12,6 +12,7 @@ Each section becomes the notes of the matching GitHub Release.
 
 ### Fixed
 
+- `rtl/clipped-marks` measures accent marks and descenders as they are drawn, so it gives the same verdicts on WebKit, whose canvas misreports their size. On Chromium a borderline verdict can move by a pixel.
 - `zh-TW` and `zh-CN` (and other pairs written in different scripts) no longer count as the same language, so text left in Simplified Chinese is reported on a Traditional Chinese page. A `lang` that names only the language (`zh`), or is written with an underscore (`de_DE`), still matches the page.
 - Regional language names ("português (Brasil)", "简体中文", "British English"), currency names, units ("5 kB") and ordinals ("19th") are no longer reported as hardcoded text.
 - Text inside `display: contents` elements is no longer dropped from text blocks.
