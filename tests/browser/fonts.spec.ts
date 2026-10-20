@@ -43,3 +43,12 @@ test('a stack of generic families only is not judged', async ({ page }) => {
 test('the browser default font is not a declared font', async ({ page }) => {
   expect(await check(page, '', '<p>مرحبا بكم</p><p>Hello</p>')).toEqual([]);
 });
+
+test('a system font stack whose fonts draw the Arabic is fine', async ({ page }) => {
+  const stack = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif';
+  expect(await check(page, '', `<h1 style='font-family: ${stack}'>تفاصيل الفوترة</h1>`)).toEqual([]);
+});
+
+test('Latin and digits drawn by another font do not make Arabic a fallback', async ({ page }) => {
+  expect(await check(page, '', `<p style="font-family: 'Geeza Pro', sans-serif">السعر iPhone 220</p>`)).toEqual([]);
+});

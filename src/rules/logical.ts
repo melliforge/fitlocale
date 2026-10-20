@@ -26,7 +26,7 @@ export function logicalReplacement(name: string, value: string): string | null {
     const side = SIDE_VALUE[name][v.toLowerCase()];
     return side ? `${name}: ${side}` : null;
   }
-  if (name === 'margin' || name === 'padding') {
+  if (name === 'margin' || name === 'padding' || name === 'inset') {
     const parts = v.split(/\s+/);
     if (parts.length === 4 && parts[1] !== parts[3]) {
       const [top, right, bottom, left] = parts;
@@ -37,28 +37,56 @@ export function logicalReplacement(name: string, value: string): string | null {
 }
 
 const POSITIONED = new Set(['absolute', 'fixed', 'relative', 'sticky']);
-/** Most likely cause first: inset offsets of positioned boxes, floats, margins, text alignment, padding, borders. */
-const PRIORITY: Array<(name: string, position: string) => boolean> = [
-  (n, p) => (n === 'left' || n === 'right') && POSITIONED.has(p),
-  n => n === 'float',
-  n => n === 'margin-left' || n === 'margin-right' || n === 'margin',
-  n => n === 'text-align',
-  n => n === 'padding-left' || n === 'padding-right' || n === 'padding',
-  n => /^border-(left|right)/.test(n),
-];
 
-/** The winning physical declaration most likely to keep this element from mirroring, or null. */
+/** The left and right values a declaration sets, if any: longhands directly, shorthands (`inset`, `margin`) by position. */
+function sides(decl: Declaration, longhand: 'left' | 'right' | 'margin-left' | 'margin-right'): string | undefined {
+  if (decl.name === longhand) return decl.value.trim();
+  const shorthand = longhand.startsWith('margin') ? 'margin' : 'inset';
+  if (decl.name !== shorthand) return undefined;
+  const [top, right = top, , left = right] = decl.value.trim().split(/\s+/);
+  return longhand.endsWith('left') ? left : right;
+}
+
+const LONGHANDS = ['left', 'right', 'margin-left', 'margin-right', 'float', 'text-align'] as const;
+type Longhand = (typeof LONGHANDS)[number];
+
+/**
+ * The winning declaration most likely to keep this element from mirroring, or null. Causes, most likely first:
+ * an inset offset of a positioned box, a float, an auto margin on one side, text alignment. Padding, borders and
+ * fixed margins move content, not the box, so they are never named; symmetric values are never a cause.
+ */
 export function pickResponsible(declarations: Declaration[], position: string): Declaration | null {
-  const winners = new Map<string, Declaration>();
+  const winners = new Map<Longhand, { decl: Declaration; value: string }>();
   for (const decl of [...declarations].sort((a, b) => a.ruleIndex - b.ruleIndex)) {
-    const current = winners.get(decl.name);
-    // A later declaration wins, unless the current winner is !important and the later one is not.
-    if (!current || decl.important || !current.important) winners.set(decl.name, decl);
-  }
-  for (const applies of PRIORITY) {
-    for (const decl of winners.values()) {
-      if (applies(decl.name, position) && logicalReplacement(decl.name, decl.value)) return decl;
+    for (const longhand of LONGHANDS) {
+      const value = longhand === 'float' || longhand === 'text-align'
+        ? (decl.name === longhand ? decl.value.trim() : undefined)
+        : sides(decl, longhand);
+      if (value === undefined) continue;
+      const current = winners.get(longhand);
+      // A later declaration wins, unless the current winner is !important and the later one is not.
+      if (!current || decl.important || !current.decl.important) winners.set(longhand, { decl, value });
     }
   }
+  const usable = (w?: { decl: Declaration }) => (w && logicalReplacement(w.decl.name, w.decl.value) ? w.decl : null);
+  const value = (l: Longhand, fallback: string) => (winners.get(l)?.value ?? fallback).toLowerCase();
+
+  if (POSITIONED.has(position)) {
+    const left = value('left', 'auto'), right = value('right', 'auto');
+    if (left !== right) {
+      const cause = left !== 'auto' ? usable(winners.get('left')) : usable(winners.get('right'));
+      if (cause) return cause;
+    }
+  }
+  if (['left', 'right'].includes(value('float', 'none'))) {
+    const cause = usable(winners.get('float'));
+    if (cause) return cause;
+  }
+  const marginLeft = value('margin-left', '0'), marginRight = value('margin-right', '0');
+  if ((marginLeft === 'auto') !== (marginRight === 'auto')) {
+    const cause = usable(winners.get(marginLeft === 'auto' ? 'margin-left' : 'margin-right'));
+    if (cause) return cause;
+  }
+  if (['left', 'right'].includes(value('text-align', 'start'))) return usable(winners.get('text-align'));
   return null;
 }

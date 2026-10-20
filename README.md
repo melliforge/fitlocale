@@ -114,7 +114,7 @@ When fitlocale forces a page right-to-left (the `pseudo-rtl` mode), it compares 
 On a page that is right-to-left already, such as your Arabic or Hebrew locale, it checks:
 - **text order** (`rtl/bidi-order`): values like `C++`, `+1 555…` or `$220` whose characters are drawn out of order inside Arabic or Hebrew text (`++C`, `220$`). The fix is `<bdi>` or `dir="auto"`;
 - **missing direction** (`rtl/missing-dir`): a right-to-left locale whose page is still laid out left-to-right;
-- **fallback fonts** (`rtl/font-fallback`): Arabic or Hebrew text drawn in a font you did not choose, because none of your fonts has these letters. It is judged only when your `font-family` names a real font that this machine has: a loaded web font, or one seen drawing text on the page;
+- **fallback fonts** (`rtl/font-fallback`): Arabic or Hebrew text drawn in a font you did not choose, because none of your fonts has these letters. Only the fonts drawing the Arabic or Hebrew letters count, and a `font-family` is judged only when every font it names (generic families like `sans-serif` aside) is on this machine: a loaded web font or an installed font;
 - **clipped marks** (`rtl/clipped-marks`): accent marks or descenders of a one-line right-to-left label cut off by a tight height or line height.
 
 Each `rtl/not-mirrored` issue also points at the CSS that keeps the element in place, mapped back through source maps when they exist, with the logical property to use instead:

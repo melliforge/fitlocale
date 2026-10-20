@@ -280,6 +280,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
         }
         const lists = [options.ignore, options.mirrorIgnore] as const;
         const iconArgs = [options.ignore, options.icons] as const;
+        let rtlIssues: Issue[] = [];
         try {
           await page.evaluate(([ig, mi]) => (window as unknown as Api).__fitlocale.rememberBoxes(ig, mi), lists);
           await page.evaluate(([ig, ic]) => (window as unknown as Api).__fitlocale.rememberIcons(ig, ic), iconArgs);
@@ -292,16 +293,17 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
             ...(index === 0 ? await page.evaluate(ig => (window as unknown as Api).__fitlocale.findCanvases(ig), options.ignore) : []),
           ];
           if (found.length) await shoot('pseudo-rtl', viewport);
-          issues.push(...enrich(found, 'pseudo-rtl', viewport));
+          rtlIssues = enrich(found, 'pseudo-rtl', viewport);
+          issues.push(...rtlIssues);
         } finally {
           await page.evaluate(() => (window as unknown as Api).__fitlocale.setDir(null));
         }
+        // Back to left-to-right, still at this viewport (media queries): read which CSS keeps each element in place.
+        if (rtlIssues.some(i => i.rule === 'rtl/not-mirrored')) {
+          const dt = await getDevtools();
+          if (dt) await attachCssSources(page, dt, rtlIssues);
+        }
       }
-    }
-    // The page is back as it was: read which CSS keeps each element from mirroring.
-    if (issues.some(i => i.rule === 'rtl/not-mirrored')) {
-      const dt = await getDevtools();
-      if (dt) await attachCssSources(page, dt, issues);
     }
   } finally {
     if (options.viewports !== 'current') await page.setViewportSize(original);

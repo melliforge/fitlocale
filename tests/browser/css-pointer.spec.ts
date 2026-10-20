@@ -146,3 +146,17 @@ test('without stylesheet text the declaration is still named, without a line', a
   expect(issue.source).toMatchObject({ url: 'http://routed.test/app.css', line: 0, value: '16px', replacement: 'inset-inline-start: 16px' });
   expect(issue.fix).toBe('In http://routed.test/app.css (.b), replace "left: 16px" with "inset-inline-start: 16px".');
 });
+
+test('a missing source map makes no request or console error in the page', async ({ page }) => {
+  const issues = await serve(page, {
+    '/': html(PAGE('<link rel=stylesheet href=/app.css>')),
+    '/app.css': css('.b{position:absolute;left:16px}\n/*# sourceMappingURL=missing.css.map */\n'),
+  });
+  const errors: string[] = [];
+  const requests: string[] = [];
+  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  page.on('request', r => requests.push(r.url()));
+  await point(page, issues);
+  expect(errors).toEqual([]);
+  expect(requests).toEqual([]);
+});

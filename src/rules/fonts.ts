@@ -15,14 +15,15 @@ export function parseFontFamily(value: string): string[] {
 }
 
 /**
- * Fonts that draw glyphs of this element without being declared (or loaded with @font-face): the fallback fonts.
- * Judged only when the stack names a real family that this machine is known to have; otherwise nothing.
+ * Fonts drawing this element's right-to-left letters (`rtlUsed`, measured on those letters alone) that are neither
+ * named in its font-family nor loaded with @font-face: the fallback fonts. Judged only when the stack names real
+ * families and every one of them is available on this machine; otherwise nothing.
  */
-export function fallbackFonts(declared: string[], used: PlatformFont[], available: Set<string>): string[] {
+export function fallbackFonts(declared: string[], rtlUsed: PlatformFont[], available: Set<string>): string[] {
   const explicit = declared.filter(f => !isGeneric(f)).map(f => f.toLowerCase());
-  if (explicit.length === 0 || !explicit.some(f => available.has(f))) return [];
+  if (explicit.length === 0 || !explicit.every(f => available.has(f))) return [];
   const names = new Set(explicit);
-  return used
+  return rtlUsed
     .filter(u => u.glyphCount > 0 && !u.isCustomFont && !names.has(u.familyName.toLowerCase()) && !/emoji|symbol/i.test(u.familyName))
     .map(u => u.familyName);
 }

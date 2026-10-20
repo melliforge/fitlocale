@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { clip } from '../browser/dom';
-import { fallbackFonts, parseFontFamily, type PlatformFont } from '../rules/fonts';
+import { fallbackFonts, isGeneric, parseFontFamily, type PlatformFont } from '../rules/fonts';
 import type { FitlocaleBrowserApi } from '../browser/api';
 import type { RawIssue } from '../types';
 import type { Devtools } from './session';
@@ -20,30 +20,58 @@ async function authorSetsFont(devtools: Devtools, nodeId: number): Promise<boole
   return levels.some(l => sets(l.inlineStyle) || (l.matchedCSSRules ?? []).some(r => r.rule.origin !== 'user-agent' && sets(r.rule.style)));
 }
 
-/** Arabic and Hebrew text drawn in a fallback font, because none of the declared fonts has those letters. */
+const LATIN_PROBE = 'abcdefghijklmnopqrstuvwxyz';
+const RTL_LETTERS = /[\p{Script=Arabic}\p{Script=Hebrew}]/gu;
+const quote = (family: string) => `"${family.replace(/["\\]/g, '\\$&')}"`;
+
+/**
+ * Arabic and Hebrew text drawn in a fallback font, because none of the declared fonts has those letters.
+ * Fonts are measured on hidden probes: the element's right-to-left letters alone in its font, and each named
+ * family alone (is it on this machine?). The probes are removed before returning.
+ */
 export async function findFontFallback(page: Page, devtools: Devtools, ignore: string[]): Promise<RawIssue[]> {
   const { samples, loadedFamilies } = await page.evaluate(ig => (window as unknown as Api).__fitlocale.fontSamples(ig), ignore);
+  const rtl = samples.filter(s => s.rtl);
+  if (rtl.length === 0) return [];
+  const families = [...new Set(rtl.flatMap(s => parseFontFamily(s.fontFamily)).filter(f => !isGeneric(f)))];
+  const probes = [
+    ...rtl.map(s => ({
+      text: (s.text.match(RTL_LETTERS) ?? []).join(''), fontFamily: s.fontFamily, fontWeight: s.fontWeight, fontStyle: s.fontStyle, fontSize: s.fontSize, lang: s.lang,
+    })),
+    ...families.map(f => ({ text: LATIN_PROBE, fontFamily: quote(f) })),
+  ];
+  const fontsOf = async (selector: string): Promise<PlatformFont[] | null> => {
+    const nodeId = await devtools.nodeFor(selector);
+    return nodeId ? (await devtools.send('CSS.getPlatformFontsForNode', { nodeId })).fonts : null;
+  };
+
+  const selectors = await page.evaluate(p => (window as unknown as Api).__fitlocale.addFontProbes(p), probes);
+  const rtlUsed: Array<PlatformFont[] | null> = [];
+  // A loaded @font-face is on this machine by definition; other families are checked with a probe.
   const available = new Set(loadedFamilies.map(f => f.toLowerCase()));
-  const measured: Array<{ sample: (typeof samples)[number]; nodeId: number; declared: string[]; used: PlatformFont[] }> = [];
-  for (const sample of samples) {
-    try {
-      const nodeId = await devtools.nodeFor(sample.key);
-      if (!nodeId) continue;
-      const { fonts } = await devtools.send('CSS.getPlatformFontsForNode', { nodeId });
-      const declared = parseFontFamily(sample.fontFamily);
-      const lower = new Set(declared.map(f => f.toLowerCase()));
-      // A declared family seen drawing text anywhere on the page is installed on this machine.
-      for (const f of fonts) if (f.glyphCount > 0 && (f.isCustomFont || lower.has(f.familyName.toLowerCase()))) available.add(f.familyName.toLowerCase());
-      measured.push({ sample, nodeId, declared, used: fonts });
-    } catch { /* the element changed: skip it */ }
+  try {
+    for (let i = 0; i < rtl.length; i++) rtlUsed.push(await fontsOf(selectors[i]).catch(() => null));
+    for (let i = 0; i < families.length; i++) {
+      const used = await fontsOf(selectors[rtl.length + i]).catch(() => null);
+      // On this machine when its own face draws the probe: a loaded @font-face, or an installed font of that name.
+      if (used?.some(f => f.glyphCount > 0 && (f.isCustomFont || f.familyName.toLowerCase() === families[i].toLowerCase()))) {
+        available.add(families[i].toLowerCase());
+      }
+    }
+  } finally {
+    await page.evaluate(() => (window as unknown as Api).__fitlocale.removeFontProbes());
   }
+
   const issues: RawIssue[] = [];
-  for (const { sample, nodeId, declared, used } of measured) {
-    if (!sample.rtl) continue;
+  for (let i = 0; i < rtl.length; i++) {
+    const sample = rtl[i], used = rtlUsed[i];
+    if (!used) continue;
+    const declared = parseFontFamily(sample.fontFamily);
     const fallback = fallbackFonts(declared, used, available);
     if (fallback.length === 0) continue;
     try {
-      if (!await authorSetsFont(devtools, nodeId)) continue;
+      const nodeId = await devtools.nodeFor(sample.key);
+      if (!nodeId || !await authorSetsFont(devtools, nodeId)) continue;
     } catch {
       continue;
     }

@@ -22,7 +22,12 @@ function explicit(props: CdpProperty[]): CdpProperty[] {
 }
 const valueOf = (p: CdpProperty) => p.value.replace(/\s*!important\s*$/i, '');
 
-/** Fetch a source map through the page (its routing, cookies and network), or decode a data: URL. Null on any failure. */
+const MAP_TIMEOUT_MS = 3000;
+
+/**
+ * Fetch a source map from Node (the context's cookies, a timeout, and nothing seen by the page: no extra request,
+ * no console error for a map that is not deployed), or decode a data: URL. Null on any failure.
+ */
 async function loadMap(page: Page, url: string, cache: Map<string, SourceMap | null>): Promise<SourceMap | null> {
   if (cache.has(url)) return cache.get(url)!;
   let text: string | null = null;
@@ -31,14 +36,8 @@ async function loadMap(page: Page, url: string, cache: Map<string, SourceMap | n
       const [, meta, data] = /^data:([^,]*),(.*)$/s.exec(url) ?? [];
       text = meta?.endsWith(';base64') ? Buffer.from(data, 'base64').toString('utf8') : decodeURIComponent(data ?? '');
     } else {
-      text = await page.evaluate(async u => {
-        try {
-          const res = await fetch(u);
-          return res.ok ? await res.text() : null;
-        } catch {
-          return null;
-        }
-      }, url);
+      const res = await page.context().request.get(url, { timeout: MAP_TIMEOUT_MS, failOnStatusCode: false });
+      text = res.ok() ? await res.text() : null;
     }
   } catch {
     text = null;

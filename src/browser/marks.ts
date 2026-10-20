@@ -30,8 +30,13 @@ export function findClippedMarks(ignore: string[]): RawIssue[] {
     const text = directText(el);
     if (!hasRtlLetters(text)) continue;
     const s = getComputedStyle(el);
-    const clipBox: Rect | null = CLIPPING.has(s.overflowY) ? paddingRect(el) : clipRects(el).y;
-    if (!clipBox) continue;
+    // Visually hidden text (sr-only: a 1px box, clip or clip-path) is meant to be cut off.
+    const box = el.getBoundingClientRect();
+    if (box.width <= 2 || box.height <= 2 || s.clip !== 'auto' || s.clipPath !== 'none') continue;
+    // overflow does not apply to inline boxes: an inline span with overflow: hidden clips nothing.
+    const ownClip = CLIPPING.has(s.overflowY) && s.display !== 'inline';
+    const clipBox: Rect | null = ownClip ? paddingRect(el) : clipRects(el).y;
+    if (!clipBox || clipBox.bottom - clipBox.top <= 2) continue;
     const rects = singleLineRects(el);
     if (!rects) continue; // wrapped text: R3, single-line text only
     ctx.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;

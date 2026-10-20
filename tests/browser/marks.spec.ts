@@ -25,3 +25,12 @@ test('wrapped text is not checked', async ({ page }) => {
   const long = `${TEXT} `.repeat(30);
   expect(await find(page, `<div style="width:200px;height:30px;overflow:hidden;font-size:16px">${long}</div>`)).toEqual([]);
 });
+
+test('visually hidden text is not reported', async ({ page }) => {
+  const srOnly = 'position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0';
+  expect(await find(page, `<button>X<span style="${srOnly}">${TEXT}</span></button>`)).toEqual([]);
+});
+
+test('overflow on an inline span clips nothing', async ({ page }) => {
+  expect(await find(page, `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px">حفظ التغييرات</span>`)).toEqual([]);
+});

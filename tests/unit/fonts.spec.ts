@@ -33,3 +33,13 @@ test('emoji and symbol fonts are not fallbacks', () => {
 test('a declared font that draws everything is fine', () => {
   expect(fallbackFonts(['Noto Sans Arabic', 'sans-serif'], [font('Noto Sans Arabic', false, 12)], new Set(['noto sans arabic']))).toEqual([]);
 });
+
+test('a stack is judged only when every named font is available here', () => {
+  const bootstrap = parseFontFamily('system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif');
+  expect(fallbackFonts(bootstrap, [font('Geeza Pro', false, 9)], new Set(['helvetica neue', 'arial']))).toEqual([]);
+});
+
+test('only fonts drawing the right-to-left letters count, and a declared one is fine', () => {
+  expect(fallbackFonts(['Arial', 'sans-serif'], [font('Arial', false, 13)], new Set(['arial']))).toEqual([]);
+  expect(fallbackFonts(['Geeza Pro', 'sans-serif'], [font('Geeza Pro', false, 9)], new Set(['geeza pro']))).toEqual([]);
+});

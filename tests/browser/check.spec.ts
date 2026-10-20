@@ -379,6 +379,18 @@ test.describe('DevTools checks', () => {
     expect(issue.source).toMatchObject({ selector: 'style attribute', property: 'left', replacement: 'inset-inline-start: 16px' });
   });
 
+  test.describe('several viewports', () => {
+    test.use({ fitlocale: { viewports: [{ width: 1280, height: 800 }, { width: 390, height: 844 }], failOn: 'never' } });
+
+    test('the CSS is read while the viewport that found the issue is active', async ({ page, localeCheck }) => {
+      await page.setContent(`<style>.side { width: 100px } @media (min-width: 768px) { .side { position: absolute; left: 10px } }</style>
+        <body style="margin:0"><div id=side class=side>Side</div></body>`);
+      const issue = notMirrored(await localeCheck());
+      expect(issue.viewport.width).toBe(1280);
+      expect(issue.source).toMatchObject({ property: 'left', value: '10px' });
+    });
+  });
+
   test('clipped marks are checked on right-to-left pages', async ({ page, localeCheck }) => {
     await page.setContent('<html dir="rtl" lang="ar"><body><div id=t style="height:14px;line-height:1;font-size:20px;overflow:hidden;white-space:nowrap">إِنَّ الْعِلْمَ</div></body></html>');
     expect(list(await localeCheck())).toContain('rtl/clipped-marks #t source');

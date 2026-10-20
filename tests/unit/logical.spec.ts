@@ -48,12 +48,12 @@ test.describe('pickResponsible follows the cascade', () => {
     expect(pickResponsible([d('left', '16px', 1, true), d('left', '20px', 2), d('left', '3px', 99)], 'absolute')?.value).toBe('16px');
   });
 
-  test('left does not apply to static elements; a margin is picked instead', () => {
-    expect(pickResponsible([d('left', '16px', 1), d('margin-left', '8px', 1)], 'static')?.name).toBe('margin-left');
+  test('left does not apply to static elements; an auto margin is picked instead', () => {
+    expect(pickResponsible([d('left', '16px', 1), d('margin-left', 'auto', 1)], 'static')?.name).toBe('margin-left');
   });
 
   test('position before float before margin before text-align', () => {
-    const all = [d('text-align', 'left', 1), d('margin-left', '8px', 1), d('float', 'left', 1), d('right', '0', 1)];
+    const all = [d('text-align', 'left', 1), d('margin-left', 'auto', 1), d('float', 'left', 1), d('right', '0', 1)];
     expect(pickResponsible(all, 'relative')?.name).toBe('right');
     expect(pickResponsible(all, 'static')?.name).toBe('float');
   });
@@ -61,4 +61,32 @@ test.describe('pickResponsible follows the cascade', () => {
   test('no physical declaration, nothing to point at', () => {
     expect(pickResponsible([d('color', 'red', 1), d('margin', '0 8px', 1)], 'absolute')).toBeNull();
   });
+});
+
+test.describe('pickResponsible names only real causes', () => {
+  test('a later shorthand overrides an earlier longhand', () => {
+    const picked = pickResponsible([d('left', '30px', 1), d('inset', '0 auto auto 100px', 2)], 'absolute');
+    expect([picked?.name, picked?.value]).toEqual(['inset', '0 auto auto 100px']);
+    expect(pickResponsible([d('margin-left', 'auto', 1), d('margin', '0', 2)], 'static')).toBeNull();
+  });
+
+  test('zero margins, fixed margins, padding and borders are not causes', () => {
+    expect(pickResponsible([d('margin-left', '0', 1), d('margin-right', '8px', 1)], 'static')).toBeNull();
+    expect(pickResponsible([d('padding-left', '24px', 1), d('border-left', '2px solid', 1)], 'static')).toBeNull();
+  });
+
+  test('an auto margin pushing the box to one side is a cause', () => {
+    expect(pickResponsible([d('margin-left', 'auto', 1)], 'static')?.name).toBe('margin-left');
+    expect(pickResponsible([d('margin-left', 'auto', 1), d('margin-right', 'auto', 1)], 'static')).toBeNull();
+  });
+
+  test('left and right set to the same value, or auto, are not causes', () => {
+    expect(pickResponsible([d('left', '0', 1), d('right', '0', 1)], 'absolute')).toBeNull();
+    expect(pickResponsible([d('left', 'auto', 1)], 'absolute')).toBeNull();
+    expect(pickResponsible([d('left', '0', 1)], 'absolute')?.value).toBe('0');
+  });
+});
+
+test('inset shorthands get a logical replacement', () => {
+  expect(logicalReplacement('inset', '0 auto auto 100px')).toBe('inset-block: 0 auto; inset-inline: 100px auto');
 });
