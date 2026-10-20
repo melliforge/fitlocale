@@ -12,6 +12,16 @@ test('marks cut off by a tight box are reported', async ({ page }) => {
     .toEqual(['rtl/clipped-marks #t']);
 });
 
+// WebKit before Playwright 1.45 has no OffscreenCanvas: an ordinary canvas measures the same ink.
+test('marks are measured without OffscreenCanvas', async ({ page }) => {
+  await load(page, `<html dir="rtl" lang="ar"><body><div id=t style="height:14px;line-height:1;font-size:20px;overflow:hidden;white-space:nowrap">${TEXT}</div></body></html>`);
+  const found = await page.evaluate(() => {
+    delete (window as { OffscreenCanvas?: unknown }).OffscreenCanvas;
+    return window.__fitlocale.findClippedMarks([]).map(i => `${i.rule} ${i.selector}`);
+  });
+  expect(found).toEqual(['rtl/clipped-marks #t']);
+});
+
 test('text with room is fine', async ({ page }) => {
   expect(await find(page, `<div style="font-size:20px;line-height:1.8">${TEXT}</div>`)).toEqual([]);
   expect(await find(page, `<div style="height:48px;font-size:20px;line-height:2.4;overflow:hidden">${TEXT}</div>`)).toEqual([]);
