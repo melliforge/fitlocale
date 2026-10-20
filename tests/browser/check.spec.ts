@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../src/playwright';
-import type { CheckResult } from '../../src/types';
+import { FIXES, type CheckResult } from '../../src/types';
 
 const CLIPPED = `<button id=s style="width:120px;overflow:hidden;white-space:nowrap">Save changes</button>`;
 const BADGE = `<div id=badge style="position:absolute;left:16px">New</div>`;
@@ -355,5 +355,32 @@ test.describe('right-to-left depth', () => {
     expect(found.filter(f => f.includes('icon'))).toEqual([]);
     expect(result.issues.find(i => i.rule === 'rtl/bidi-order')!.message)
       .toBe('Mixed-direction text is shown in the wrong order: "C++" appears as "++C".');
+  });
+});
+
+test.describe('DevTools checks', () => {
+  const POSITIONED = '<body style="margin:0"><div id=badge style="position:absolute;left:16px">New</div></body>';
+  const notMirrored = (r: CheckResult) => r.issues.find(i => i.rule === 'rtl/not-mirrored')!;
+
+  test.describe('turned off', () => {
+    test.use({ fitlocale: { viewports: 'current', failOn: 'never', devtools: false } });
+
+    test('mirroring issues keep the generic fix', async ({ page, localeCheck }) => {
+      await page.setContent(POSITIONED);
+      const issue = notMirrored(await localeCheck());
+      expect(issue.source).toBeUndefined();
+      expect(issue.fix).toBe(FIXES['rtl/not-mirrored']);
+    });
+  });
+
+  test('by default a mirroring issue points at its CSS', async ({ page, localeCheck }) => {
+    await page.setContent(POSITIONED);
+    const issue = notMirrored(await localeCheck());
+    expect(issue.source).toMatchObject({ selector: 'style attribute', property: 'left', replacement: 'inset-inline-start: 16px' });
+  });
+
+  test('clipped marks are checked on right-to-left pages', async ({ page, localeCheck }) => {
+    await page.setContent('<html dir="rtl" lang="ar"><body><div id=t style="height:14px;line-height:1;font-size:20px;overflow:hidden;white-space:nowrap">إِنَّ الْعِلْمَ</div></body></html>');
+    expect(list(await localeCheck())).toContain('rtl/clipped-marks #t source');
   });
 });

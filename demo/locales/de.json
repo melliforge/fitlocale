@@ -5,7 +5,7 @@
   "title": "Ihre Kontoeinstellungen und alles rund um Ihr Abonnement",
   "inbox": { "count": "Sie haben {count} Nachrichten" },
   "pricing": { "label": "Preis:", "amount": "Gesamt: 220 $" },
-  "tabs": { "billing": "Rechnungsdetails" },
+  "tabs": { "billing": "Rechnungsdetails", "short": "Tarife" },
   "actions": { "delete": "Löschen", "archive": "Archivieren", "save": "Änderungen speichern", "ok": "OK", "next": "Nächste Seite" },
   "page2": { "title": "Bestellverlauf" },
   "cart": { "saved": "Sie haben", "order": "bei dieser Bestellung gespart" },

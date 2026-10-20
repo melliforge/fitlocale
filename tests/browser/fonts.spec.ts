@@ -39,3 +39,7 @@ test('a declared font this machine does not have is not judged', async ({ page }
 test('a stack of generic families only is not judged', async ({ page }) => {
   expect(await check(page, '', '<p style="font-family: system-ui">مرحبا بكم</p>')).toEqual([]);
 });
+
+test('the browser default font is not a declared font', async ({ page }) => {
+  expect(await check(page, '', '<p>مرحبا بكم</p><p>Hello</p>')).toEqual([]);
+});

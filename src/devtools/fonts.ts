@@ -7,11 +7,24 @@ import type { Devtools } from './session';
 
 type Api = { __fitlocale: FitlocaleBrowserApi };
 
+interface StyleProps { cssProperties: Array<{ name: string }> }
+interface RuleMatch { rule: { origin: string; style: StyleProps } }
+
+/** Does an author style on this element or an ancestor set its font? The browser's default font is not a declared one. */
+async function authorSetsFont(devtools: Devtools, nodeId: number): Promise<boolean> {
+  const m = await devtools.send('CSS.getMatchedStylesForNode', { nodeId }) as {
+    matchedCSSRules?: RuleMatch[]; inlineStyle?: StyleProps; inherited?: Array<{ matchedCSSRules?: RuleMatch[]; inlineStyle?: StyleProps }>;
+  };
+  const sets = (style?: StyleProps) => !!style?.cssProperties.some(p => p.name === 'font-family' || p.name === 'font');
+  const levels = [{ matchedCSSRules: m.matchedCSSRules, inlineStyle: m.inlineStyle }, ...(m.inherited ?? [])];
+  return levels.some(l => sets(l.inlineStyle) || (l.matchedCSSRules ?? []).some(r => r.rule.origin !== 'user-agent' && sets(r.rule.style)));
+}
+
 /** Arabic and Hebrew text drawn in a fallback font, because none of the declared fonts has those letters. */
 export async function findFontFallback(page: Page, devtools: Devtools, ignore: string[]): Promise<RawIssue[]> {
   const { samples, loadedFamilies } = await page.evaluate(ig => (window as unknown as Api).__fitlocale.fontSamples(ig), ignore);
   const available = new Set(loadedFamilies.map(f => f.toLowerCase()));
-  const measured: Array<{ sample: (typeof samples)[number]; declared: string[]; used: PlatformFont[] }> = [];
+  const measured: Array<{ sample: (typeof samples)[number]; nodeId: number; declared: string[]; used: PlatformFont[] }> = [];
   for (const sample of samples) {
     try {
       const nodeId = await devtools.nodeFor(sample.key);
@@ -21,14 +34,19 @@ export async function findFontFallback(page: Page, devtools: Devtools, ignore: s
       const lower = new Set(declared.map(f => f.toLowerCase()));
       // A declared family seen drawing text anywhere on the page is installed on this machine.
       for (const f of fonts) if (f.glyphCount > 0 && (f.isCustomFont || lower.has(f.familyName.toLowerCase()))) available.add(f.familyName.toLowerCase());
-      measured.push({ sample, declared, used: fonts });
+      measured.push({ sample, nodeId, declared, used: fonts });
     } catch { /* the element changed: skip it */ }
   }
   const issues: RawIssue[] = [];
-  for (const { sample, declared, used } of measured) {
+  for (const { sample, nodeId, declared, used } of measured) {
     if (!sample.rtl) continue;
     const fallback = fallbackFonts(declared, used, available);
     if (fallback.length === 0) continue;
+    try {
+      if (!await authorSetsFont(devtools, nodeId)) continue;
+    } catch {
+      continue;
+    }
     issues.push({
       rule: 'rtl/font-fallback', key: sample.key, selector: sample.selector, box: sample.box, text: clip(sample.text),
       used: fallback.join(', '), declared: declared.join(', '),

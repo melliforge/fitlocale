@@ -24,7 +24,11 @@ Each section becomes the notes of the matching GitHub Release.
   - `rtl/icon-mirrored`: media, clock, check-mark and logo icons that flipped;
   - `rtl/bidi-order`: mixed-direction text such as `C++` or `$220` drawn out of order in Arabic or Hebrew text;
   - `rtl/missing-dir`: a right-to-left locale laid out left-to-right;
-  - `rtl/canvas`: an informational note for each canvas.
+  - `rtl/canvas`: an informational note for each canvas;
+  - `rtl/font-fallback`: Arabic or Hebrew text drawn in a fallback font (Chromium DevTools);
+  - `rtl/clipped-marks`: accent marks or descenders cut off by a tight box.
+- `rtl/not-mirrored` issues point at the CSS declaration responsible (`issue.source`, through source maps when present) and name the logical property to use instead.
+- `devtools` option, to turn off the checks that use Chromium DevTools.
 - `icons` option and `data-fitlocale-icon` attribute, to say which of your icons flip.
 - The npm package now includes `CHANGELOG.md`. The 0.2.1 notes said it already did, but it wasn't shipped.
 

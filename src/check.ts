@@ -6,6 +6,9 @@ import type { FitlocaleOptions } from './options';
 import { flattenKeys, flattenValues, type Messages } from './pseudo';
 import { findConcatenated, findHardcoded, hasPseudoMarkers } from './rules/i18n';
 import { isRtlLocale } from './rules/icons';
+import { openDevtools, type Devtools } from './devtools/session';
+import { attachCssSources } from './devtools/css-pointer';
+import { findFontFallback } from './devtools/fonts';
 import { subtractSource } from './rules/noise';
 import { findUntranslated, sourceMatcher, type SourceMatcher } from './rules/untranslated';
 import {
@@ -147,7 +150,8 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
   const enrich = (raw: RawIssue[], mode: Mode, viewport: Viewport, message?: string): Issue[] =>
     raw.map(r => ({
       ...r, mode, locale, viewport, url: page.url(), severity: SEVERITY[r.rule],
-      message: message ?? MESSAGES[r.rule].replace('{text}', r.text).replace('{visual}', r.visual ?? '').replace('{locale}', locale),
+      message: message ?? MESSAGES[r.rule].replace('{text}', r.text).replace('{visual}', r.visual ?? '').replace('{locale}', locale)
+        .replace('{used}', r.used ?? '').replace('{declared}', r.declared ?? ''),
       ...(FIXES[r.rule] ? { fix: FIXES[r.rule] } : {}),
     }));
 
@@ -164,6 +168,13 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
 
   // Checked first: a pseudo locale such as en-XA shares its language with the source.
   const isSource = !isPseudo && (expectedLocale === null || sameLocale(expectedLocale, options.sourceLocale));
+  // Opened on first use only: most checks never need DevTools.
+  let devtools: Devtools | null | undefined;
+  const getDevtools = async () => {
+    if (!options.devtools) return null;
+    if (devtools === undefined) devtools = await openDevtools(page);
+    return devtools;
+  };
   let skippedRtl = false; // report an already-RTL page once, not once per viewport
 
   try {
@@ -213,7 +224,10 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
           sourceIssues.push(...enrich([
             ...await page.evaluate(ig => (window as unknown as Api).__fitlocale.findBidiOrder(ig), options.ignore),
             ...await page.evaluate(ig => (window as unknown as Api).__fitlocale.findCanvases(ig), options.ignore),
+            ...await page.evaluate(ig => (window as unknown as Api).__fitlocale.findClippedMarks(ig), options.ignore),
           ], 'source', viewport));
+          const dt = await getDevtools();
+          if (dt) sourceIssues.push(...enrich(await findFontFallback(page, dt, options.ignore), 'source', viewport));
         }
         if (sourceIssues.length) await shoot('source', viewport);
         issues.push(...sourceIssues);
@@ -284,8 +298,14 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
         }
       }
     }
+    // The page is back as it was: read which CSS keeps each element from mirroring.
+    if (issues.some(i => i.rule === 'rtl/not-mirrored')) {
+      const dt = await getDevtools();
+      if (dt) await attachCssSources(page, dt, issues);
+    }
   } finally {
     if (options.viewports !== 'current') await page.setViewportSize(original);
+    if (devtools) await devtools.close();
   }
 
   return {

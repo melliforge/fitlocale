@@ -31,6 +31,8 @@ export interface FitlocaleOptions {
    */
   baseline: string | false;
   screenshots: boolean;
+  /** Use Chromium DevTools for the font-fallback check and for pointing mirroring issues at their CSS line. */
+  devtools: boolean;
 }
 
 export const DEFAULT_OPTIONS: FitlocaleOptions = {
@@ -45,6 +47,7 @@ export const DEFAULT_OPTIONS: FitlocaleOptions = {
   failOn: 'error',
   baseline: 'fitlocale-baseline.json',
   screenshots: true,
+  devtools: true,
 };
 
 export function resolveOptions(partial: Partial<FitlocaleOptions>): FitlocaleOptions {

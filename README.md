@@ -113,7 +113,16 @@ When fitlocale forces a page right-to-left (the `pseudo-rtl` mode), it compares 
 
 On a page that is right-to-left already, such as your Arabic or Hebrew locale, it checks:
 - **text order** (`rtl/bidi-order`): values like `C++`, `+1 555…` or `$220` whose characters are drawn out of order inside Arabic or Hebrew text (`++C`, `220$`). The fix is `<bdi>` or `dir="auto"`;
-- **missing direction** (`rtl/missing-dir`): a right-to-left locale whose page is still laid out left-to-right.
+- **missing direction** (`rtl/missing-dir`): a right-to-left locale whose page is still laid out left-to-right;
+- **fallback fonts** (`rtl/font-fallback`): Arabic or Hebrew text drawn in a font you did not choose, because none of your fonts has these letters. It is judged only when your `font-family` names a real font that this machine has: a loaded web font, or one seen drawing text on the page;
+- **clipped marks** (`rtl/clipped-marks`): accent marks or descenders of a one-line right-to-left label cut off by a tight height or line height.
+
+Each `rtl/not-mirrored` issue also points at the CSS that keeps the element in place, mapped back through source maps when they exist, with the logical property to use instead:
+
+```
+fix: In src/styles/badge.css:3 (.badge), replace "left: 16px" with "inset-inline-start: 16px".
+source: { url, line, column, selector, property, value, replacement, original: { url, line, column } }
+```
 
 Both kinds of page also get an **informational note** for each `<canvas>` (`rtl/canvas`): charts drawn on a canvas ignore the page direction, so check them by hand. These notes never fail a test.
 
@@ -145,6 +154,7 @@ test.use({ fitlocale: { icons: { glyph: 'mirror', compass: 'invariant' } } });
 | `failOn` | `'error'` | Fail the test on `'error'`, on `'warning'` and up, or `'never'` |
 | `baseline` | `'fitlocale-baseline.json'` | Accepted issues file, relative to `playwright.config` (see [Baseline](#baseline)), or `false` to fail on every issue |
 | `screenshots` | `true` | Save a full-page screenshot when a mode finds issues |
+| `devtools` | `true` | Use Chromium DevTools for the fallback-font check and to point mirroring issues at their CSS |
 
 ## Rules
 
@@ -165,6 +175,8 @@ test.use({ fitlocale: { icons: { glyph: 'mirror', compass: 'invariant' } } });
 | `rtl/bidi-order` | warning | Mixed-direction text (`C++`, `$220`) is drawn in the wrong order in right-to-left text |
 | `rtl/missing-dir` | error | A right-to-left locale is laid out left-to-right |
 | `rtl/canvas` | info | A canvas ignores the page direction: check it by hand |
+| `rtl/font-fallback` | warning | Arabic or Hebrew text is drawn in a fallback font: none of your fonts has these letters |
+| `rtl/clipped-marks` | warning | Accent marks or descenders of right-to-left text are cut off by a tight box |
 | `i18n/hardcoded` | warning | In a pseudo locale, text without pseudo-locale markers: it is hardcoded (or it is data) |
 | `i18n/concatenated` | warning | In a pseudo locale, one sentence built from several separately translated pieces |
 | `i18n/untranslated` | warning | In a real locale, text identical to a source-language message |
@@ -229,6 +241,7 @@ npx fitlocale summary fitlocale-report/results.json             # Markdown summa
 
 - Text inside shadow roots and iframes is not checked yet.
 - Chromium only for now: Firefox and WebKit are not tested yet.
+- The fallback-font check and the CSS pointer need Chromium DevTools. Fonts are judged only where this machine has the fonts you declared, so CI and your users' devices can differ.
 
 ## Releasing
 
