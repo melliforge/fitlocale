@@ -1,0 +1,22 @@
+# .github/workflows/e2e.yml: Playwright tests with fitlocale on every pull request.
+name: End-to-end tests
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      # A table of new issues in the job summary, and the HTML report as an artifact.
+      - uses: melliforge/localization-layout-tester@v0.3.0
+        if: always()

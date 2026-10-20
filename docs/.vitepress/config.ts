@@ -40,7 +40,13 @@ export default defineConfig({
     ],
     sidebar: [
       { text: 'Getting started', items: [{ text: 'Install and first check', link: '/guide/getting-started' }] },
-      { text: 'Guides', items: [{ text: 'Test RTL layout in Playwright', link: '/guides/rtl-testing-playwright' }] },
+      {
+        text: 'Guides',
+        items: [
+          { text: 'Test RTL layout in Playwright', link: '/guides/rtl-testing-playwright' },
+          { text: 'Catch text truncation in CI', link: '/guides/text-truncation-ci' },
+        ],
+      },
       {
         text: 'Reference',
         items: [

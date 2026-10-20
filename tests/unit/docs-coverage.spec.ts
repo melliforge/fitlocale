@@ -46,3 +46,9 @@ test('every imported code snippet exists, with its region', () => {
     }
   }
 });
+
+test('the example workflow uses the Action after the tests, even when they fail', () => {
+  const workflow = read('examples/github-workflow.yml');
+  expect(workflow).toContain('uses: melliforge/localization-layout-tester@v');
+  expect(workflow).toMatch(/run: npx playwright test\n\s+#[^\n]*\n\s+- uses: melliforge\/localization-layout-tester@v[\d.]+\n\s+if: always\(\)/);
+});
