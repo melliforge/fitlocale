@@ -5,6 +5,8 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-20
+
 ### Changed
 
 - Works on Node 16.17 or newer (was 22) and `@playwright/test` 1.40 or newer (was 1.45), so older projects can install it: npm refused it next to Playwright 1.40 to 1.44. CI now installs the packed package on exactly Node 16.17 and Playwright 1.40, on Chromium, Firefox and WebKit.
@@ -147,7 +149,8 @@ First public release.
 - CLI: `fitlocale pseudo` writes pseudo-locale message files, and `fitlocale report` re-renders a report.
 - CommonJS and ESM builds with TypeScript types.
 
-[Unreleased]: https://github.com/melliforge/localization-layout-tester/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/melliforge/localization-layout-tester/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/melliforge/localization-layout-tester/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/melliforge/localization-layout-tester/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/melliforge/localization-layout-tester/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/melliforge/localization-layout-tester/compare/v0.2.1...v0.3.0
