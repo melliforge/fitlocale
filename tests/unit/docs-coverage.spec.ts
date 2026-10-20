@@ -13,7 +13,7 @@ test('every rule is documented, and only real rules are', () => {
 });
 
 test('every option is documented, and only real options are', () => {
-  const extra = ['setLocale', 'localeProbe', 'sourceMessages'] satisfies (keyof FitlocaleOptions)[];
+  const extra = ['setLocale', 'localeProbe', 'sourceMessages', 'localeMessages'] satisfies (keyof FitlocaleOptions)[];
   const all = new Set<string>([...Object.keys(DEFAULT_OPTIONS), ...extra]);
   expect(new Set(codeHeadings('docs/reference/options.md', '###'))).toEqual(all);
 });

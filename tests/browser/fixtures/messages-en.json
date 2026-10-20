@@ -1,1 +1,7 @@
-{ "a": "Billing details", "b": "Save changes" }
+{
+  "a": "Billing details",
+  "b": "Save changes",
+  "c": "Your account settings and everything about your subscription",
+  "d": "Save",
+  "e": "Save all"
+}

@@ -64,6 +64,14 @@ How to read the current locale, when your app does not keep `<html lang>` up to 
 
 Path to your source-language message JSON, relative to `playwright.config`. With it, fitlocale recognises your raw keys on screen (`leak/raw-key`) and text left in the source language (`i18n/untranslated`).
 
+### `localeMessages`
+
+`string` · no default
+
+Path to each locale's message JSON, with `{locale}` where the locale code goes, relative to `playwright.config`: for example `'locales/{locale}.json'`. With it, a page switched with `useLocale()` gets the overflow checks too, and only the issues its translation causes are reported. fitlocale puts the source text back in place of each translation it finds in the file, measures again, and leaves out what overflows in the source language as well.
+
+For `useLocale('de-CH')`, fitlocale reads `de-CH.json`, else `de_CH.json`, else `de.json`. It needs `sourceMessages`, since each translation is matched to the source text with the same key.
+
 ### `ignore`
 
 `string[]` · default `[]`

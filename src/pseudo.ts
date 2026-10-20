@@ -13,7 +13,7 @@ const ACCENTS: Record<string, string> = {
   A: 'Å', E: 'É', I: 'Î', O: 'Ö', U: 'Ü', C: 'Ç', N: 'Ñ', S: 'Š', Y: 'Ý',
 };
 
-const ICU_HEAD = /^\s*\w+\s*,\s*(plural|select|selectordinal)\s*,/;
+export const ICU_HEAD = /^\s*\w+\s*,\s*(plural|select|selectordinal)\s*,/;
 const PRINTF = /^%(\d+\$)?[sdif@]/;
 const HTML_TAG = /^<\/?[a-zA-Z][^>]*>/;
 const HTML_ENTITY = /^&(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#[xX][0-9a-fA-F]+);/;
@@ -23,7 +23,7 @@ const VUE_LINKED = /^@(?:\.\w+)?:(?:\([\w\-:|./]+\)|[\w\-|./]+)/;
 interface Transformed { out: string; textLength: number }
 
 /** Index of the bracket closing the one at `start` (`{` or `(`), or -1. */
-function matchingBrace(s: string, start: number): number {
+export function matchingBrace(s: string, start: number): number {
   const open = s[start], close = open === '(' ? ')' : '}';
   let depth = 0;
   for (let i = start; i < s.length; i++) {
@@ -144,6 +144,17 @@ export function flattenKeys(messages: Messages, prefix = ''): string[] {
     else if (value && typeof value === 'object' && !Array.isArray(value)) keys.push(...flattenKeys(value, path));
   }
   return keys;
+}
+
+/** Dotted key path and value of every string in a message file, in key order. */
+export function flattenEntries(messages: Messages, prefix = ''): Array<[key: string, value: string]> {
+  const entries: Array<[string, string]> = [];
+  for (const [key, value] of Object.entries(messages)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (typeof value === 'string') entries.push([path, value]);
+    else if (value && typeof value === 'object' && !Array.isArray(value)) entries.push(...flattenEntries(value, path));
+  }
+  return entries;
 }
 
 /** Every string of a message file, in key order. */

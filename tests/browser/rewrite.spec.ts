@@ -36,6 +36,17 @@ test('restore survives removed nodes and app changes', async ({ page }) => {
   await expect(page.locator('#c')).toHaveText('Gamma');
 });
 
+test('replaceText swaps only the listed texts and restoreText undoes it', async ({ page }) => {
+  await load(page, `<p id=a>Speichern</p><p id=b>Andere</p>`);
+  const before = await page.evaluate(() => document.body.innerHTML);
+  expect((await page.evaluate(() => window.__fitlocale.visibleTexts([]))).sort()).toEqual(['Andere', 'Speichern']);
+  expect(await page.evaluate(() => window.__fitlocale.replaceText({ Speichern: 'Save' }, []))).toBe(1);
+  await expect(page.locator('#a')).toHaveText('Save');
+  await expect(page.locator('#b')).toHaveText('Andere');
+  await page.evaluate(() => window.__fitlocale.restoreText());
+  expect(await page.evaluate(() => document.body.innerHTML)).toBe(before);
+});
+
 test('setDir toggles and restores', async ({ page }) => {
   await load(page, `<html dir="ltr"><body><p>Hi</p></body></html>`);
   await page.evaluate(() => window.__fitlocale.setDir('rtl'));

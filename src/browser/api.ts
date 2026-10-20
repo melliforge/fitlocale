@@ -14,6 +14,10 @@ export interface FitlocaleBrowserApi {
   rewriteText(expansion: number, ignore: string[]): number;
   /** Rewrite visible text of a pseudo-locale page into an approximation of the source text. Undo with `restoreText()`. */
   unpseudoText(ignore: string[]): number;
+  /** The distinct texts of the visible, letter-bearing text nodes: the ones `rewriteText` would rewrite. */
+  visibleTexts(ignore: string[]): string[];
+  /** Rewrite each visible text node whose text is a key of `replacements` into its value. Undo with `restoreText()`. */
+  replaceText(replacements: Record<string, string>, ignore: string[]): number;
   restoreText(): void;
   /** `null` restores the original `dir` attribute (or removes it). */
   setDir(dir: 'rtl' | null): void;

@@ -18,6 +18,8 @@ export interface FitlocaleOptions {
   localeProbe?: (page: Page) => Promise<string>;
   /** Path to the source-language message JSON (relative to the Playwright config), used to recognise raw keys. */
   sourceMessages?: string;
+  /** Path pattern to each locale's message JSON, with `{locale}`, relative to `playwright.config`; enables overflow checks in real locales. */
+  localeMessages?: string;
   ignore: string[];
   /** Elements that legitimately keep their position in right-to-left layouts. */
   mirrorIgnore: string[];

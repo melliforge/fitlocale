@@ -80,6 +80,8 @@ You can also pass any `async (page, locale) => { … }`.
 
 In a real locale, set `sourceMessages` and fitlocale also reports text that is identical to a source-language message (`i18n/untranslated`), such as an English sentence left in the German messages.
 
+Set `localeMessages: 'locales/{locale}.json'` too, and real locales get the overflow and truncation checks: fitlocale puts the source text back wherever it finds a translation, measures again, and reports only what the translation causes. Text it cannot find in your messages is left out, never guessed.
+
 ## Integrated pseudo-locale mode
 
 The pseudo modes above rewrite the page's text in the browser. For a deeper check, let your app load pseudo-locale messages itself:
@@ -153,6 +155,7 @@ test.use({ fitlocale: { icons: { glyph: 'mirror', compass: 'invariant' } } });
 | `setLocale` | — | How your app switches language (needed by `useLocale`) |
 | `localeProbe` | `<html lang>` | How to read the current locale |
 | `sourceMessages` | — | Path to your source message JSON (relative to `playwright.config`), to recognise raw keys and untranslated text |
+| `localeMessages` | — | Path to each locale's message JSON with `{locale}` (for example `locales/{locale}.json`), for overflow checks in real locales; needs `sourceMessages` |
 | `ignore` | `[]` | Selectors to skip (code, `script`, `[data-fitlocale-ignore]` and similar are always skipped) |
 | `mirrorIgnore` | logos, `video`, `audio`, `code`, `pre` | Elements that legitimately keep their place in RTL |
 | `icons` | `{}` | Your icon names and whether they flip in right-to-left: `'mirror'`, `'invariant'` or `'ignore'` |
@@ -187,6 +190,7 @@ test.use({ fitlocale: { icons: { glyph: 'mirror', compass: 'invariant' } } });
 | `i18n/concatenated` | warning | In a pseudo locale, one sentence built from several separately translated pieces |
 | `i18n/untranslated` | warning | In a real locale, text identical to a source-language message |
 | `i18n/pseudo-not-loaded` | error | The page is in a pseudo locale, but no text has pseudo-locale markers: the messages were not loaded |
+| `i18n/locale-messages-not-matched` | warning | In a real locale, no visible text matches the `localeMessages` files, so overflow was not checked |
 
 ## Baseline
 

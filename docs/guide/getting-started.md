@@ -82,4 +82,6 @@ test('checkout in German', async ({ page, useLocale, localeCheck }) => {
 
 Ready-made helpers: `byQueryParam()`, `byCookie()`, `byLocalStorage()` and `byPathPrefix()`.
 
+Set `localeMessages: 'locales/{locale}.json'` as well, and the page also gets the overflow checks in that locale, with only the issues its translation causes.
+
 Next: the [rules](/reference/rules) fitlocale checks, and every [option](/reference/options).

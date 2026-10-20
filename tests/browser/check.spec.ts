@@ -289,6 +289,12 @@ test.describe('real locale with source messages', () => {
   test.use({ fitlocale: { viewports: 'current', failOn: 'never', setLocale: setLang, sourceMessages: 'tests/browser/fixtures/messages-en.json' } });
   const CONTENT = `<p id=u>Billing details</p><p id=t>Rechnungsdetails</p>`;
 
+  test('without localeMessages, real locales get no overflow check', async ({ page, localeCheck, useLocale }) => {
+    await page.setContent(`<button id=s style="width:120px;overflow:hidden;white-space:nowrap">Änderungen speichern</button>`);
+    await useLocale('de');
+    expect((await localeCheck()).issues.filter(i => i.rule.startsWith('overflow/'))).toEqual([]);
+  });
+
   test('untranslated text is reported', async ({ page, localeCheck, useLocale }) => {
     await page.setContent(CONTENT);
     await useLocale('de');
@@ -302,6 +308,70 @@ test.describe('real locale with source messages', () => {
       await page.setContent(CONTENT);
       await useLocale('en-GB');
       expect(list(await localeCheck())).toEqual([]);
+    });
+  });
+});
+
+test.describe('real locale with locale messages', () => {
+  const fixtures = { sourceMessages: 'tests/browser/fixtures/messages-en.json', localeMessages: 'tests/browser/fixtures/messages-{locale}.json' };
+  test.use({ fitlocale: { viewports: 'current', failOn: 'never', setLocale: setLang, ...fixtures } });
+  const GERMAN = `<button id=s style="width:120px;overflow:hidden;white-space:nowrap">Änderungen speichern</button>`;
+
+  test('overflow caused by the translation is reported', async ({ page, localeCheck, useLocale }) => {
+    await page.setContent(GERMAN);
+    await useLocale('de');
+    const result = await localeCheck();
+    expect(list(result)).toEqual(['overflow/clipped #s source']);
+    expect(result.issues[0].locale).toBe('de');
+  });
+
+  test('overflow the source text has too is not reported', async ({ page, localeCheck, useLocale }) => {
+    await page.setContent(`<div id=t style="width:60px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Ihre Kontoeinstellungen und alles rund um Ihr Abonnement</div>`);
+    await useLocale('de');
+    expect((await localeCheck()).issues.filter(i => i.rule.startsWith('overflow/'))).toEqual([]);
+  });
+
+  test('text the messages do not hold is never reported', async ({ page, localeCheck, useLocale }) => {
+    await page.setContent(`<p id=u style="width:60px;overflow:hidden;white-space:nowrap">Ana-Lucía Fernández-Ortega</p>
+      <button style="width:120px;overflow:hidden;white-space:nowrap">Speichern</button>`);
+    await useLocale('de');
+    expect(list(await localeCheck())).toEqual([]);
+  });
+
+  test('no visible text matching the messages gives one warning', async ({ page, localeCheck, useLocale }) => {
+    await page.setContent(`<p>Völlig anderer Text</p>`);
+    await useLocale('de');
+    const result = await localeCheck();
+    expect(list(result)).toEqual(['i18n/locale-messages-not-matched html source']);
+    expect(result.issues[0].severity).toBe('warning');
+    expect(result.issues[0].message).toContain('"de"');
+  });
+
+  test('the page is put back exactly as it was in a real locale', async ({ page, localeCheck, useLocale }) => {
+    await page.setContent(GERMAN);
+    await useLocale('de');
+    const before = await page.content();
+    expect(list(await localeCheck())).toEqual(['overflow/clipped #s source']);
+    expect(await page.content()).toBe(before);
+  });
+
+  test('a page that fell back to another locale gets the persistence error only', async ({ page, localeCheck, useLocale }) => {
+    await page.setContent(GERMAN);
+    await useLocale('de');
+    await page.evaluate(() => { document.documentElement.lang = 'en'; document.querySelector('#s')!.textContent = 'Völlig anderer Text'; });
+    expect(list(await localeCheck())).toEqual(['locale/persistence html source']);
+  });
+
+  test.describe('two viewports', () => {
+    test.use({ fitlocale: { viewports: [{ width: 1280, height: 800 }, { width: 390, height: 844 }], failOn: 'never', setLocale: setLang, ...fixtures } });
+
+    test('each viewport maps its own text', async ({ page, localeCheck, useLocale }) => {
+      // A short label on wide screens and a long one on narrow screens, like a responsive app.
+      await page.setContent(`<style>.narrow{display:none} @media (max-width:600px){.wide{display:none} .narrow{display:inline}}</style>
+        <button id=s style="width:120px;overflow:hidden;white-space:nowrap"><span class=wide>Speichern</span><span class=narrow id=n>Alle Änderungen speichern</span></button>`);
+      await useLocale('de');
+      const issues = (await localeCheck()).issues.filter(i => i.rule.startsWith('overflow/'));
+      expect(issues.map(i => `${i.rule} ${i.selector} ${i.viewport.width}`)).toEqual(['overflow/clipped #n 390']);
     });
   });
 });
