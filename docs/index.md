@@ -11,8 +11,8 @@ hero:
       text: Get started
       link: /guide/getting-started
     - theme: alt
-      text: GitHub
-      link: https://github.com/melliforge/localization-layout-tester
+      text: RTL testing guide
+      link: /guides/rtl-testing-playwright
 features:
   - title: No approved screenshots
     details: Pseudo-long text and forced right-to-left run on your pages as they are. No translations and no baseline images needed to start.

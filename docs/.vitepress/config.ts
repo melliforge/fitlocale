@@ -33,12 +33,14 @@ export default defineConfig({
     logo: '/favicon.svg',
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
+      { text: 'Guides', link: '/guides/rtl-testing-playwright' },
       { text: 'Reference', link: '/reference/rules' },
       { text: 'Changelog', link: `${REPO}/blob/main/CHANGELOG.md` },
       { text: 'npm', link: 'https://www.npmjs.com/package/fitlocale' },
     ],
     sidebar: [
       { text: 'Getting started', items: [{ text: 'Install and first check', link: '/guide/getting-started' }] },
+      { text: 'Guides', items: [{ text: 'Test RTL layout in Playwright', link: '/guides/rtl-testing-playwright' }] },
       {
         text: 'Reference',
         items: [
