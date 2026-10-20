@@ -5,6 +5,14 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+### Changed
+
+- Works on Node 16.17 or newer (was 22) and `@playwright/test` 1.40 or newer (was 1.45), so older projects can install it: npm refused it next to Playwright 1.40 to 1.44. CI now installs the packed package on exactly Node 16.17 and Playwright 1.40, on Chromium, Firefox and WebKit.
+
+### Fixed
+
+- `rtl/clipped-marks` no longer fails on WebKit builds without `OffscreenCanvas` (those of Playwright before 1.45): it draws on an ordinary canvas there.
+
 ## [0.4.1] - 2026-10-20
 
 ### Fixed

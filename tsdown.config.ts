@@ -6,7 +6,7 @@ const PLAYWRIGHT = [/^@playwright\//, /^playwright(-core)?(\/|$)/];
 const shared = {
   platform: 'node',
   deps: { neverBundle: PLAYWRIGHT, dts: { neverBundle: PLAYWRIGHT } },
-  target: 'node22',
+  target: 'node16.17',
   // Keep .js for ESM and .cjs for CommonJS (package.json "type": "module"), matching the exports map.
   fixedExtension: false,
 } as const;
