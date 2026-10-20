@@ -162,3 +162,36 @@ test('a missing source map makes no request or console error in the page', async
   expect(errors).toEqual([]);
   expect(requests).toEqual([]);
 });
+
+test('a source map on another origin is never fetched', async ({ page }) => {
+  // The page under test names the map URL: fitlocale must not send requests (with the context's cookies) elsewhere.
+  let requests = 0;
+  const other = createServer((_req, res) => { requests++; res.writeHead(200, { 'content-type': 'application/json' }).end('{}'); });
+  await new Promise<void>(resolve => other.listen(0, '127.0.0.1', () => resolve()));
+  try {
+    const port = (other.address() as AddressInfo).port;
+    const issues = await serve(page, {
+      '/': html(PAGE('<link rel=stylesheet href=/app.css>')),
+      '/app.css': css(`.b{position:absolute;left:16px}\n/*# sourceMappingURL=http://localhost:${port}/app.css.map */\n`),
+    });
+    const [issue] = await point(page, issues);
+    expect(issue.source).toMatchObject({ url: `${ORIGIN}/app.css`, line: 1 });
+    expect(issue.source!.original).toBeUndefined();
+    expect(requests).toBe(0);
+  } finally {
+    await new Promise<void>(resolve => other.close(() => resolve()));
+  }
+});
+
+test('a source map over the size limit is not read', async ({ page }) => {
+  const source = '.b {\n  position: absolute;\n  left: 16px;\n}\n';
+  const out = await transform(source, { loader: 'css', minify: true, sourcemap: 'external', sourcefile: 'src/styles/badge.css' });
+  const huge = JSON.stringify({ ...JSON.parse(out.map), x_padding: 'x'.repeat(21 * 1024 * 1024) });
+  const issues = await serve(page, {
+    '/': html(PAGE('<link rel=stylesheet href=/app.css>')),
+    '/app.css': css(`${out.code}/*# sourceMappingURL=app.css.map */\n`),
+    '/app.css.map': { body: huge, type: 'application/json' },
+  });
+  const [issue] = await point(page, issues);
+  expect(issue.source!.original).toBeUndefined();
+});
