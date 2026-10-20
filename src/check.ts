@@ -84,6 +84,7 @@ export async function probeLocale(page: Page, options: FitlocaleOptions): Promis
 }
 
 const FONT_TIMEOUT_MS = 3000;
+const FRAME_TIMEOUT_MS = 250;
 
 /**
  * Let the page settle after a text or direction change: wait for web fonts the new text needs
@@ -91,11 +92,15 @@ const FONT_TIMEOUT_MS = 3000;
  * Resolves false when the fonts were not ready in time.
  */
 const settle = (page: Page, waitForFonts: boolean) =>
-  page.evaluate(async ([timeout, fonts]) => {
+  page.evaluate(async ([timeout, fonts, FRAME_TIMEOUT_MS]) => {
     const ready = !fonts || await Promise.race([document.fonts.ready.then(() => true), new Promise<boolean>(r => setTimeout(() => r(false), timeout))]);
-    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    // Capped too: WebKit runs no animation frames while a web font is still loading.
+    await Promise.race([
+      new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))),
+      new Promise<void>(r => setTimeout(r, FRAME_TIMEOUT_MS)),
+    ]);
     return ready;
-  }, [FONT_TIMEOUT_MS, waitForFonts] as const);
+  }, [FONT_TIMEOUT_MS, waitForFonts, FRAME_TIMEOUT_MS] as const);
 
 const CONTEXT_DESTROYED = /Execution context was destroyed/;
 
