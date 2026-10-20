@@ -5,6 +5,13 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+### Fixed
+
+- A web font that never loads no longer adds 3 seconds at every text change: a check waits for fonts once, then goes on. A page with such a font took about 12 seconds per check; it now takes about 3.
+- Checks on pages with thousands of links or buttons are much faster: the overlap check compares only controls on the same lines.
+- Text left untranslated is matched in linear time: a long paragraph against a message with several placeholders could take seconds.
+- The CSS pointer fetches source maps only from the stylesheet's or the page's own origin, without following redirects, and skips maps over 20 MB.
+
 ## [0.4.0] - 2026-10-20
 
 ### Added
