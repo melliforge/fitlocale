@@ -4,6 +4,8 @@ import { textElements } from './boxes';
 import { clip, clipRects, directText, directTextNodes, docBox, ignoreSelector, keyOf, paddingRect, selectorOf, type Rect } from './dom';
 
 const EPS = 1;
+/** Widest canvas drawn on to read ink: Chromium draws nothing on canvases 65536px wide or more. */
+const MAX_INK_WIDTH = 8192;
 const CLIPPING = new Set(['hidden', 'clip']);
 
 let ctx: OffscreenCanvasRenderingContext2D | null = null;
@@ -16,12 +18,20 @@ function inkExtent(font: string, size: number, text: string, cache: Map<string, 
   const id = `${font}\n${text}`;
   if (cache.has(id)) return cache.get(id)!;
   ctx!.font = font;
-  const width = Math.ceil(ctx!.measureText(text).width + 2 * size), height = Math.ceil(4 * size), baseline = 2 * size;
+  // Only the vertical extent matters: a line wider than the canvas limit is drawn squeezed sideways.
+  const natural = ctx!.measureText(text).width + 2 * size;
+  const squeeze = Math.min(1, MAX_INK_WIDTH / natural);
+  const width = Math.ceil(natural * squeeze), height = Math.ceil(4 * size), baseline = 2 * size;
   const canvas = new OffscreenCanvas(Math.max(1, width), Math.max(1, height));
   const g = canvas.getContext('2d', { willReadFrequently: true });
   let ink: InkExtent | null = null;
   if (g) {
     g.font = font;
+    // A canvas inherits the page direction in Chromium: right-to-left text would be drawn left of x, off the canvas.
+    g.direction = 'ltr';
+    g.textAlign = 'left';
+    g.textBaseline = 'alphabetic';
+    g.setTransform(squeeze, 0, 0, 1, 0, 0);
     g.fillText(text, size, baseline);
     const data = g.getImageData(0, 0, canvas.width, canvas.height).data;
     const inked = (y: number) => {
