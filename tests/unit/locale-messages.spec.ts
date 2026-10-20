@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
-import { backTranslatorFor, localeMessagesFile } from '../../src/messages';
+import { backTranslatorFor, localeMessagesFile, localeMessagesFiles } from '../../src/messages';
 
 const tmp = (files: Record<string, string> = {}) => {
   const dir = mkdtempSync(join(tmpdir(), 'fitlocale-locale-msgs-'));
@@ -44,4 +44,22 @@ test('invalid locale JSON gives a fitlocale error', () => {
 test('backTranslatorFor maps through the two files', () => {
   const dir = tmp({ 'en.json': '{"a":"Save"}', 'de.json': '{"a":"Speichern"}' });
   expect(backTranslatorFor({ sourceMessages: 'en.json', localeMessages: '{locale}.json' }, 'de', dir)('Speichern')).toBe('Save');
+});
+
+// Elk keeps Arabic in ar.json and lays ar-EG.json (here empty) over it, as vue-i18n and i18next fallbacks do.
+test('a regional file is laid over the language file', () => {
+  const dir = tmp({
+    'en.json': '{"a":"Save","b":{"c":"Cancel"}}',
+    'ar.json': '{"a":"حفظ","b":{"c":"إلغاء"}}',
+    'ar-EG.json': '{}',
+    'pt.json': '{"a":"Salvar","b":{"c":"Cancelar"}}',
+    'pt_BR.json': '{"b":{"c":"Desistir"}}',
+  });
+  const options = { sourceMessages: 'en.json', localeMessages: '{locale}.json' };
+  expect(localeMessagesFiles('{locale}.json', 'ar-EG', dir)).toEqual([join(dir, 'ar.json'), join(dir, 'ar-EG.json')]);
+  expect(backTranslatorFor(options, 'ar-EG', dir)('حفظ')).toBe('Save');
+  const br = backTranslatorFor(options, 'pt-BR', dir);
+  expect(br('Desistir')).toBe('Cancel');
+  expect(br('Salvar')).toBe('Save');
+  expect(br('Cancelar')).toBeNull();
 });
