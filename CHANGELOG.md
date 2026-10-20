@@ -7,6 +7,7 @@ Each section becomes the notes of the matching GitHub Release.
 
 ### Added
 
+- Open shadow roots and same-origin iframes are checked like the rest of the page. Issues inside them have selectors that work with `page.locator()` (`host >> …`, `iframe >> internal:control=enter-frame >> …`) and boxes placed on the full-page screenshot. Closed shadow roots and cross-origin iframes are skipped.
 - Firefox and WebKit are tested in CI next to Chromium. Every check runs there except the fallback-font check and the CSS pointer, which need Chromium DevTools and are skipped.
 - Overflow checks in real locales: set `localeMessages: 'locales/{locale}.json'` and a page switched with `useLocale()` gets the truncation and overflow checks, with only the issues its translation causes. A page whose text matches none of those messages gets one `i18n/locale-messages-not-matched` warning.
 
@@ -29,6 +30,7 @@ Each section becomes the notes of the matching GitHub Release.
 
 ### Changed
 
+- Pages with web components or same-origin iframes can show new issues after upgrading. Accept them with `fitlocale baseline`, or skip a component or frame with `ignore`.
 - If your tests use one test id on several elements, their issue ids change once: regenerate the baseline with `npx fitlocale baseline`.
 
 ## [0.3.0] - 2026-10-20

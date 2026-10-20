@@ -33,8 +33,8 @@ interface Issue {
   locale: string;
   viewport: { width: number; height: number };
   url: string;
-  selector: string;                        // test id, unique id, else a DOM path
-  key: string;                             // DOM path
+  selector: string;                        // test id, unique id, else a DOM path; works with page.locator()
+  key: string;                             // DOM path; a Playwright selector chain inside shadow roots and iframes
   box: { x: number; y: number; width: number; height: number }; // on the screenshot
   text: string;                            // at most 120 characters
   message: string;

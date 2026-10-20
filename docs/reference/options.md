@@ -76,7 +76,7 @@ For `useLocale('de-CH')`, fitlocale reads `de-CH.json`, else `de_CH.json`, else 
 
 `string[]` · default `[]`
 
-CSS selectors to skip in every check: user content, code samples, third-party widgets. `script`, `code`, `pre`, `textarea`, editable areas and `[data-fitlocale-ignore]` are always skipped.
+CSS selectors to skip in every check: user content, code samples, third-party widgets. `script`, `code`, `pre`, `textarea`, editable areas and `[data-fitlocale-ignore]` are always skipped. An ignored shadow host or `<iframe>` skips everything inside it.
 
 ### `mirrorIgnore`
 

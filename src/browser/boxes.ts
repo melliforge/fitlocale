@@ -80,6 +80,8 @@ export function fontSamples(ignore: string[]) {
   const seen = new Set<string>();
   let rtlCount = 0, otherCount = 0;
   for (const el of textElements(ignoreSelector(ignore))) {
+    // The font report is read through DevTools, which only reaches the page's own document.
+    if (el.getRootNode() !== document) continue;
     const text = directText(el);
     const rtl = hasRtlLetters(text);
     if (rtl ? rtlCount >= MAX_RTL_SAMPLES : otherCount >= MAX_OTHER_SAMPLES) continue;

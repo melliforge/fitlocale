@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../src/playwright';
 import { ensureInjected } from '../../src/inject';
+import { FIXES } from '../../src/types';
 import { load } from './helpers';
 
 // Frames are loaded from routed URLs: app.test frames are same-origin with the page, other.test is not.
@@ -204,5 +205,24 @@ test.describe('right-to-left inside frames', () => {
     expect(await dirs()).toEqual([null, 'ltr', 'rtl']);
     await localeCheck();
     expect(await dirs()).toEqual([null, 'ltr', 'rtl']);
+  });
+});
+
+test.describe('DevTools checks stay in the top document', () => {
+  test.use({ fitlocale: { viewports: 'current', failOn: 'never', modes: ['pseudo-rtl'] } });
+
+  test('a mirroring issue inside a shadow root keeps the generic fix', async ({ page, localeCheck, browserName }) => {
+    test.skip(browserName !== 'chromium', 'needs Chromium DevTools');
+    await page.setContent(composed('<div id=badge style="position:absolute;left:16px;top:0">Neu</div>', '<p>x</p>'));
+    const issue = (await localeCheck()).issues.find(i => i.rule === 'rtl/not-mirrored' && i.text === 'Neu')!;
+    expect(issue.selector).toBe('#badge');
+    expect(issue.source).toBeUndefined();
+    expect(issue.fix).toBe(FIXES['rtl/not-mirrored']);
+  });
+
+  test('font samples come from the top document only', async ({ page }) => {
+    await load(page, `<html dir=rtl lang=ar><body><p>مرحبا</p>${composed('<p>أهلا</p>', '<html dir=rtl lang=ar><body><p>سلام</p></body></html>')}</body></html>`);
+    const { samples } = await page.evaluate(() => window.__fitlocale.fontSamples([]));
+    expect(samples.map(s => s.text)).toEqual(['مرحبا']);
   });
 });

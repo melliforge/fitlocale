@@ -6,7 +6,7 @@ export interface SheetHeader { sourceURL: string; startLine: number; startColumn
 export interface Devtools {
   send: CDPSession['send'];
   sheets: Map<string, SheetHeader>;
-  /** The DevTools node of the element with this key (a DOM path selector), or null when it is gone. */
+  /** The DevTools node of the element with this key (a DOM path selector), or null when it is gone or inside a shadow root or frame. */
   nodeFor(key: string): Promise<number | null>;
   close(): Promise<void>;
 }
@@ -37,6 +37,8 @@ export async function openDevtools(page: Page): Promise<Devtools | null> {
     send: cdp.send.bind(cdp) as CDPSession['send'],
     sheets,
     async nodeFor(key) {
+      // Inside a shadow root or frame (a Playwright selector chain): DOM.querySelector cannot reach it.
+      if (key.includes(' >> ')) return null;
       root ??= (await cdp.send('DOM.getDocument', { depth: 0 })).root.nodeId;
       const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root, selector: key });
       return nodeId || null;
