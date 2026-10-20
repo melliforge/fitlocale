@@ -1,7 +1,9 @@
 import type { RawIssue } from '../types';
 import { hasRtlLetters } from '../rules/bidi';
 import { textElements } from './boxes';
-import { clip, clipRects, directText, directTextNodes, docBox, ignoreSelector, keyOf, paddingRect, selectorOf, type Rect } from './dom';
+import {
+  clip, clipRects, directText, directTextNodes, docBox, ignoreSelector, isHTML, keyOf, paddingRect, rangeFor, selectorOf, type Rect,
+} from './dom';
 
 const EPS = 1;
 /** Widest canvas drawn on to read ink: Chromium draws nothing on canvases 65536px wide or more. */
@@ -51,13 +53,15 @@ interface InkExtent { ascent: number; descent: number }
 
 /** The client rects of an element's own text, or null when it spans more than one line. */
 function singleLineRects(el: Element): DOMRect[] | null {
-  const range = document.createRange();
+  const nodes = directTextNodes(el);
+  if (nodes.length === 0) return null;
+  const range = rangeFor(nodes[0]);
   const rects: DOMRect[] = [];
-  for (const node of directTextNodes(el)) {
+  for (const node of nodes) {
     range.selectNodeContents(node);
     for (const r of range.getClientRects()) if (r.width > 0 && r.height > 0) rects.push(r);
   }
-  range.detach();
+  range.collapse(true);
   if (rects.length === 0 || rects.some(r => Math.abs(r.top - rects[0].top) > EPS)) return null;
   return rects;
 }
@@ -80,8 +84,8 @@ export function findClippedMarks(ignore: string[]): RawIssue[] {
     // Under a CSS transform the rects are scaled but layout sizes (clientHeight) and the canvas are not:
     // measure in the element's own scale. A clip from an ancestor under a transform is not judged.
     // offsetHeight is rounded, so a difference under a pixel is a fractional height, not a transform.
-    const scaled = el instanceof HTMLElement && el.offsetHeight > 0 && Math.abs(box.height - el.offsetHeight) > 1;
-    const scale = scaled ? box.height / (el as HTMLElement).offsetHeight : 1;
+    const scaled = isHTML(el) && el.offsetHeight > 0 && Math.abs(box.height - el.offsetHeight) > 1;
+    const scale = scaled ? box.height / el.offsetHeight : 1;
     if (scaled && !ownClip) continue;
     const clipBox: Rect | null = ownClip
       ? (scaled

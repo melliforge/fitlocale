@@ -44,7 +44,7 @@ export function isIgnored(el: Element, selector: string): boolean {
 const isShadowRoot = (node: Node): node is ShadowRoot => node.nodeType === Node.DOCUMENT_FRAGMENT_NODE && 'host' in node;
 
 /** The `<iframe>` showing `doc`, or null for the page itself. */
-const frameElementOf = (doc: Document): Element | null => doc.defaultView?.frameElement ?? null;
+export const frameElementOf = (doc: Document): Element | null => doc.defaultView?.frameElement ?? null;
 
 /** The document of a visible, same-origin iframe that has loaded, or null (closed to us, hidden, or not a frame). */
 function frameDocument(el: Element): Document | null {
@@ -144,6 +144,25 @@ export function langOf(el: Element): string {
 export const isHTML = (el: Element): el is HTMLElement => el.namespaceURI === 'http://www.w3.org/1999/xhtml';
 
 export const sameDocument = (a: Element, b: Element) => a.ownerDocument === b.ownerDocument;
+
+/** `a.contains(b)` that also looks into shadow roots and frames. */
+export function composedContains(a: Element, b: Element): boolean {
+  for (let n: Element | null = b; n; n = composedParent(n)) if (n === a) return true;
+  return false;
+}
+
+const ranges = new WeakMap<Document, Range>();
+
+/**
+ * One shared Range per document (a frame's text is measured with its own document's Range): the browser updates
+ * every live Range on each text change, so a Range per text node makes rewriting and restoring text quadratic.
+ */
+export function rangeFor(node: Node): Range {
+  const doc = node.ownerDocument ?? document;
+  let range = ranges.get(doc);
+  if (!range) ranges.set(doc, range = doc.createRange());
+  return range;
+}
 
 /** Where a frame document's viewport sits in the page's viewport: the content boxes of its enclosing <iframe>s. */
 export function frameOffset(doc: Document): { x: number; y: number } {

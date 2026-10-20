@@ -1,6 +1,9 @@
 import type { Box, RawIssue } from '../types';
 import { classifyIcon, iconTokenGroups, iconTokens, type IconKind, type IconOverride } from '../rules/icons';
-import { ICON_FONT_IGNORE, clip, docBox, ignoreSelector, isIgnored, isVisible, keyOf, selectorOf } from './dom';
+import {
+  ICON_FONT_IGNORE, clip, composedClosest, composedContains, composedElements, composedParent, docBox, ignoreSelector, isIgnored, isVisible, keyOf,
+  selectorOf,
+} from './dom';
 
 export interface IconRecord { key: string; selector: string; box: Box; kind: IconKind; name: string; sign: number; signature: string }
 
@@ -15,7 +18,7 @@ const pseudoContent = (el: Element, which: '::before' | '::after') => getCompute
 /** A small svg, img, icon-font glyph or background-image sprite. */
 function isIcon(el: Element): boolean {
   const tag = el.tagName.toLowerCase();
-  if (el instanceof SVGElement && tag !== 'svg') return false;
+  if (el.namespaceURI === 'http://www.w3.org/2000/svg' && tag !== 'svg') return false;
   if (tag === 'svg' && el.parentElement?.closest('svg')) return false;
   const r = el.getBoundingClientRect();
   if (r.width < 1 || r.height < 1 || r.width > MAX_ICON || r.height > MAX_ICON) return false;
@@ -48,7 +51,7 @@ function ownNames(el: Element): string[] {
 const freeText = (el: Element) =>
   [el.getAttribute('aria-label'), el.getAttribute('title'), el.getAttribute('alt'), el.querySelector('title')?.textContent].filter(Boolean).join(' ');
 
-const controlOf = (el: Element) => el.parentElement?.closest(CONTROL) ?? null;
+const controlOf = (el: Element) => { const parent = composedParent(el); return parent ? composedClosest(parent, CONTROL) : null; };
 
 function controlName(control: Element | null): string {
   if (!control) return '';
@@ -57,7 +60,7 @@ function controlName(control: Element | null): string {
 
 /** data-fitlocale-icon on the icon or an ancestor, up to and including its link or button. */
 function overrideAttribute(el: Element, control: Element | null): string | null {
-  for (let n: Element | null = el; n; n = n.parentElement) {
+  for (let n: Element | null = el; n; n = composedParent(n)) {
     const value = n.getAttribute('data-fitlocale-icon');
     if (value) return value;
     if (n === control || !control) break;
@@ -101,7 +104,7 @@ function flipSign(el: Element): number {
     return m ? parseFloat(m[1]) : 1;
   };
   let sign = horizontal(matrixA(getComputedStyle(el, '::before').transform));
-  for (let n: Element | null = el; n && sign !== 0; n = n.parentElement) {
+  for (let n: Element | null = el; n && sign !== 0; n = composedParent(n)) {
     const s = getComputedStyle(n);
     sign *= horizontal(matrixA(s.transform));
     if (s.scale && s.scale !== 'none') sign *= horizontal(parseFloat(s.scale));
@@ -121,7 +124,7 @@ function hash(text: string): string {
 function signature(el: Element): string {
   const s = getComputedStyle(el);
   const parts = [pseudoContent(el, '::before'), pseudoContent(el, '::after'), s.backgroundImage, s.backgroundPosition, (el.textContent ?? '').trim()];
-  if (el instanceof HTMLImageElement) parts.push(el.currentSrc || el.src);
+  if (el.localName === 'img') parts.push((el as HTMLImageElement).currentSrc || (el as HTMLImageElement).src);
   // The drawing inside the svg, not the root's own attributes: a framework adding a class is not a redraw.
   if (el.tagName.toLowerCase() === 'svg') parts.push(hash(el.innerHTML));
   return parts.join('|');
@@ -131,8 +134,8 @@ export function snapshotIcons(ignore: string[], manifest: Record<string, IconOve
   const ignoreSel = ignoreSelector(ignore, ICON_FONT_IGNORE); // ligature icons are skipped as text, not as icons
   const records: IconRecord[] = [];
   let lastIcon: Element | null = null;
-  for (const el of document.body.querySelectorAll('*')) {
-    if (lastIcon?.contains(el)) continue; // icons inside icons
+  for (const el of composedElements()) {
+    if (lastIcon && composedContains(lastIcon, el)) continue; // icons inside icons
     if (!isIcon(el) || isIgnored(el, ignoreSel) || !isVisible(el)) continue;
     lastIcon = el;
     const control = controlOf(el);

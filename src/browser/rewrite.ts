@@ -1,5 +1,5 @@
 import { pseudoLong, unpseudo } from '../pseudo';
-import { ignoreSelector, isIgnored, isVisible, withLayoutCache } from './dom';
+import { composedTextNodes, ignoreSelector, isIgnored, isVisible, withLayoutCache } from './dom';
 
 let rewritten: Array<{ node: Text; original: string; written: string }> = [];
 let savedDir: string | null | undefined; // undefined = nothing saved
@@ -11,11 +11,10 @@ function visibleTextNodes(ignore: string[], select: (text: string) => boolean): 
   const ignoreSel = ignoreSelector(ignore);
   return withLayoutCache(() => {
     const found: Text[] = [];
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     const visible = new Map<Element, boolean>();
-    for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+    for (const node of composedTextNodes(select)) {
       const parent = node.parentElement;
-      if (!parent || !select(node.nodeValue ?? '') || isIgnored(parent, ignoreSel)) continue;
+      if (!parent || isIgnored(parent, ignoreSel)) continue;
       if (!visible.has(parent)) visible.set(parent, isVisible(parent));
       if (visible.get(parent)) found.push(node);
     }

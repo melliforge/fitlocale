@@ -3,7 +3,7 @@ import type { BoxRecord } from '../rules/mirror';
 import { findLeaksInText } from '../rules/leaks';
 import { hasRtlLetters } from '../rules/bidi';
 import {
-  clip, composedElements, directText, docBox, ignoreSelector, isIgnored, isVisible, keyOf, optionalSelector, selectorOf,
+  clip, composedElements, directText, docBox, ignoreSelector, isIgnored, isVisible, keyOf, langOf, optionalSelector, selectorOf,
 } from './dom';
 
 const BOXED_TAGS = new Set(['img', 'svg', 'button', 'input', 'select']);
@@ -60,7 +60,8 @@ const MIN_CANVAS = 40;
 /** Visible canvases big enough to hold a chart or drawing: they ignore the page direction. */
 export function findCanvases(ignore: string[]): RawIssue[] {
   const ignoreSel = ignoreSelector(ignore);
-  return Array.from(document.body.querySelectorAll('canvas'))
+  return composedElements()
+    .filter(el => el.localName === 'canvas')
     .filter(el => !isIgnored(el, ignoreSel) && isVisible(el))
     .filter(el => { const r = el.getBoundingClientRect(); return r.width >= MIN_CANVAS && r.height >= MIN_CANVAS; })
     .map(el => ({ rule: 'rtl/canvas' as const, key: keyOf(el), selector: selectorOf(el), box: docBox(el), text: '' }));
@@ -89,7 +90,7 @@ export function fontSamples(ignore: string[]) {
     else otherCount++;
     samples.push({
       key: keyOf(el), selector: selectorOf(el), box: docBox(el), text, fontFamily, rtl,
-      fontWeight: style.fontWeight, fontStyle: style.fontStyle, fontSize: style.fontSize, lang: el.closest('[lang]')?.getAttribute('lang') ?? '',
+      fontWeight: style.fontWeight, fontStyle: style.fontStyle, fontSize: style.fontSize, lang: langOf(el),
     });
     if (rtlCount >= MAX_RTL_SAMPLES && otherCount >= MAX_OTHER_SAMPLES) break;
   }

@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../src/playwright';
 import { ensureInjected } from '../../src/inject';
-import './helpers';
+import { load } from './helpers';
 
 // Frames are loaded from routed URLs: app.test frames are same-origin with the page, other.test is not.
 const PAGES: Record<string, string> = {
@@ -89,4 +89,102 @@ test('selectors into shadow roots resolve to one element', async ({ page, locale
     expect(await found.count(), issue.selector).toBe(1);
     expect(await found.textContent(), issue.selector).toBe(issue.text);
   }
+});
+
+// ---- Every check sees shadow roots and frames ----
+
+/** Page content, with `shadow` put into an open shadow root of #host and `frame` into a same-origin srcdoc frame #f. */
+const composed = (shadow: string, frame: string, top = '') => `${top}<my-host id=host></my-host>
+  <iframe id=f style="width:400px;height:120px;border:0" srcdoc="${frame.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"></iframe>
+  <script>document.getElementById('host').attachShadow({ mode: 'open' }).innerHTML = ${JSON.stringify(shadow)};</script>`;
+
+const ruleList = (issues: { rule: string; selector: string }[], rule: string) => issues.filter(i => i.rule === rule).map(i => i.selector).sort();
+const CLIPPED_BUTTON = `<button id=b style="width:120px;overflow:hidden;white-space:nowrap">Save changes</button>`;
+const FRAMED_B = '#f >> internal:control=enter-frame >> #b';
+
+test.describe('pseudo-long', () => {
+  test.use({ fitlocale: { viewports: 'current', failOn: 'never', modes: ['pseudo-long'] } });
+
+  test('pseudo-long overflow inside shadow roots and frames', async ({ page, localeCheck }) => {
+    await page.setContent(composed(CLIPPED_BUTTON, CLIPPED_BUTTON));
+    expect(ruleList((await localeCheck()).issues, 'overflow/clipped')).toEqual(['#b', FRAMED_B]);
+  });
+});
+
+test.describe('integrated mode', () => {
+  const setLang = async (page: Page, l: string) => { await page.evaluate(x => { document.documentElement.lang = x; }, l); };
+  test.use({ fitlocale: { viewports: 'current', failOn: 'never', setLocale: setLang } });
+
+  test('hardcoded text inside shadow roots and frames', async ({ page, localeCheck, useLocale }) => {
+    await page.setContent(composed('<p id=s>Free shipping</p>', '<p id=s>Free shipping</p>', '<p>⟦Hömé ~⟧</p>'));
+    await useLocale('en-XA');
+    expect(ruleList((await localeCheck()).issues, 'i18n/hardcoded')).toEqual(['#f >> internal:control=enter-frame >> #s', '#s']);
+  });
+});
+
+test('a shadow root is a block boundary', async ({ page }) => {
+  await load(page, `<p id=t>Total: <my-price id=pr></my-price></p>
+    <script>document.getElementById('pr').attachShadow({ mode: 'open' }).innerHTML = '<span>Gratis</span>';</script>`);
+  const blocks = await page.evaluate(() => window.__fitlocale.collectTextBlocks([]));
+  expect(blocks.map(b => b.text)).toEqual(['Total:', 'Gratis']);
+  expect(blocks[1].key).toContain(' >> ');
+});
+
+test('language comes from the host, and a frame has its own', async ({ page }) => {
+  await load(page, `<html lang=en><body>${composed('<p>Hallo Welt</p>', '<html lang=fr><body><p>Bonjour tout le monde</p></body></html>')}
+    <script>document.getElementById('host').setAttribute('lang', 'de');</script></body></html>`);
+  const blocks = await page.evaluate(() => window.__fitlocale.collectTextBlocks([]));
+  expect(blocks.map(b => `${b.text} ${b.lang}`)).toEqual(['Hallo Welt de', 'Bonjour tout le monde fr']);
+});
+
+test('bidi order inside a shadow root', async ({ page }) => {
+  await load(page, `<html dir="rtl" lang="ar"><body>${composed('<p>تعلم C++ اليوم</p>', '<p>x</p>')}</body></html>`);
+  const issues = await page.evaluate(() => window.__fitlocale.findBidiOrder([]));
+  expect(issues.map(i => `${i.rule} ${i.text}`)).toEqual(['rtl/bidi-order C++']);
+});
+
+test('clipped marks inside a frame', async ({ page }) => {
+  const frame = `<html dir=rtl lang=ar><body style="margin:0"><div id=t style="height:20px;line-height:1;font-size:20px;overflow:hidden;white-space:nowrap">إِنَّ الْعِلْمَ</div></body></html>`;
+  await load(page, `<div style="height:300px"></div>${composed('<p>x</p>', frame)}`);
+  const issues = await page.evaluate(() => window.__fitlocale.findClippedMarks([]));
+  expect(issues.map(i => `${i.rule} ${i.selector}`)).toEqual(['rtl/clipped-marks #f >> internal:control=enter-frame >> #t']);
+  const frameBox = (await page.locator('#f').boundingBox())!;
+  expect(issues[0].box.y).toBeGreaterThanOrEqual(frameBox.y - 1);
+  expect(issues[0].box.y + issues[0].box.height).toBeLessThanOrEqual(frameBox.y + frameBox.height + 1);
+});
+
+test('canvases inside frames are listed', async ({ page }) => {
+  await load(page, composed('<p>x</p>', '<canvas id=c width=200 height=100></canvas>'));
+  const issues = await page.evaluate(() => window.__fitlocale.findCanvases([]));
+  expect(issues.map(i => `${i.rule} ${i.selector}`)).toEqual(['rtl/canvas #f >> internal:control=enter-frame >> #c']);
+});
+
+/** The page as it is, including each open shadow root and each frame document. */
+const snapshot = (page: Page) => page.evaluate(() => {
+  const out: string[] = [document.documentElement.outerHTML];
+  const visit = (root: ParentNode) => {
+    for (const el of root.querySelectorAll('*')) {
+      if (el.shadowRoot) { out.push(el.shadowRoot.innerHTML); visit(el.shadowRoot); }
+      const doc = (el as HTMLIFrameElement).contentDocument;
+      if (el.localName === 'iframe' && doc) { out.push(doc.documentElement.outerHTML); visit(doc); }
+    }
+  };
+  visit(document);
+  return out;
+});
+
+test.describe('restoring', () => {
+  test.use({ fitlocale: { viewports: 'current', failOn: 'never', modes: ['pseudo-long', 'pseudo-rtl'] } });
+
+  test('the page is put back exactly, inside shadow roots and frames', async ({ page, localeCheck }) => {
+    await page.setContent(composed(`${CLIPPED_BUTTON}<p>Some <b>bold</b> text</p>`, `${CLIPPED_BUTTON}<p dir=ltr>Some text</p>`));
+    const before = await snapshot(page);
+    await localeCheck();
+    expect(await snapshot(page)).toEqual(before);
+    // A check that stops between rewriting and restoring still restores: rewriteText, then restoreText.
+    await page.evaluate(() => { window.__fitlocale.rewriteText(0.4, []); });
+    expect(await snapshot(page)).not.toEqual(before);
+    await page.evaluate(() => window.__fitlocale.restoreText());
+    expect(await snapshot(page)).toEqual(before);
+  });
 });
