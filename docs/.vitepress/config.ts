@@ -32,7 +32,7 @@ export default defineConfig({
   themeConfig: {
     logo: '/favicon.svg',
     nav: [
-      { text: 'Guide', link: '/guide/getting-started' },
+      { text: 'Get started', link: '/guide/getting-started' },
       { text: 'Guides', link: '/guides/rtl-testing-playwright' },
       { text: 'Reference', link: '/reference/rules' },
       { text: 'Changelog', link: `${REPO}/blob/main/CHANGELOG.md` },

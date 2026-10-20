@@ -5,10 +5,6 @@ description: Find labels cut off, text spilling out of its box and overlapping b
 
 # Catch text truncation and overflow in CI
 
-::: tip Next release
-Parts of this page arrive in the next fitlocale release on npm (after 0.2.1). They are on `main` today.
-:::
-
 German and Finnish run 30 to 40% longer than English. A button that fits "Save changes" cuts off "Änderungen speichern", and a tab label that fits "Billing" spills over its neighbour in Finnish. These bugs usually surface after the translations ship, when nobody on the team reads the language that broke.
 
 fitlocale finds them before any translation exists, in the Playwright tests you already have, and fails the pull request that introduces them.

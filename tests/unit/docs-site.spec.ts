@@ -65,12 +65,22 @@ test('the docs workflow gives deploy rights to the deploy job only, from main, w
   expect(deploy).toContain("if: github.ref == 'refs/heads/main'");
 });
 
-test('pages documenting unreleased fields say so', () => {
-  expect(readFileSync('docs/reference/results.md', 'utf8')).toContain('::: tip Next release');
+test('"next release" markers exist only while the changelog has unreleased changes', () => {
+  const changelog = readFileSync('CHANGELOG.md', 'utf8');
+  const unreleased = changelog.split('## [Unreleased]')[1].split(/^## \[/m)[0].trim();
+  const marked = docsPages().filter(page => /next release/i.test(readFileSync(page, 'utf8')));
+  // With nothing unreleased, every documented feature is on npm: no page may say otherwise.
+  if (unreleased === '') expect(marked).toEqual([]);
 });
 
 test('overflow on pseudo-locale pages is documented with its real mode', () => {
   const rules = readFileSync('docs/reference/rules.md', 'utf8');
   expect(rules).not.toContain('**Modes:** `pseudo-long`, and pages in a pseudo locale');
   expect(rules.match(/`pseudo-long`; `source` on pages in a pseudo locale/g)).toHaveLength(4);
+});
+
+test('top menu labels are distinct, not singular and plural of one word', () => {
+  const nav = readFileSync('docs/.vitepress/config.ts', 'utf8').split(/^\s+nav: \[/m)[1].split(/^\s+\],/m)[0];
+  const labels = [...nav.matchAll(/text: '([^']+)'/g)].map(m => m[1].toLowerCase().replace(/s$/, ''));
+  expect(new Set(labels).size).toBe(labels.length);
 });

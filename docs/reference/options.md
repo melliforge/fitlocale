@@ -34,7 +34,7 @@ Extra length for pseudo-long text, as a fraction: `0.4` makes each text about 40
 
 Your source language. A page in this language gets the pseudo modes, and other locales are compared with it.
 
-### `pseudoLocales` <Badge type="tip" text="next release" />
+### `pseudoLocales`
 
 `string[]` · default `['en-XA', 'ar-XB']`
 
@@ -76,7 +76,7 @@ CSS selectors to skip in every check: user content, code samples, third-party wi
 
 Elements that legitimately keep their place in right-to-left layouts, skipped by `rtl/not-mirrored`.
 
-### `icons` <Badge type="tip" text="next release" />
+### `icons`
 
 `Record<string, 'mirror' | 'invariant' | 'ignore'>` · default `{}`
 
@@ -98,7 +98,7 @@ Viewports to check each page at, or `'current'` to keep the test's viewport. The
 
 What fails the test: issues of severity `error`, of `warning` and up, or nothing. Info notes never fail.
 
-### `baseline` <Badge type="tip" text="next release" />
+### `baseline`
 
 `string | false` · default `'fitlocale-baseline.json'`
 
@@ -110,7 +110,7 @@ The accepted-issues file, relative to `playwright.config`. Without the file, iss
 
 Save a full-page screenshot when a mode finds issues, for the HTML report.
 
-### `devtools` <Badge type="tip" text="next release" />
+### `devtools`
 
 `boolean` · default `true`
 

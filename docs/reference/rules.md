@@ -114,7 +114,7 @@ The page language changed back during the test, for example after a navigation t
 
 ## Translation
 
-### `i18n/hardcoded` <Badge type="tip" text="next release" />
+### `i18n/hardcoded`
 
 **Severity:** warning · **Modes:** `source`, on a page in a [pseudo locale](/guides/pseudo-localization-i18next)
 
@@ -126,7 +126,7 @@ Text without pseudo-locale markers did not come from your message files: it is h
 
 **Fix:** move the text into your message files. Mark data areas (user names, product titles) with `data-fitlocale-ignore`.
 
-### `i18n/concatenated` <Badge type="tip" text="next release" />
+### `i18n/concatenated`
 
 **Severity:** warning · **Modes:** `source`, on a page in a pseudo locale
 
@@ -138,7 +138,7 @@ One sentence is built from several separately translated pieces, which breaks wo
 
 **Fix:** use one message with placeholders, or your library's rich-text component for links inside a sentence.
 
-### `i18n/untranslated` <Badge type="tip" text="next release" />
+### `i18n/untranslated`
 
 **Severity:** warning · **Modes:** `source`, in a real locale with `sourceMessages` set
 
@@ -146,7 +146,7 @@ Text is identical to a source-language message (of at least two words), so it wa
 
 **Fix:** add the translation to that locale's message file.
 
-### `i18n/pseudo-not-loaded` <Badge type="tip" text="next release" />
+### `i18n/pseudo-not-loaded`
 
 **Severity:** error · **Modes:** `source`, on a page in a pseudo locale
 
@@ -174,7 +174,7 @@ An element stayed in place when the page switched to right-to-left; it should us
 
 The page is already right-to-left, so the forced right-to-left check was skipped.
 
-### `rtl/icon-not-mirrored` <Badge type="tip" text="next release" />
+### `rtl/icon-not-mirrored`
 
 **Severity:** warning · **Modes:** `pseudo-rtl`
 
@@ -186,7 +186,7 @@ An arrow, chevron, back or next icon points the same way in right-to-left; it sh
 
 **Fix:** flip it in right-to-left, for example `[dir="rtl"] .icon-chevron-right { transform: scaleX(-1) }`, or mark it `data-fitlocale-icon="invariant"` if it must not flip.
 
-### `rtl/icon-mirrored` <Badge type="tip" text="next release" />
+### `rtl/icon-mirrored`
 
 **Severity:** warning · **Modes:** `pseudo-rtl`
 
@@ -194,7 +194,7 @@ An icon flipped in right-to-left, but media controls, clocks, check marks and lo
 
 **Fix:** exclude it from your right-to-left flip rule.
 
-### `rtl/bidi-order` <Badge type="tip" text="next release" />
+### `rtl/bidi-order`
 
 **Severity:** warning · **Modes:** `source`, on right-to-left pages
 
@@ -206,7 +206,7 @@ Mixed-direction text is drawn in the wrong order inside Arabic or Hebrew text: `
 
 **Fix:** isolate the value with `<bdi>`, or set `dir="auto"` (or `dir="ltr"`) on its element.
 
-### `rtl/missing-dir` <Badge type="tip" text="next release" />
+### `rtl/missing-dir`
 
 **Severity:** error · **Modes:** `source`, after `useLocale()` with a right-to-left locale
 
@@ -214,13 +214,13 @@ The page is in a right-to-left language, but most of its text is laid out left-t
 
 **Fix:** set `dir="rtl"` on `<html>` for right-to-left locales.
 
-### `rtl/canvas` <Badge type="tip" text="next release" />
+### `rtl/canvas`
 
 **Severity:** info · **Modes:** `pseudo-rtl`, and right-to-left pages
 
 A canvas ignores the page direction: check its chart or drawing by hand. This note never fails a test.
 
-### `rtl/font-fallback` <Badge type="tip" text="next release" />
+### `rtl/font-fallback`
 
 **Severity:** warning · **Modes:** `source`, on right-to-left pages (Chromium)
 
@@ -228,7 +228,7 @@ Arabic or Hebrew text is drawn in a fallback font, because none of your fonts ha
 
 **Fix:** add a font with these letters to `font-family`, before the generic family. For example: `font-family: Inter, "Noto Sans Arabic", sans-serif`.
 
-### `rtl/clipped-marks` <Badge type="tip" text="next release" />
+### `rtl/clipped-marks`
 
 **Severity:** warning · **Modes:** `source`, on right-to-left pages
 
