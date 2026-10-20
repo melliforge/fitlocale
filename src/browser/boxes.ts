@@ -45,8 +45,11 @@ export { textElements };
 
 /** The direction most visible text is laid out in; apps often set dir on a wrapper rather than <html> or <body>. */
 export function contentDir(ignore: string[]): 'ltr' | 'rtl' {
+  const bodyDir = getComputedStyle(document.body ?? document.documentElement).direction === 'rtl' ? 'rtl' : 'ltr';
+  // Without a dir attribute other than ltr, text follows <body>: skip counting every text element on large pages.
+  if (!document.querySelector('[dir]:not([dir="ltr" i])')) return bodyDir;
   const elements = textElements(ignoreSelector(ignore));
-  if (elements.length === 0) return getComputedStyle(document.body ?? document.documentElement).direction === 'rtl' ? 'rtl' : 'ltr';
+  if (elements.length === 0) return bodyDir;
   const rtl = elements.filter(el => getComputedStyle(el).direction === 'rtl').length;
   return rtl * 2 > elements.length ? 'rtl' : 'ltr';
 }
