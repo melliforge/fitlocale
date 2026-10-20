@@ -21,11 +21,9 @@ test('host names with a country domain are not raw keys', () => {
   expect(r('settings.lang.en', ['settings.lang.en'])).toEqual(['leak/raw-key:settings.lang.en']);
 });
 
-// With the source messages known, a key the messages lack still leaks from a namespace they have.
-test('with source messages, only tokens in their namespaces are raw keys', () => {
-  const keys = ['settings.title', 'nav.home'];
-  expect(r('settings.profile.missing', keys)).toEqual(['leak/raw-key:settings.profile.missing']);
-  expect(r('status.example.social', keys)).toEqual([]);
+// The commonest leak: a new feature's key, from a namespace the source messages do not have yet.
+test('a key missing from the source messages is still a raw key', () => {
+  expect(r('dashboard.welcome.title', ['settings.title', 'nav.home'])).toEqual(['leak/raw-key:dashboard.welcome.title']);
 });
 
 test('placeholders', () => {

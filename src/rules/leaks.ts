@@ -25,17 +25,6 @@ const PLACEHOLDERS = [
 
 const BAD_VALUES = [/\bundefined\b/g, /\bNaN\b/g, /\[object Object\]/g];
 
-/** The first segment of every known key, once per set of keys. */
-const namespacesOf = new WeakMap<ReadonlySet<string>, Set<string>>();
-function namespaces(knownKeys: ReadonlySet<string>): Set<string> {
-  let found = namespacesOf.get(knownKeys);
-  if (!found) {
-    found = new Set([...knownKeys].map(k => k.split('.')[0]));
-    namespacesOf.set(knownKeys, found);
-  }
-  return found;
-}
-
 function isRawKey(token: string, knownKeys?: ReadonlySet<string>): boolean {
   if (!KEY_TOKEN.test(token)) return false;
   if (knownKeys?.has(token)) return true;
@@ -46,9 +35,7 @@ function isRawKey(token: string, knownKeys?: ReadonlySet<string>): boolean {
     && !segments.some(s => /^\d+$/.test(s))
     // Any two-letter ending is a country's domain (m.webtoo.ls).
     && !/^[a-z]{2}$/.test(last)
-    && !NOT_KEY_SUFFIXES.has(last)
-    // With the source messages known, a key they lack still leaks from one of their namespaces.
-    && (!knownKeys?.size || namespaces(knownKeys).has(segments[0]));
+    && !NOT_KEY_SUFFIXES.has(last);
 }
 
 /** Find text that is clearly broken i18n output: raw keys, unfilled placeholders, broken values. */
