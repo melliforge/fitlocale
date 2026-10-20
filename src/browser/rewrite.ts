@@ -1,5 +1,5 @@
 import { pseudoLong, unpseudo } from '../pseudo';
-import { composedElements, composedTextNodes, frameDocument, ignoreSelector, isIgnored, isVisible, withLayoutCache } from './dom';
+import { composedElements, composedTextNodes, frameDocument, ignoreSelector, isIgnored, isVisible, textParent, withLayoutCache } from './dom';
 
 let rewritten: Array<{ node: Text; original: string; written: string }> = [];
 /** The `dir` attribute of each document's <html> before setDir('rtl'): the page's and its same-origin frames'. */
@@ -14,7 +14,7 @@ function visibleTextNodes(ignore: string[], select: (text: string) => boolean): 
     const found: Text[] = [];
     const visible = new Map<Element, boolean>();
     for (const node of composedTextNodes(select)) {
-      const parent = node.parentElement;
+      const parent = textParent(node);
       if (!parent || isIgnored(parent, ignoreSel)) continue;
       if (!visible.has(parent)) visible.set(parent, isVisible(parent));
       if (visible.get(parent)) found.push(node);

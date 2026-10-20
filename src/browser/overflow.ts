@@ -74,8 +74,9 @@ function overlaps(ignoreSel: string): RawIssue[] {
     for (let j = i + 1; j < controls.length; j++) {
       const a = controls[i], b = controls[j];
       // Rects of different documents (a frame's and the page's) are not in the same coordinates.
-      if (!sameDocument(a, b) || composedContains(a, b) || composedContains(b, a)) continue;
-      if (!reported.has(a) && touches(fragments[i], fragments[j])) {
+      if (reported.has(a) || !sameDocument(a, b) || !touches(fragments[i], fragments[j])) continue;
+      // Only for touching pairs: walking up the composed tree for every pair would be slow on pages with many links.
+      if (!composedContains(a, b) && !composedContains(b, a)) {
         reported.add(a);
         issues.push(issue('overflow/overlap', a));
       }

@@ -55,7 +55,8 @@ export function frameDocument(el: Element): Document | null {
   } catch {
     return null;
   }
-  if (!doc?.body || !el.checkVisibility()) return null;
+  // Hidden like any element: display, visibility, opacity, or cut away by an ancestor.
+  if (!doc?.body || !isVisible(el)) return null;
   return doc;
 }
 
@@ -82,7 +83,8 @@ export function composedTextNodes(select: (text: string) => boolean): Text[] {
 
 function composedWalk(onElement: (el: Element) => void, onText: (text: Text) => void): void {
   // An explicit stack: deep pages would overflow a recursive walk.
-  const stack: Node[] = Array.from(document.body.childNodes).reverse();
+  const stack: Node[] = [];
+  for (let i = document.body.childNodes.length - 1; i >= 0; i--) stack.push(document.body.childNodes[i]);
   while (stack.length) {
     const node = stack.pop()!;
     if (node.nodeType === Node.TEXT_NODE) {
@@ -92,12 +94,12 @@ function composedWalk(onElement: (el: Element) => void, onText: (text: Text) => 
     if (node.nodeType !== Node.ELEMENT_NODE) continue;
     const el = node as Element;
     onElement(el);
-    const next: Node[] = [];
-    if (el.shadowRoot) next.push(...el.shadowRoot.childNodes);
+    // Pushed last-first, one by one (spreading 100k+ children as arguments overflows the call stack).
+    const push = (nodes: NodeList) => { for (let i = nodes.length - 1; i >= 0; i--) stack.push(nodes[i]); };
+    push(el.childNodes);
     const doc = frameDocument(el);
-    if (doc) next.push(...doc.body.childNodes);
-    next.push(...el.childNodes);
-    for (let i = next.length - 1; i >= 0; i--) stack.push(next[i]);
+    if (doc) push(doc.body.childNodes);
+    if (el.shadowRoot) push(el.shadowRoot.childNodes);
   }
 }
 
@@ -145,9 +147,16 @@ export const isHTML = (el: Element): el is HTMLElement => el.namespaceURI === 'h
 
 export const sameDocument = (a: Element, b: Element) => a.ownerDocument === b.ownerDocument;
 
-/** `a.contains(b)` that also looks into shadow roots and frames. */
+/** The element a text node belongs to: its parent, or the host when it sits straight in a shadow root. */
+export function textParent(node: Text): Element | null {
+  const p = node.parentNode;
+  if (p && p.nodeType === Node.ELEMENT_NODE) return p as Element;
+  return p && isShadowRoot(p) ? p.host : null;
+}
+
+/** `a.contains(b)` as drawn: into shadow roots and frames, and a slotted element inside its slot. */
 export function composedContains(a: Element, b: Element): boolean {
-  for (let n: Element | null = b; n; n = composedParent(n)) if (n === a) return true;
+  for (let n: Element | null = b; n; n = n.assignedSlot ?? composedParent(n)) if (n === a) return true;
   return false;
 }
 
@@ -295,22 +304,28 @@ export function assignKeys(testIdAttr = 'data-testid'): void {
   testIdCounts = new Map();
   idCounts = new Map();
   composedSeen = false;
+  // Ids and test ids are counted over each whole document (<head> included) plus the shadow roots it shows,
+  // the scope a Playwright CSS selector searches.
+  const countIn = (root: Document | ShadowRoot, doc: Document) => {
+    for (const el of root.querySelectorAll(`[${CSS.escape(testIdAttr)}]`)) count(testIdCounts!, doc, el.getAttribute(testIdAttr)!);
+    for (const el of root.querySelectorAll('[id]')) count(idCounts!, doc, el.id);
+  };
+  countIn(document, document);
   // Same keys as domPath(), built from the parent's key instead of walking up from every element.
   const visit = (parent: ParentNode, path: string) => {
     let index = 0;
     for (const child of parent.children) {
       const key = `${path}>${child.tagName.toLowerCase()}:nth-child(${++index})`;
       keys.set(child, key);
-      const testId = child.getAttribute(testIdAttr);
-      if (testId) count(testIdCounts!, child.ownerDocument, testId);
-      if (child.id) count(idCounts!, child.ownerDocument, child.id);
       if (child.shadowRoot) {
         composedSeen = true;
+        countIn(child.shadowRoot, child.ownerDocument);
         visit(child.shadowRoot, `${key} >> :scope`);
       }
       const doc = frameDocument(child);
       if (doc) {
         composedSeen = true;
+        countIn(doc, doc);
         keys.set(doc.body, `${key} >> internal:control=enter-frame >> body`);
         visit(doc.body, `${key} >> internal:control=enter-frame >> body`);
       }
@@ -344,8 +359,10 @@ export function selectorOf(el: Element): string {
   return keyOf(el);
 }
 
+/** The element's own text: its text children, and text placed straight into its open shadow root (a bare value in a template). */
 export function directTextNodes(el: Element): Text[] {
-  return Array.from(el.childNodes).filter((n): n is Text => n.nodeType === Node.TEXT_NODE && n.nodeValue!.trim() !== '');
+  const own = (nodes: NodeList) => Array.from(nodes).filter((n): n is Text => n.nodeType === Node.TEXT_NODE && n.nodeValue!.trim() !== '');
+  return el.shadowRoot ? [...own(el.childNodes), ...own(el.shadowRoot.childNodes)] : own(el.childNodes);
 }
 
 export function directText(el: Element): string {

@@ -13,6 +13,10 @@ const PAGES: Record<string, string> = {
     <div id=closed></div>
     <iframe src="http://other.test/" style="width:200px;height:100px"></iframe>
     <iframe src="/hidden.html" style="display:none"></iframe>
+    <iframe src="/vis-hidden.html" style="visibility:hidden"></iframe>
+    <iframe src="/transparent.html" style="opacity:0"></iframe>
+    <div style="height:0;overflow:hidden"><iframe src="/collapsed.html"></iframe></div>
+    <my-label id=lbl></my-label>
     <my-card id=ign data-fitlocale-ignore></my-card>
     <script>
       card.attachShadow({ mode: 'open' }).innerHTML = '<div><p>dashboard.welcome.title</p><slot></slot></div>';
@@ -21,11 +25,15 @@ const PAGES: Record<string, string> = {
       outer.querySelector('my-inner').attachShadow({ mode: 'open' }).innerHTML = '<p>account.billing.plan</p>';
       document.getElementById('closed').attachShadow({ mode: 'closed' }).innerHTML = '<p>closed.root.text</p>';
       document.getElementById('ign').attachShadow({ mode: 'open' }).innerHTML = '<p>ignored.host.text</p>';
+      document.getElementById('lbl').attachShadow({ mode: 'open' }).innerHTML = 'direct.shadow.text';
     </script></body></html>`,
   'http://app.test/frame1.html': `<!doctype html><html><body style="margin:0"><p style="margin:20px">orders.history.title</p>
     <iframe src="/frame2.html" style="border:3px solid;width:300px;height:100px;margin-left:10px"></iframe></body></html>`,
   'http://app.test/frame2.html': `<!doctype html><html><body style="margin:0"><p>orders.detail.total</p></body></html>`,
   'http://app.test/hidden.html': `<!doctype html><html><body><p>hidden.frame.text</p></body></html>`,
+  'http://app.test/vis-hidden.html': `<!doctype html><html><body><p>vis.hidden.text</p></body></html>`,
+  'http://app.test/transparent.html': `<!doctype html><html><body><p>transparent.frame.text</p></body></html>`,
+  'http://app.test/collapsed.html': `<!doctype html><html><body><p>collapsed.frame.text</p></body></html>`,
   'http://other.test/': `<!doctype html><html><body><p>other.origin.text</p></body></html>`,
 };
 
@@ -46,7 +54,8 @@ async function byKey(page: Page, key: string) {
 }
 
 const leaks = (page: Page) => page.evaluate(() => window.__fitlocale.scanLeaks([], []));
-const READABLE = ['account.billing.plan', 'dashboard.welcome.title', 'orders.detail.total', 'orders.history.title', 'settings.profile.name'];
+// Text placed straight into a shadow root (as Lit renders a bare value) belongs to its host.
+const READABLE = ['account.billing.plan', 'dashboard.welcome.title', 'direct.shadow.text', 'orders.detail.total', 'orders.history.title', 'settings.profile.name'];
 
 test.use({ fitlocale: { viewports: 'current', failOn: 'never', modes: [] } });
 
@@ -58,7 +67,9 @@ test('shadow roots and same-origin frames are scanned', async ({ page }) => {
 test('what cannot be read is skipped quietly', async ({ page }) => {
   await open(page);
   const texts = (await leaks(page)).map(i => i.text);
-  for (const text of ['closed.root.text', 'other.origin.text', 'hidden.frame.text', 'ignored.host.text']) expect(texts).not.toContain(text);
+  for (const text of ['closed.root.text', 'other.origin.text', 'hidden.frame.text', 'ignored.host.text', 'vis.hidden.text', 'transparent.frame.text', 'collapsed.frame.text']) {
+    expect(texts).not.toContain(text);
+  }
 });
 
 test('slotted text is visited once', async ({ page }) => {
@@ -88,7 +99,8 @@ test('selectors into shadow roots resolve to one element', async ({ page, locale
   for (const issue of issues) {
     const found = page.locator(issue.selector);
     expect(await found.count(), issue.selector).toBe(1);
-    expect(await found.textContent(), issue.selector).toBe(issue.text);
+    // A host's own text can sit in its shadow root, which textContent leaves out.
+    expect(await found.evaluate(el => (el.textContent ?? '') + (el.shadowRoot?.textContent ?? '')), issue.selector).toContain(issue.text);
   }
 });
 
@@ -225,4 +237,35 @@ test.describe('DevTools checks stay in the top document', () => {
     const { samples } = await page.evaluate(() => window.__fitlocale.fontSamples([]));
     expect(samples.map(s => s.text)).toEqual(['مرحبا']);
   });
+});
+
+
+// ---- Review fixes ----
+
+test('an element with a very large number of children does not break the walk', async ({ page }) => {
+  await load(page, `<div>${'<i></i>'.repeat(130_000)}</div><p>dashboard.welcome.title</p>`);
+  expect((await leaks(page)).map(i => i.text)).toEqual(['dashboard.welcome.title']);
+});
+
+test('an id shared with an element in <head> is not used as a selector', async ({ page }) => {
+  await load(page, `<html><head><link id=theme rel=stylesheet href="data:text/css,"></head><body><button id=theme>dashboard.welcome.title</button></body></html>`);
+  expect((await leaks(page)).map(i => i.selector)).toEqual(['body>button:nth-child(1)']);
+});
+
+test('a slotted button inside a clickable shadow card is not an overlap', async ({ page }) => {
+  await load(page, `<x-card id=c><button>Add to cart</button></x-card>
+    <script>document.getElementById('c').attachShadow({ mode: 'open' }).innerHTML = '<a href=# style="display:block;padding:10px">Card <slot></slot></a>';</script>`);
+  const issues = await page.evaluate(() => window.__fitlocale.findOverflow([]));
+  expect(issues.filter(i => i.rule === 'overflow/overlap')).toEqual([]);
+});
+
+test('the overlap pass stays fast with many controls', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'timed on Chromium');
+  await load(page, Array.from({ length: 3000 }, (_, i) => `<a href=#>Link ${i}</a>`).join(' '));
+  const ms = await page.evaluate(() => {
+    const t0 = performance.now();
+    window.__fitlocale.findOverflow([]);
+    return performance.now() - t0;
+  });
+  expect(ms).toBeLessThan(1250);
 });

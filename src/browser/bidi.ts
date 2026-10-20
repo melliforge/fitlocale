@@ -1,6 +1,6 @@
 import type { RawIssue } from '../types';
 import { hasRtlLetters, mixedTokens, outOfOrder, visualText, type CharBox } from '../rules/bidi';
-import { composedTextNodes, frameOffset, ignoreSelector, isIgnored, isVisible, keyOf, rangeFor, selectorOf } from './dom';
+import { composedTextNodes, frameOffset, textParent, ignoreSelector, isIgnored, isVisible, keyOf, rangeFor, selectorOf } from './dom';
 
 const isInline = (el: Element) => ['inline', 'contents'].includes(getComputedStyle(el).display);
 
@@ -16,7 +16,7 @@ export function findBidiOrder(ignore: string[]): RawIssue[] {
   const issues: RawIssue[] = [];
   const rtlBlock = new Map<Element, boolean>();
   for (const node of composedTextNodes(text => /\S/.test(text))) {
-    const parent = node.parentElement;
+    const parent = textParent(node);
     const text = node.nodeValue ?? '';
     const tokens = mixedTokens(text);
     if (!parent || tokens.length === 0 || isIgnored(parent, ignoreSel)) continue;
