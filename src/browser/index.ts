@@ -5,6 +5,7 @@ import { contentDir, findCanvases, fontSamples, scanLeaks, snapshotBoxes } from 
 import { findOverflow } from './overflow';
 import { collectTextBlocks } from './blocks';
 import { findBidiOrder } from './bidi';
+import { findClippedMarks } from './marks';
 import { compareIcons, snapshotIcons, type IconRecord } from './icons';
 import { findNotMirrored } from '../rules/mirror';
 import type { BoxRecord } from '../rules/mirror';
@@ -25,6 +26,7 @@ const api: FitlocaleBrowserApi = {
   scanLeaks: (ignore, knownKeys) => withLayoutCache(() => scanLeaks(ignore, knownKeys)),
   snapshotBoxes: (ignore, mirrorIgnore) => withLayoutCache(() => snapshotBoxes(ignore, mirrorIgnore)),
   findOverflow: ignore => withLayoutCache(() => findOverflow(ignore)),
+  findClippedMarks: ignore => withLayoutCache(() => findClippedMarks(ignore)),
   fontSamples: ignore => withLayoutCache(() => fontSamples(ignore)),
   contentDir: ignore => withLayoutCache(() => contentDir(ignore)),
   findCanvases: ignore => withLayoutCache(() => findCanvases(ignore)),

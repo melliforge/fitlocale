@@ -30,6 +30,8 @@ export interface FitlocaleBrowserApi {
    */
   findNotMirrored(ignore: string[], mirrorIgnore: string[]): RawIssue[];
   findOverflow(ignore: string[]): RawIssue[];
+  /** Single-line right-to-left text whose marks or descenders are cut off by the box that clips it. */
+  findClippedMarks(ignore: string[]): RawIssue[];
   /** Text elements for the DevTools font check (right-to-left ones and a few others), and the loaded @font-face families. */
   fontSamples(ignore: string[]): {
     samples: Array<{ key: string; selector: string; box: Box; text: string; fontFamily: string; rtl: boolean }>; loadedFamilies: string[];
