@@ -16,7 +16,8 @@
     "amount": "⟦Tötál: $220 ~~~~⟧"
   },
   "tabs": {
-    "billing": "⟦Bîllîñg détáîlš ~~~~~⟧"
+    "billing": "⟦Bîllîñg détáîlš ~~~~~⟧",
+    "short": "⟦Pláñš ~⟧"
   },
   "actions": {
     "delete": "⟦Délété ~~⟧",

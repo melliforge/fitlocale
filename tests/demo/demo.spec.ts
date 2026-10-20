@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { test, expect, byLocalStorage } from '../../src/playwright';
 import type { CheckResult } from '../../src/types';
 
@@ -28,6 +29,12 @@ test('home page: finds every planted bug, no false alarms', async ({ page, local
     'rtl/icon-not-mirrored #next-chevron',
     'rtl/not-mirrored #promo-badge',
   ]);
+  // The fix points at the stylesheet line that keeps the badge on the left.
+  const line = readFileSync('demo/styles.css', 'utf8').split('\n').findIndex(l => l.startsWith('.promo {')) + 1;
+  const badge = result.issues.find(i => i.rule === 'rtl/not-mirrored' && i.selector === '#promo-badge')!;
+  expect(badge.source).toMatchObject({ property: 'left', value: '16px', replacement: 'inset-inline-start: 16px', line });
+  expect(badge.source!.url).toMatch(/\/styles\.css$/);
+  expect(badge.fix).toMatch(/^In http:\/\/localhost:4310\/styles\.css:\d+ \(\.promo\), replace "left: 16px" with "inset-inline-start: 16px"\.$/);
 });
 
 test('locale reset across navigation is caught', async ({ page, localeCheck, useLocale }) => {
@@ -88,6 +95,7 @@ test('Arabic: mixed-direction text drawn in the wrong order, and the chart', asy
     'rtl/bidi-order #inbox-count',
     'rtl/bidi-order #price-ar',
     'rtl/canvas #sales-chart',
+    'rtl/clipped-marks #ar-tab',
   ]);
 });
 

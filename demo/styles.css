@@ -19,3 +19,5 @@ main { max-width: 800px; margin: 0 auto; padding: 16px; }
 svg { fill: none; stroke: currentColor; stroke-width: 1.5; }
 /* Icons that point somewhere flip in right-to-left. Planted bug: #next-chevron lacks this class, and #play-icon has it. */
 [dir=rtl] .icon-flip { transform: scaleX(-1); }
+/* Planted bug: too tight for Arabic marks (the Arabic label is clipped top and bottom). */
+.tab-tight { height: 16px; line-height: 1; font-size: 18px; overflow: hidden; white-space: nowrap; }

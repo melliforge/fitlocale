@@ -19,7 +19,9 @@ export type RuleId =
   | 'rtl/icon-mirrored'
   | 'rtl/bidi-order'
   | 'rtl/missing-dir'
-  | 'rtl/canvas';
+  | 'rtl/canvas'
+  | 'rtl/font-fallback'
+  | 'rtl/clipped-marks';
 
 export type Mode = 'source' | 'pseudo-long' | 'pseudo-rtl';
 
@@ -33,6 +35,15 @@ export interface RawIssue {
   rule: RuleId; key: string; selector: string; box: Box; text: string;
   /** For `rtl/bidi-order`: the text in the order it is drawn. */
   visual?: string;
+  /** For `rtl/font-fallback`: the fallback font drawing the text, and the declared font-family. */
+  used?: string;
+  declared?: string;
+}
+
+/** Where the CSS behind an issue is: the stylesheet line (1-based), the declaration, its logical replacement, and the source-mapped origin. */
+export interface CssSource {
+  url: string; line: number; column: number; selector: string; property: string; value: string; replacement: string;
+  original?: { url: string; line: number; column: number };
 }
 
 /** An inline link or button inside a text block: `text.slice(start, end)` is its text; `lang` is its closest [lang] value. */
@@ -54,6 +65,8 @@ export interface Issue extends RawIssue {
   id?: string;
   /** True when the baseline file accepts this issue, so it does not fail the test. */
   baselined?: boolean;
+  /** For `rtl/not-mirrored`: the CSS declaration responsible (Chromium). */
+  source?: CssSource;
 }
 
 export interface Screenshot { mode: Mode; viewport: Viewport; path: string; size: { width: number; height: number } }
@@ -93,6 +106,8 @@ export const SEVERITY: Record<RuleId, Severity> = {
   'rtl/bidi-order': 'warning',
   'rtl/missing-dir': 'error',
   'rtl/canvas': 'info',
+  'rtl/font-fallback': 'warning',
+  'rtl/clipped-marks': 'warning',
 };
 
 export const MESSAGES: Record<RuleId, string> = {
@@ -115,6 +130,8 @@ export const MESSAGES: Record<RuleId, string> = {
   'rtl/bidi-order': 'Mixed-direction text is shown in the wrong order: "{text}" appears as "{visual}".',
   'rtl/missing-dir': 'The page is in "{locale}", a right-to-left language, but it is laid out left-to-right.',
   'rtl/canvas': 'Canvas drawings ignore the page direction: check this chart or drawing by hand in right-to-left.',
+  'rtl/font-fallback': 'This Arabic or Hebrew text is drawn in "{used}", a fallback font: none of your fonts ({declared}) has these letters.',
+  'rtl/clipped-marks': 'Accent marks or descenders of this right-to-left text are cut off: its box or line height is too tight.',
 };
 
 export const LOCALE_NOT_REFLECTED_MESSAGE =
@@ -134,4 +151,6 @@ export const FIXES: Partial<Record<RuleId, string>> = {
   'rtl/icon-mirrored': 'Exclude it from your right-to-left flip rule.',
   'rtl/bidi-order': 'Isolate the value: wrap it in <bdi>, or set dir="auto" (or dir="ltr") on its element.',
   'rtl/missing-dir': 'Set dir="rtl" on <html> for right-to-left locales.',
+  'rtl/font-fallback': 'Add a font with these letters to font-family, before the generic family, for example font-family: Inter, "Noto Sans Arabic", sans-serif.',
+  'rtl/clipped-marks': 'Give right-to-left text more room: a line-height around 1.6 to 1.8, and no fixed height with overflow: hidden.',
 };

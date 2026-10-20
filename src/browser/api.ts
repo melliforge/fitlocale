@@ -1,4 +1,5 @@
-import type { RawIssue, TextBlock } from '../types';
+import type { Box, RawIssue, TextBlock } from '../types';
+import type { FontProbe } from './probes';
 import type { BoxRecord } from '../rules/mirror';
 
 /** The API the in-page bundle installs as `window.__fitlocale`. */
@@ -30,6 +31,18 @@ export interface FitlocaleBrowserApi {
    */
   findNotMirrored(ignore: string[], mirrorIgnore: string[]): RawIssue[];
   findOverflow(ignore: string[]): RawIssue[];
+  /** Add hidden text runs for DevTools' font report; returns their selectors. Always followed by removeFontProbes(). */
+  addFontProbes(probes: FontProbe[]): string[];
+  removeFontProbes(): void;
+  /** Single-line right-to-left text whose marks or descenders are cut off by the box that clips it. */
+  findClippedMarks(ignore: string[]): RawIssue[];
+  /** Text elements for the DevTools font check (right-to-left ones and a few others), and the loaded @font-face families. */
+  fontSamples(ignore: string[]): {
+    samples: Array<{
+      key: string; selector: string; box: Box; text: string; fontFamily: string; fontWeight: string; fontStyle: string; fontSize: string; lang: string; rtl: boolean;
+    }>;
+    loadedFamilies: string[];
+  };
   /** Visible canvases of at least 40×40px: they ignore the page direction. */
   findCanvases(ignore: string[]): RawIssue[];
   /** In right-to-left text with Arabic or Hebrew letters: mixed tokens (C++, +1) drawn out of logical order. */

@@ -5,7 +5,7 @@
   "title": "Your account settings and everything about your subscription",
   "inbox": { "count": "You have {count} messages" },
   "pricing": { "label": "Price:", "amount": "Total: $220" },
-  "tabs": { "billing": "Billing details" },
+  "tabs": { "billing": "Billing details", "short": "Plans" },
   "actions": { "delete": "Delete", "archive": "Archive", "save": "Save changes", "ok": "OK", "next": "Next page" },
   "page2": { "title": "Order history" },
   "cart": { "saved": "You saved", "order": "on this order" },

@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../src/playwright';
-import type { CheckResult } from '../../src/types';
+import { FIXES, type CheckResult } from '../../src/types';
 
 const CLIPPED = `<button id=s style="width:120px;overflow:hidden;white-space:nowrap">Save changes</button>`;
 const BADGE = `<div id=badge style="position:absolute;left:16px">New</div>`;
@@ -210,11 +210,13 @@ test.describe('locale field after switching', () => {
 test('deeply nested pages stay within budget', async ({ page, localeCheck }) => {
   // 1,500 rows, 25 levels deep, with text at every level: about 39,000 text elements.
   // This took over 20s before clip results were cached and text writes stopped updating live Ranges.
+  // It guards against that kind of slowdown: shared CI runners are 2-4x slower and vary, so they get more room.
+  const budget = process.env.CI ? 12_000 : 6_000;
   const row = (i: number) => '<div>x '.repeat(25) + `<span>Row ${i} label</span>` + '</div>'.repeat(25);
   await page.setContent(Array.from({ length: 1500 }, (_, i) => row(i)).join(''));
   const t0 = Date.now();
   await localeCheck();
-  expect(Date.now() - t0).toBeLessThan(6000);
+  expect(Date.now() - t0).toBeLessThan(budget);
 });
 
 const setLang = async (page: Page, l: string) => { await page.evaluate(x => { document.documentElement.lang = x; }, l); };
@@ -355,5 +357,44 @@ test.describe('right-to-left depth', () => {
     expect(found.filter(f => f.includes('icon'))).toEqual([]);
     expect(result.issues.find(i => i.rule === 'rtl/bidi-order')!.message)
       .toBe('Mixed-direction text is shown in the wrong order: "C++" appears as "++C".');
+  });
+});
+
+test.describe('DevTools checks', () => {
+  const POSITIONED = '<body style="margin:0"><div id=badge style="position:absolute;left:16px">New</div></body>';
+  const notMirrored = (r: CheckResult) => r.issues.find(i => i.rule === 'rtl/not-mirrored')!;
+
+  test.describe('turned off', () => {
+    test.use({ fitlocale: { viewports: 'current', failOn: 'never', devtools: false } });
+
+    test('mirroring issues keep the generic fix', async ({ page, localeCheck }) => {
+      await page.setContent(POSITIONED);
+      const issue = notMirrored(await localeCheck());
+      expect(issue.source).toBeUndefined();
+      expect(issue.fix).toBe(FIXES['rtl/not-mirrored']);
+    });
+  });
+
+  test('by default a mirroring issue points at its CSS', async ({ page, localeCheck }) => {
+    await page.setContent(POSITIONED);
+    const issue = notMirrored(await localeCheck());
+    expect(issue.source).toMatchObject({ selector: 'style attribute', property: 'left', replacement: 'inset-inline-start: 16px' });
+  });
+
+  test.describe('several viewports', () => {
+    test.use({ fitlocale: { viewports: [{ width: 1280, height: 800 }, { width: 390, height: 844 }], failOn: 'never' } });
+
+    test('the CSS is read while the viewport that found the issue is active', async ({ page, localeCheck }) => {
+      await page.setContent(`<style>.side { width: 100px } @media (min-width: 768px) { .side { position: absolute; left: 10px } }</style>
+        <body style="margin:0"><div id=side class=side>Side</div></body>`);
+      const issue = notMirrored(await localeCheck());
+      expect(issue.viewport.width).toBe(1280);
+      expect(issue.source).toMatchObject({ property: 'left', value: '10px' });
+    });
+  });
+
+  test('clipped marks are checked on right-to-left pages', async ({ page, localeCheck }) => {
+    await page.setContent('<html dir="rtl" lang="ar"><body><div id=t style="height:14px;line-height:1;font-size:20px;overflow:hidden;white-space:nowrap">إِنَّ الْعِلْمَ</div></body></html>');
+    expect(list(await localeCheck())).toContain('rtl/clipped-marks #t source');
   });
 });
