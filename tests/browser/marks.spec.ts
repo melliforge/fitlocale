@@ -34,3 +34,13 @@ test('visually hidden text is not reported', async ({ page }) => {
 test('overflow on an inline span clips nothing', async ({ page }) => {
   expect(await find(page, `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px">حفظ التغييرات</span>`)).toEqual([]);
 });
+
+test('a CSS scale never changes the verdict', async ({ page }) => {
+  const box = (lh: number) => `height:${lh * 20}px;line-height:${lh};font-size:20px;overflow:hidden;white-space:nowrap`;
+  const scaled = (lh: number, scale: number) =>
+    `<div style="transform:scale(${scale});transform-origin:0 0"><div id=t style="${box(lh)}">${TEXT}</div></div>`;
+  for (const scale of [0.5, 2]) {
+    expect(await find(page, scaled(1.3, scale)), `tight, scale ${scale}`).toEqual(['rtl/clipped-marks #t']);
+    expect(await find(page, scaled(1.6, scale)), `room enough, scale ${scale}`).toEqual([]);
+  }
+});

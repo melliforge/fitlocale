@@ -168,6 +168,8 @@ An element stayed in place when the page switched to right-to-left; it should us
 
 **Fix:** use logical properties: `inset-inline-start` instead of `left`, `margin-inline-start` instead of `margin-left`, `text-align: start` instead of `left`.
 
+**Known limit:** in stylesheets that use `@layer`, an `!important` declaration in an earlier layer beats one in a later layer, and the pointer may name the losing one. Chromium DevTools does not report layer order reliably enough to fix this.
+
 ### `rtl/skipped-already-rtl`
 
 **Severity:** info · **Modes:** `pseudo-rtl`

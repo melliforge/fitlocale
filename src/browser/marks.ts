@@ -35,16 +35,25 @@ export function findClippedMarks(ignore: string[]): RawIssue[] {
     if (box.width <= 2 || box.height <= 2 || s.clip !== 'auto' || s.clipPath !== 'none') continue;
     // overflow does not apply to inline boxes: an inline span with overflow: hidden clips nothing.
     const ownClip = CLIPPING.has(s.overflowY) && s.display !== 'inline';
-    const clipBox: Rect | null = ownClip ? paddingRect(el) : clipRects(el).y;
+    // Under a CSS transform the rects are scaled but layout sizes (clientHeight) and the canvas are not:
+    // measure in the element's own scale. A clip from an ancestor under a transform is not judged.
+    const scale = el instanceof HTMLElement && el.offsetHeight > 0 ? box.height / el.offsetHeight : 1;
+    const scaled = Math.abs(scale - 1) > 0.01;
+    if (scaled && !ownClip) continue;
+    const clipBox: Rect | null = ownClip
+      ? (scaled
+        ? { left: box.left, right: box.right, top: box.top + el.clientTop * scale, bottom: box.top + (el.clientTop + el.clientHeight) * scale }
+        : paddingRect(el))
+      : clipRects(el).y;
     if (!clipBox || clipBox.bottom - clipBox.top <= 2) continue;
     const rects = singleLineRects(el);
     if (!rects) continue; // wrapped text: R3, single-line text only
     ctx.font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;
     const m = ctx.measureText(text);
     // A text rect is the font's ascent-to-descent box: the baseline sits fontBoundingBoxAscent below its top.
-    const baseline = rects[0].top + m.fontBoundingBoxAscent;
-    const inkTop = baseline - m.actualBoundingBoxAscent;
-    const inkBottom = baseline + m.actualBoundingBoxDescent;
+    const baseline = rects[0].top + m.fontBoundingBoxAscent * scale;
+    const inkTop = baseline - m.actualBoundingBoxAscent * scale;
+    const inkBottom = baseline + m.actualBoundingBoxDescent * scale;
     if (inkTop < clipBox.top - EPS || inkBottom > clipBox.bottom + EPS) {
       issues.push({ rule: 'rtl/clipped-marks', key: keyOf(el), selector: selectorOf(el), box: docBox(el), text: clip(text) });
     }
