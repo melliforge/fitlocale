@@ -79,3 +79,23 @@ test('without accepted issues the report has no accepted toggle', () => {
   expect(html).not.toContain('data-sev="accepted"');
   expect(html).not.toContain(' accepted');
 });
+
+test('report groups each project separately', () => {
+  const check = (project: string) => makeCheck({
+    project, issues: [makeIssue({ mode: 'source', locale: undefined })],
+    screenshots: [{ mode: 'source', viewport: { width: 1280, height: 800 }, path: `shots/${project}.png`, size: { width: 1280, height: 800 } }],
+  });
+  const html = renderReport(makeRun([check('chromium'), check('firefox')]));
+  const chromium = html.indexOf('<h3>source · 1280×800 · chromium</h3>'), firefox = html.indexOf('<h3>source · 1280×800 · firefox</h3>');
+  expect(chromium).toBeGreaterThan(-1);
+  expect(firefox).toBeGreaterThan(chromium);
+  expect(html.indexOf('shots/chromium.png')).toBeGreaterThan(chromium);
+  expect(html.indexOf('shots/chromium.png')).toBeLessThan(firefox);
+  expect(html.indexOf('shots/firefox.png')).toBeGreaterThan(firefox);
+});
+
+test('report without projects is unchanged', () => {
+  const html = renderReport(makeRun([makeCheck({ issues: [makeIssue({ locale: 'de', mode: 'source' })] })]));
+  expect(html).toContain('<h3>source · 1280×800 · de</h3>');
+  expect(html).not.toContain(' · undefined');
+});

@@ -72,3 +72,10 @@ test('issues that do not fail the test are marked, and the headline counts faili
   expect(errorRow.trim().endsWith('| yes |')).toBe(true);
   expect(warningRow.trim().endsWith('|  |')).toBe(true);
 });
+
+test('summary names the project of each row', () => {
+  const md = renderSummary(makeRun([makeCheck({ project: 'webkit', issues: [makeIssue()] }), makeCheck({ issues: [makeIssue({ selector: '#b' })] })]), { maxRows: 50 });
+  const [withProject, without] = rows(md);
+  expect(withProject).toMatch(/\[webkit\] \|/);
+  expect(without).not.toContain('[');
+});

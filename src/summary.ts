@@ -22,7 +22,7 @@ export function renderSummary(results: RunResults, opts: { maxRows: number; resu
         seen.add(issue.id);
       }
       if (issue.baselined) accepted++;
-      else rows.push({ issue, test: `${check.testFile} › ${check.testTitle}` });
+      else rows.push({ issue, test: `${check.testFile} › ${check.testTitle}${check.project ? ` [${check.project}]` : ''}` });
     }
   }
   // Results written before issues recorded whether they fail keep the older summary layout.

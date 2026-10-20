@@ -11,7 +11,7 @@ const esc = (v: unknown) => escapeHtml(String(v));
 
 const pct = (n: number, of: number) => `${+((n / of) * 100).toFixed(2)}%`;
 
-interface Group { mode: string; viewport: string; locale?: string; issues: Issue[]; screenshot?: Screenshot }
+interface Group { mode: string; viewport: string; locale?: string; project?: string; issues: Issue[]; screenshot?: Screenshot }
 
 function shot(group: Group): string {
   const s = group.screenshot;
@@ -42,7 +42,7 @@ function sections(results: RunResults): string {
       if (!local.has(id)) {
         const screenshot = check.screenshots.find(s =>
           s.mode === issue.mode && s.viewport.width === issue.viewport.width && s.viewport.height === issue.viewport.height);
-        const group: Group = { mode: issue.mode, viewport, locale: issue.locale, issues: [], screenshot };
+        const group: Group = { mode: issue.mode, viewport, locale: issue.locale, project: check.project, issues: [], screenshot };
         local.set(id, group);
         groups.push(group);
       }
@@ -51,7 +51,7 @@ function sections(results: RunResults): string {
   }
   return [...byUrl].filter(([, groups]) => groups.length).map(([url, groups]) => `<section>
     <h2>${esc(url)}</h2>
-    ${groups.map(g => `<h3>${esc(g.mode)} · ${esc(g.viewport)}${g.locale ? ` · ${esc(g.locale)}` : ''}</h3>${shot(g)}${table(g.issues)}`).join('')}
+    ${groups.map(g => `<h3>${esc(g.mode)} · ${esc(g.viewport)}${g.locale ? ` · ${esc(g.locale)}` : ''}${g.project ? ` · ${esc(g.project)}` : ''}</h3>${shot(g)}${table(g.issues)}`).join('')}
   </section>`).join('');
 }
 
