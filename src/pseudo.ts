@@ -15,7 +15,7 @@ const ACCENTS: Record<string, string> = {
 
 export const ICU_HEAD = /^\s*\w+\s*,\s*(plural|select|selectordinal)\s*,/;
 const PRINTF = /^%(\d+\$)?[sdif@]/;
-export const HTML_TAG = /^<\/?[a-zA-Z][^>]*>/;
+const HTML_TAG = /^<\/?[a-zA-Z][^>]*>/;
 const HTML_ENTITY = /^&(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#[xX][0-9a-fA-F]+);/;
 /** vue-i18n linked messages: `@:key`, `@.lower:key`, `@:(key)`. */
 const VUE_LINKED = /^@(?:\.\w+)?:(?:\([\w\-:|./]+\)|[\w\-|./]+)/;

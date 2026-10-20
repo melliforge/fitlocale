@@ -1,4 +1,4 @@
-import { HTML_TAG, ICU_HEAD, flattenEntries, matchingBrace, type Messages } from '../pseudo';
+import { ICU_HEAD, flattenEntries, matchingBrace, type Messages } from '../pseudo';
 
 /** Rendered locale text in, the source text it came from out (outer whitespace kept), or null when no message matches. */
 export type BackTranslator = (rendered: string) => string | null;
@@ -9,14 +9,16 @@ type Part = string | { slot: string };
 interface Variant { choice: Array<[arg: string, selector: string]>; text: string }
 
 const MAX_VARIANTS = 64;
-const TAGS = new RegExp(HTML_TAG.source.slice(1), 'g');
+// HTML tags, and the numbered tags of react-i18next's <Trans> (<1>…</1>).
+const TAGS = /<\/?(?:[a-zA-Z][^>]*|\d+\s*\/?)>/g;
+/** `<a href="#">x</a>` → ['a', '/a']: the tags in order, without their attributes. */
+const tagNames = (s: string) => [...s.matchAll(TAGS)].map(m => /^<(\/?)\s*([\w-]*)/.exec(m[0])!.slice(1).join(''));
 const PLURAL_SUFFIX = /^(.*_(?:ordinal_)?)(?:zero|one|two|few|many|other)$/;
-// {{x}} and {{- x}} (i18next), ${x}, {x} and {x, number…} (ICU, vue-i18n), %1$s, %s.
-const SLOT = /\{\{-?\s*([\w.]+)\s*\}\}|\$\{\s*([\w.]+)\s*\}|\{\s*([\w.#]+)\s*(?:,[^{}]*)?\}|%(\d+)\$[sdif@]|%[sdif@]/g;
+// {{x}}, {{- x}} and {{x, format}} (i18next), ${x}, {x} and {x, number…} (ICU, vue-i18n), %1$s, %s.
+const SLOT = /\{\{-?\s*([\w.]+)\s*(?:,[^{}]*)?\}\}|\$\{\s*([\w.]+)\s*\}|\{\s*([\w.#]+)\s*(?:,[^{}]*)?\}|%(\d+)\$[sdif@]|%[sdif@]/g;
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
 
 const collapse = (s: string) => s.replace(/\s+/g, ' ');
-const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const decode = (s: string) =>
   s.replace(/&(?:#(\d+)|#[xX]([0-9a-fA-F]+)|([a-zA-Z]+));/g, (m, dec, hex, name) =>
     dec ? String.fromCodePoint(+dec) : hex ? String.fromCodePoint(parseInt(hex, 16)) : ENTITIES[name] ?? m);
@@ -86,6 +88,31 @@ function parts(fragment: string): Part[] | null {
   return kept.some(p => typeof p === 'string' && /\p{L}/u.test(p)) ? kept : null;
 }
 
+/**
+ * Fill the slots of `parts` from `text`, left to right: each slot runs to the next occurrence of the literal after it
+ * (the last literal must end the text). Linear in the text length, unlike a regex with several lazy groups.
+ */
+function matchParts(text: string, parts: Part[]): Map<string, string> | null {
+  const values = new Map<string, string>();
+  let pos = 0;
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (typeof part === 'string') {
+      if (!text.startsWith(part, pos)) return null;
+      pos += part.length;
+      continue;
+    }
+    const next = parts[i + 1] as string | undefined;
+    const end = next === undefined ? text.length
+      : i + 1 === parts.length - 1 ? (text.endsWith(next) ? text.length - next.length : -1)
+        : text.indexOf(next, pos + 1);
+    if (end <= pos) return null;
+    if (!values.has(part.slot)) values.set(part.slot, text.slice(pos, end));
+    pos = end;
+  }
+  return pos === text.length ? values : null;
+}
+
 const slots = (p: Part[]) => p.flatMap(x => (typeof x === 'string' ? [] : [x.slot]));
 const fill = (p: Part[], values: Map<string, string>) => p.map(x => (typeof x === 'string' ? x : values.get(x.slot)!)).join('');
 
@@ -121,7 +148,7 @@ function messagePairs(source: string, target: string): Array<[string, string]> {
   return pairs;
 }
 
-interface Pattern { re: RegExp; names: string[]; chunk: string; literal: number; source: Part[] }
+interface Pattern { parts: Part[]; chunk: string; literal: number; source: Part[] }
 
 /**
  * Map rendered text of a locale back to its source-language text, by pairing the two message files key by key.
@@ -139,13 +166,16 @@ export function backTranslator(source: Messages, target: Messages): BackTranslat
     const src = sources.get(key) ?? (suffix ? sources.get(`${suffix[1]}other`) : undefined);
     if (src === undefined || nested(src) || nested(value)) continue;
     for (const [s, t] of messagePairs(src, value)) {
+      // Fragments pair by position only when the tags come in the same order: translators often reorder them.
+      if (tagNames(s).join(' ') !== tagNames(t).join(' ')) continue;
       const sFragments = s.split(TAGS), tFragments = t.split(TAGS);
-      if (sFragments.length !== tFragments.length) continue;
       tFragments.forEach((tf, i) => {
         const tp = parts(tf), sp = parts(sFragments[i]);
         if (!tp || !sp) return;
         const names = slots(tp);
         if (!slots(sp).every(n => names.includes(n))) return;
+        // Two slots side by side have no literal text to tell where one ends.
+        if (tp.some((p, j) => typeof p !== 'string' && typeof tp[j + 1] === 'object')) return;
         if (names.length === 0) {
           const text = tp.join(''), result = sp.join('');
           if ((exact.get(text)?.length ?? -1) < result.length) exact.set(text, result);
@@ -153,8 +183,7 @@ export function backTranslator(source: Messages, target: Messages): BackTranslat
         }
         const literals = tp.filter((p): p is string => typeof p === 'string');
         patterns.push({
-          re: new RegExp(`^${tp.map(p => (typeof p === 'string' ? escape(p).replace(/ /g, '\\s+') : '([\\s\\S]+?)')).join('')}$`),
-          names,
+          parts: tp,
           chunk: literals.reduce((a, b) => (b.length > a.length ? b : a), ''),
           literal: literals.join('').length,
           source: sp,
@@ -172,10 +201,8 @@ export function backTranslator(source: Messages, target: Messages): BackTranslat
       let bestLiteral = -1;
       for (const p of patterns) {
         if (!text.includes(p.chunk)) continue;
-        const m = p.re.exec(text);
-        if (!m) continue;
-        const values = new Map<string, string>();
-        p.names.forEach((n, i) => { if (!values.has(n)) values.set(n, m[i + 1]); });
+        const values = matchParts(text, p.parts);
+        if (!values) continue;
         const result = fill(p.source, values);
         if (p.literal > bestLiteral || (p.literal === bestLiteral && result.length > best!.length)) {
           best = result;

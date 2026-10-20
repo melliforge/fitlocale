@@ -62,3 +62,31 @@ test('ambiguous text maps to the longest source', () => {
 test('flattenEntries pairs keys and values in file order', () => {
   expect(flattenEntries({ a: 'x', b: { c: 'y' } })).toEqual([['a', 'x'], ['b.c', 'y']]);
 });
+
+test('fragments are paired only when the tags come in the same order', () => {
+  const bt = backTranslator(
+    { cancel: 'Cancel', confirm: 'You can <a>cancel</a> now, or <b>keep your subscription and all of its benefits</b>.' },
+    { cancel: 'Abbrechen', confirm: 'Sie können <b>Ihr Abo behalten</b> oder jetzt <a>Abbrechen</a>.' },
+  );
+  expect(bt('Abbrechen')).toBe('Cancel');
+  expect(bt('Ihr Abo behalten')).toBeNull();
+});
+
+test('i18next formatted interpolation is a slot', () => {
+  const bt = backTranslator({ a: 'You have {{count, number}} messages' }, { a: 'Sie haben {{count, number}} Nachrichten' });
+  expect(bt('Sie haben 1.234 Nachrichten')).toBe('You have 1.234 messages');
+});
+
+test('react-i18next numbered tags split fragments', () => {
+  const bt = backTranslator({ a: 'Hello <1>{{name}}</1>, read the <3>docs</3>.' }, { a: 'Hallo <1>{{name}}</1>, lies die <3>Doku</3>.' });
+  expect(bt('Doku')).toBe('docs');
+  expect(bt(', lies die ')).toBe(', read the ');
+});
+
+test('a template with many slots stays fast on long text', () => {
+  const bt = backTranslator({ a: '{a}, {b}, {c} and {d}, {e}.' }, { a: '{a}, {b}, {c} und {d}, {e}.' });
+  const text = Array.from({ length: 160 }, (_, i) => `Wort${i}, Satz und mehr`).join(' ');
+  const start = performance.now();
+  expect(bt(text)).toBeNull();
+  expect(performance.now() - start).toBeLessThan(200);
+});
