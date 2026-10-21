@@ -102,6 +102,31 @@ test('uploads every declared file, then completes', async () => {
   expect(lines).toContain('fitlocale upload: report: https://cloud.example/r/run1');
 });
 
+test('a pull request event sends its head commit', async () => {
+  const event = join(mkdtempSync(join(tmpdir(), 'fitlocale-event-')), 'event.json');
+  writeFileSync(event, JSON.stringify({ pull_request: { number: 7, head: { sha: 'a7af791aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' } } }));
+  const cloud = await fakeCloud(OK);
+  try {
+    await uploadReport({ dir: reportDir(), endpoint: cloud.url, prNumber: 7, env: { ...actionsEnv(cloud.url), GITHUB_EVENT_PATH: event }, fetch, log: () => {} });
+    const create = cloud.seen.find(r => r.url === '/v1/runs')!;
+    expect(JSON.parse(create.body.toString()).headSha).toBe('a7af791aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+  } finally {
+    cloud.close();
+  }
+});
+
+test('without a readable pull request event, no head commit is sent', async () => {
+  for (const path of [undefined, '/nonexistent/event.json']) {
+    const cloud = await fakeCloud(OK);
+    try {
+      await uploadReport({ dir: reportDir(), endpoint: cloud.url, prNumber: 7, env: { ...actionsEnv(cloud.url), ...(path ? { GITHUB_EVENT_PATH: path } : {}) }, fetch, log: () => {} });
+      expect(JSON.parse(cloud.seen.find(r => r.url === '/v1/runs')!.body.toString())).not.toHaveProperty('headSha');
+    } finally {
+      cloud.close();
+    }
+  }
+});
+
 test('no OIDC environment is a notice', async () => {
   const { outcome, lines, seen } = await upload(OK, { env: { GITHUB_SHA: 'abc123' } });
   expect(outcome).toEqual({ status: 'skipped', reason: 'no-oidc' });

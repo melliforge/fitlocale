@@ -39,6 +39,20 @@ export function prFromRef(ref: string | undefined): number | null {
   return m ? Number(m[1]) : null;
 }
 
+/**
+ * The pull request's head commit, from the Actions event payload. Pull request jobs run on a temporary merge commit
+ * (GITHUB_SHA), which people do not recognise; the comment names this one instead. Undefined when unavailable.
+ */
+function headShaFrom(eventPath: string | undefined): string | undefined {
+  if (!eventPath) return undefined;
+  try {
+    const sha: unknown = JSON.parse(readFileSync(eventPath, 'utf8'))?.pull_request?.head?.sha;
+    return typeof sha === 'string' && /^[0-9a-f]{7,40}$/.test(sha) ? sha : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** results.json, then every screenshot and crop it points at that lies inside `dir` and exists, with sizes. */
 function collectFiles(dir: string, results: RunResults, log: (line: string) => void): Array<{ path: string; size: number }> {
   const paths = new Set<string>();
@@ -119,7 +133,7 @@ export async function uploadReport(opts: UploadOptions): Promise<UploadOutcome> 
       method: 'POST',
       headers: { Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sha: env.GITHUB_SHA, ref: env.GITHUB_REF, prNumber: opts.prNumber,
+        sha: env.GITHUB_SHA, headSha: headShaFrom(env.GITHUB_EVENT_PATH), ref: env.GITHUB_REF, prNumber: opts.prNumber,
         ghRunId: env.GITHUB_RUN_ID, ghRunAttempt: env.GITHUB_RUN_ATTEMPT, files,
       }),
     }, 'POST /v1/runs');

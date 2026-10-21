@@ -89,8 +89,11 @@ runs:
           elif [ -x node_modules/.bin/fitlocale ]; then node_modules/.bin/fitlocale "$@"
           else npx --yes "fitlocale@${MAJOR}" "$@"; fi
         }
-        if [ -n "$UPLOAD_URL" ]; then
-          fl upload "$REPORT_DIR" --pr "$PR_NUMBER" --endpoint "$UPLOAD_URL"
-        else
-          fl upload "$REPORT_DIR" --pr "$PR_NUMBER"
-        fi
+        args=("$REPORT_DIR")
+        # Only a pull request's merge ref carries the PR: under pull_request_target the job runs on the base branch,
+        # and its token would not match the PR number.
+        case "$GITHUB_REF" in
+          refs/pull/*/merge) [ -n "$PR_NUMBER" ] && args+=(--pr "$PR_NUMBER") ;;
+        esac
+        [ -n "$UPLOAD_URL" ] && args+=(--endpoint "$UPLOAD_URL")
+        fl upload "${args[@]}"
