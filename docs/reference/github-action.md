@@ -9,7 +9,7 @@ Run your Playwright tests as usual, then add the fitlocale step with `if: always
 
 ```yaml
 - run: npx playwright test
-- uses: melliforge/localization-layout-tester@v0
+- uses: melliforge/fitlocale@v0
   if: always()
 ```
 

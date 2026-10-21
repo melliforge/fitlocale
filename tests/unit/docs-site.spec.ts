@@ -10,8 +10,8 @@ function frontmatter(path: string): Record<string, string> {
 
 test('the site is served under the project path, with a sitemap and dead-link checks', () => {
   const config = readFileSync('docs/.vitepress/config.ts', 'utf8');
-  expect(config).toContain("base: '/localization-layout-tester/'");
-  expect(config).toContain("hostname: 'https://melliforge.github.io/localization-layout-tester/'");
+  expect(config).toContain("base: '/fitlocale/'");
+  expect(config).toContain("hostname: 'https://melliforge.github.io/fitlocale/'");
   expect(config).not.toContain('ignoreDeadLinks');
 });
 
@@ -41,7 +41,7 @@ test('the site deploys from main only, and every pull request builds it', () => 
 });
 
 test('the README links to the docs site', () => {
-  expect(readFileSync('README.md', 'utf8')).toContain('https://melliforge.github.io/localization-layout-tester/');
+  expect(readFileSync('README.md', 'utf8')).toContain('https://melliforge.github.io/fitlocale/');
 });
 
 test('rendered titles stay within 60 characters, " | fitlocale" suffix included', () => {

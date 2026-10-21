@@ -1,19 +1,19 @@
 import { defineConfig } from 'vitepress';
 
-const SITE = 'https://melliforge.github.io/localization-layout-tester/';
-const REPO = 'https://github.com/melliforge/localization-layout-tester';
+const SITE = 'https://melliforge.github.io/fitlocale/';
+const REPO = 'https://github.com/melliforge/fitlocale';
 const DESCRIPTION = 'Catch layout bugs caused by translation (truncation, overflow, untranslated text, right-to-left) in your Playwright tests.';
 
 export default defineConfig({
   title: 'fitlocale',
   description: DESCRIPTION,
   lang: 'en',
-  base: '/localization-layout-tester/',
+  base: '/fitlocale/',
   cleanUrls: true,
   lastUpdated: true,
-  sitemap: { hostname: 'https://melliforge.github.io/localization-layout-tester/' },
+  sitemap: { hostname: 'https://melliforge.github.io/fitlocale/' },
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/localization-layout-tester/favicon.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/fitlocale/favicon.svg' }],
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'fitlocale' }],
     ['meta', { name: 'twitter:card', content: 'summary' }],
