@@ -27,8 +27,8 @@ test('docs and examples use the Action through its major tag', () => {
 test('the README shows the report, and says which part it shows', () => {
   const readme = read('README.md');
   expect(readme).toContain('](https://melliforge.github.io/localization-layout-tester/report.png)');
-  // The image is the pseudo-long section: leaked keys on screen are reported in another section, not missed.
-  for (const page of [readme, read('docs/index.md')]) expect(page).toContain("*The pseudo-long section of a report");
+  // The image is one view of a report, not the whole of it: say which.
+  for (const page of [readme, read('docs/index.md')]) expect(page).toContain('*A report with one problem open');
 });
 
 test('the major tag moves only to the newest stable release, and never fails the release', () => {

@@ -39,6 +39,8 @@ export interface RawIssue {
   /** For `rtl/font-fallback`: the fallback font drawing the text, and the declared font-family. */
   used?: string;
   declared?: string;
+  /** The element's accessible name (aria-label, aria-labelledby, alt, title or placeholder), whitespace-collapsed, at most 120 characters; absent when it has none. */
+  name?: string;
 }
 
 /** Where the CSS behind an issue is: the stylesheet line (1-based), the declaration, its logical replacement, and the source-mapped origin. */

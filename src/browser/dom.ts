@@ -339,6 +339,57 @@ export function keyOf(el: Element): string {
   return keys.get(el) ?? domPath(el);
 }
 
+/** The element a key from assignKeys() stands for, also one inside an open shadow root or a same-origin frame; null when the page no longer has it. */
+export function elementAt(key: string): Element | null {
+  // Walked by hand, as assignKeys() built it: `:scope` selects nothing inside a shadow root.
+  let root: Document | ShadowRoot = document;
+  let current: Element | null = null;
+  for (const part of key.split(' >> ')) {
+    if (part === 'internal:control=enter-frame') {
+      const doc: Document | null = current && frameDocument(current);
+      if (!doc) return null;
+      root = doc;
+      current = null;
+      continue;
+    }
+    const [first, ...steps] = part.split('>');
+    let parent: ParentNode;
+    if (first === 'body') {
+      if (root.nodeType !== Node.DOCUMENT_NODE) return null;
+      current = (root as Document).body;
+      parent = current;
+    } else if (first === ':scope') {
+      if (!current?.shadowRoot) return null;
+      root = current.shadowRoot;
+      parent = root;
+      current = null;
+    } else {
+      return null;
+    }
+    for (const step of steps) {
+      const m = /^(.+):nth-child\((\d+)\)$/.exec(step);
+      const child: Element | undefined = m ? parent.children[Number(m[2]) - 1] : undefined;
+      if (!child || child.tagName.toLowerCase() !== m![1]) return null;
+      current = child;
+      parent = child;
+    }
+  }
+  return current;
+}
+
+const collapse = (text: string | null | undefined) => (text ?? '').replace(/\s+/g, ' ').trim();
+
+/** The first of aria-label, aria-labelledby, alt, title and placeholder that says something, whitespace-collapsed and clipped. */
+export function accessibleName(el: Element): string {
+  const labelledby = collapse(el.getAttribute('aria-labelledby')).split(' ')
+    .map(id => (id ? collapse((el.getRootNode() as Document | ShadowRoot).getElementById?.(id)?.textContent) : ''))
+    .filter(Boolean).join(' ');
+  const takesAlt = el.localName === 'img' || el.localName === 'area' || (el.localName === 'input' && el.getAttribute('type')?.toLowerCase() === 'image');
+  const name = collapse(el.getAttribute('aria-label')) || labelledby || (takesAlt ? collapse(el.getAttribute('alt')) : '')
+    || collapse(el.getAttribute('title')) || collapse(el.getAttribute('placeholder'));
+  return clip(name);
+}
+
 /** A CSS string literal (double-quoted) for `value`. */
 const cssString = (value: string) => `"${value.replace(/["\\]/g, '\\$&').replace(/\n/g, '\\a ')}"`;
 

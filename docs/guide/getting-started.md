@@ -52,7 +52,7 @@ test('settings page', async ({ page, localeCheck }) => {
 - **pseudo-long**, every visible text about 40% longer with accents, for text that no longer fits;
 - **forced right-to-left**, for layouts and icons that do not mirror.
 
-Open `fitlocale-report/index.html` to see each problem boxed on a screenshot.
+Open `fitlocale-report/index.html`: a summary of the problems by rule and locale, then each page with its problems and boxed screenshots.
 
 ## Your first run
 

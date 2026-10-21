@@ -25,3 +25,20 @@ export async function resolveSelectors(page: Page, issues: RawIssue[]): Promise<
     }
   }
 }
+
+/** Sets `name` on each issue whose element has an accessible name. Run while the page still shows the viewport the issues were found in. */
+export async function nameIssues(page: Page, issues: RawIssue[]): Promise<void> {
+  const keys = [...new Set(issues.map(i => i.key))].filter(k => k !== 'html');
+  if (keys.length === 0) return;
+  let names: Array<string | null>;
+  try {
+    names = await page.evaluate(k => (window as unknown as { __fitlocale: FitlocaleBrowserApi }).__fitlocale.namesFor(k), keys);
+  } catch {
+    return; // the page moved on: issues stay unnamed
+  }
+  const byKey = new Map(keys.map((k, i) => [k, names[i]] as const));
+  for (const issue of issues) {
+    const name = byKey.get(issue.key);
+    if (name) issue.name = name;
+  }
+}

@@ -23,6 +23,6 @@ features:
     details: Each report comes from a deterministic rule on the rendered page, with the element, a boxed screenshot and a suggested fix. No AI guesses.
 ---
 
-![A fitlocale report: each problem boxed on a screenshot of the page, with the rule, the element and a fix](/report.png)
+![A fitlocale report: filters and pages in the sidebar, a list of problems with one selected, and a panel with that problem's selector, CSS source and where it was seen](/report.png)
 
-*The pseudo-long section of a report: every text made about 40% longer, and what no longer fits boxed in red. Leaked keys and placeholders, also visible here, are listed in the report's source section.*
+*A report with one problem open: its row is selected in the list, and the panel beside it gives the selector with a Copy button, the CSS line to change (`left: 16px` → `inset-inline-start: 16px`), where it was seen and its screenshots. Press j and k to move between problems.*
