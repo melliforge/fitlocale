@@ -12,6 +12,7 @@ Each section becomes the notes of the matching GitHub Release.
 - Clicking a problem opens a detail panel with its selectors (each with a Copy button), the CSS rule behind `rtl/not-mirrored` with its logical replacement, where the problem was seen, and its screenshots. Keys: j/k move between problems, Enter opens one, Esc closes, / searches, ? lists the keys. A link ending in `#p3` opens problem 3.
 - A large report is smaller: the detail panel copies its screenshots from the section's figures when a problem opens, instead of the page carrying them twice. A run of 10,240 issues went from 8.2 MB to 5.1 MB.
 - A section with many screenshots (an app with one URL, checked in several browsers and viewports) shows its first 6 thumbnails and a "Show all" control. Filters count only what they leave. Without JavaScript every thumbnail is shown.
+- The locale × project table in the overview names each cell for screen readers ("de in webkit: 3 problems"). The cells for "no locale" and "no project" are plain counts: they no longer reset the filters to All.
 
 ### Added
 

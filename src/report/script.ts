@@ -211,7 +211,7 @@ export const SCRIPT = String.raw`(function () {
   all('[data-pick-locale]').forEach(function (b) {
     b.addEventListener('click', function () {
       setValue('locale', b.getAttribute('data-pick-locale'));
-      setValue('project', b.getAttribute('data-pick-project'));
+      if (b.hasAttribute('data-pick-project')) setValue('project', b.getAttribute('data-pick-project'));
       apply();
     });
   });

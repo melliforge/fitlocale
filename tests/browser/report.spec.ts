@@ -989,3 +989,24 @@ test.describe('the panel at 390px', () => {
     await expect(panel(page)).toBeHidden();
   });
 });
+
+test('a matrix cell of a run without projects filters by locale only', async ({ page }) => {
+  await open(page, [makeCheck({ issues: [makeIssue({ locale: 'de', text: 'One' }), makeIssue({ locale: 'fr', text: 'Two' })], screenshots: [shot()] })]);
+  await filter(page, 'locale').selectOption('');
+  await page.locator('#summary [data-pick-locale="fr"]').click();
+  await expect(filter(page, 'locale')).toHaveValue('fr');
+  await expect(rows(page).filter({ visible: true })).toHaveCount(1);
+});
+
+test('matrix cells for no locale or no project are plain counts, and a project cell still sets its project', async ({ page }) => {
+  await open(page, [
+    check('chromium', [makeIssue({ locale: 'de', text: 'One' }), makeIssue({ locale: '', text: 'Nolocale' })]),
+    check('webkit', [makeIssue({ locale: 'de', text: 'Two' })]),
+    makeCheck({ issues: [makeIssue({ locale: 'de', text: 'Noproject' })], screenshots: [shot()] }),
+  ]);
+  await filter(page, 'project').selectOption('webkit');
+  await page.locator('#summary .matrix td.num').filter({ hasText: '1' }).locator('button').first().click(); // de in chromium
+  await expect(filter(page, 'project')).toHaveValue('chromium');
+  // The cells without a button have nothing to click: their count is plain text.
+  await expect(page.locator('#summary .matrix td.num:not(:has(button)):not(:has(.zero))')).toHaveCount(2);
+});

@@ -389,3 +389,54 @@ test('the detail lists where it was seen, with at most 8 test titles', () => {
   expect(detail).not.toContain('title 8');
   expect(detail).toContain(' and 2 more');
 });
+
+/** The by-locale matrix of a rendered report. */
+const matrixOf = (html: string) => html.slice(html.indexOf('<table class="matrix">'), html.indexOf('</table>', html.indexOf('<table class="matrix">')));
+const matrixCells = (html: string) => matrixOf(html).match(/<td class="num">[\s\S]*?<\/td>/g) ?? [];
+
+test('a matrix cell is named by its locale, project and count', () => {
+  const html = renderReport(makeRun([
+    makeCheck({ project: 'chromium', issues: [makeIssue({ locale: 'de', text: 'One' }), makeIssue({ locale: 'de', text: 'Two' })] }),
+    makeCheck({ project: 'webkit', issues: [makeIssue({ locale: 'de', text: 'One' })] }),
+  ]));
+  const cells = matrixCells(html);
+  expect(cells).toHaveLength(2);
+  expect(cells[0]).toContain('aria-label="de in chromium: 2 problems"');
+  expect(cells[1]).toContain('aria-label="de in webkit: 1 problem"');
+});
+
+test('a matrix cell with one problem says problem, not problems', () => {
+  const html = renderReport(makeRun([makeCheck({ project: 'chromium', issues: [makeIssue({ locale: 'de' })] }), makeCheck({ project: 'webkit', issues: [makeIssue({ locale: 'fr' })] })]));
+  expect(matrixCells(html).filter(c => c.includes('<button'))[0]).toContain('aria-label="de in chromium: 1 problem"');
+});
+
+test('without projects a matrix cell is named by its locale alone and sets no project', () => {
+  const html = renderReport(makeRun([makeCheck({ issues: [makeIssue({ locale: 'de' }), makeIssue({ locale: 'fr', text: 'Other' })] })]));
+  const [cell] = matrixCells(html);
+  expect(cell).toContain('aria-label="de: 1 problem"');
+  expect(cell).toContain('data-pick-locale="de"');
+  expect(cell).not.toContain('data-pick-project');
+});
+
+test('the "no locale" and "no project" matrix cells are not buttons, since no filter selects them', () => {
+  const html = renderReport(makeRun([
+    makeCheck({ project: 'chromium', issues: [makeIssue({ locale: 'de' }), makeIssue({ locale: '', text: 'No locale' })] }),
+    makeCheck({ issues: [makeIssue({ locale: 'de', text: 'No project' })] }),
+  ]));
+  const matrix = matrixOf(html);
+  // Rows: de, then the one without a locale. Columns: chromium, then the one without a project.
+  expect(matrix).toContain('<th scope="row">—</th>');
+  expect(matrix).toContain('no project');
+  const rows = matrix.split('<tr>').slice(2);
+  expect(rows).toHaveLength(2);
+  const [de, none] = rows.map(r => r.match(/<td class="num">[\s\S]*?<\/td>/g)!);
+  expect(de[0]).toContain('data-pick-locale="de" data-pick-project="chromium"');
+  expect(de[1]).not.toContain('<button');
+  expect(none[0]).not.toContain('<button');
+  expect(none[1]).not.toContain('<button');
+  // The counts are still shown.
+  expect(de[1]).toContain('>1<');
+  expect(none[0]).toContain('>1<');
+  // Nothing in the matrix sets a filter to "All".
+  expect(matrix).not.toMatch(/data-pick-(locale|project)=""/);
+});

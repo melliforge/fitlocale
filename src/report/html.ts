@@ -202,9 +202,16 @@ function overview(model: ReportModel, meta: string): string {
   const unassigned = [...model.matrix.values()].some(m => m.has(''));
   const columns = model.projects.length ? [...model.projects, ...(unassigned ? [''] : [])] : [''];
   const heading = (project: string) => (project ? esc(project) : model.projects.length ? 'no project' : 'Problems');
+  // A cell is a filter button when locale and project each name something to filter by. "No locale" and "no project"
+  // are not options of the filters (an empty value there means All), so those cells are plain counts. Without
+  // projects the project filter does not exist, and the cell sets the locale only.
   const matrix = model.locales.map(locale => `<tr><th scope="row">${locale ? esc(locale) : '—'}</th>${columns.map(project => {
     const n = model.matrix.get(locale)?.get(project) ?? 0;
-    return `<td class="num">${n ? `<button type="button" class="pick" data-pick-locale="${esc(locale)}" data-pick-project="${esc(project)}">${n}</button>` : '<span class="zero">0</span>'}</td>`;
+    if (!n) return '<td class="num"><span class="zero">0</span></td>';
+    const byProject = model.projects.length > 0;
+    if (!locale || (byProject && !project)) return `<td class="num">${n}</td>`;
+    const name = `${locale}${byProject ? ` in ${project}` : ''}: ${n} ${n === 1 ? 'problem' : 'problems'}`;
+    return `<td class="num"><button type="button" class="pick" data-pick-locale="${esc(locale)}"${byProject ? ` data-pick-project="${esc(project)}"` : ''} aria-label="${esc(name)}">${n}</button></td>`;
   }).join('')}</tr>`).join('\n');
 
   return `<section id="summary">
