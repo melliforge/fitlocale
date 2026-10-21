@@ -473,3 +473,209 @@ test.describe('at 390px', () => {
     expect(await overflow()).toBeLessThanOrEqual(0);
   });
 });
+
+/* ---------- Problem detail panel and keyboard ---------- */
+
+const panel = (page: Page) => page.locator('aside.panel');
+const detail = (page: Page, id: string) => page.locator(`#d-${id}`);
+
+test('clicking a row opens its detail and Esc closes it', async ({ page }) => {
+  await serve(page, THREE);
+  await expect(panel(page)).toBeHidden();
+  await page.locator('#p2 td').last().click();
+  await expect(panel(page)).toBeVisible();
+  await expect(detail(page, 'p2')).toBeVisible();
+  await expect(page.locator('article.detail:visible')).toHaveCount(1);
+  await expect(page.locator('#p2')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#p2')).toHaveClass(/\bselected\b/);
+  expect(page.url()).toBe('http://report.test/#p2');
+
+  // Another row replaces it.
+  await page.locator('#p1 td').last().click();
+  await expect(detail(page, 'p1')).toBeVisible();
+  await expect(detail(page, 'p2')).toBeHidden();
+  await expect(page.locator('#p2')).not.toHaveAttribute('aria-selected', 'true');
+
+  await page.keyboard.press('Escape');
+  await expect(panel(page)).toBeHidden();
+  expect(page.url()).toBe('http://report.test/');
+
+  // Enter on a focused row opens it; the Close button closes it.
+  await page.locator('#p3').focus();
+  await page.keyboard.press('Enter');
+  await expect(detail(page, 'p3')).toBeVisible();
+  await page.locator('aside.panel [data-close]').click();
+  await expect(panel(page)).toBeHidden();
+});
+
+test('opening the selector folder in a row does not open the detail', async ({ page }) => {
+  await open(page, THREE);
+  await page.locator('#p1 details.sel summary').click();
+  await expect(panel(page)).toBeHidden();
+});
+
+test('j and k move through visible problems only', async ({ page }) => {
+  await open(page, THREE);
+  await filter(page, 'rule').selectOption('overflow/clipped'); // hides p2
+  await page.locator('body').click({ position: { x: 600, y: 10 } });
+  await page.keyboard.press('j');
+  await expect(page.locator('#p1')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#p1')).toBeFocused();
+  await expect(panel(page)).toBeHidden(); // moving does not open the panel
+  await page.keyboard.press('j');
+  await expect(page.locator('#p3')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#p3')).toBeInViewport();
+  await page.keyboard.press('j'); // the last one stays
+  await expect(page.locator('#p3')).toHaveAttribute('aria-selected', 'true');
+  await page.keyboard.press('k');
+  await expect(page.locator('#p1')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('tr.problem[aria-selected="true"]')).toHaveCount(1);
+
+  // With the panel open, moving updates it.
+  await page.keyboard.press('Enter');
+  await expect(detail(page, 'p1')).toBeVisible();
+  await page.keyboard.press('j');
+  await expect(detail(page, 'p3')).toBeVisible();
+  await expect(detail(page, 'p1')).toBeHidden();
+});
+
+test('#p2 opens problem 2 on load, and a later hash change opens another', async ({ page }) => {
+  const html = renderReport(makeRun(THREE));
+  await page.route('http://report.test/', route => route.fulfill({ contentType: 'text/html', body: html }));
+  await page.goto('http://report.test/#p2');
+  await expect(panel(page)).toBeVisible();
+  await expect(detail(page, 'p2')).toBeVisible();
+  await expect(page.locator('#p2')).toHaveAttribute('aria-selected', 'true');
+
+  // A link to a problem hidden by a filter clears the filter first.
+  await filter(page, 'locale').selectOption('de');
+  await expect(page.locator('#p3')).toBeHidden();
+  await page.evaluate(() => { location.hash = '#p3'; });
+  await expect(detail(page, 'p3')).toBeVisible();
+  await expect(page.locator('#p3')).toBeVisible();
+  await expect(filter(page, 'locale')).toHaveValue('');
+});
+
+test('Copy puts the selector on the clipboard', async ({ page, context, browserName }) => {
+  const selector = 'form > button[data-testid="save"]';
+  const html = renderReport(makeRun([check('chromium', [makeIssue({ selector })])]));
+  // localhost is a secure context, where the Clipboard API exists.
+  await page.route('http://localhost:4399/', route => route.fulfill({ contentType: 'text/html', body: html }));
+  if (browserName === 'chromium') await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('http://localhost:4399/');
+  await page.locator('#p1 td').last().click();
+  const copy = detail(page, 'p1').locator('[data-copy]');
+  await expect(copy).toHaveText('Copy');
+  await copy.click();
+  // The copied text stays selected, so it is visible what was copied (and Ctrl+C works if copying failed).
+  expect(await page.evaluate(() => String(window.getSelection()))).toBe(selector);
+  if (browserName === 'chromium') {
+    await expect(copy).toHaveText('Copied');
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(selector);
+    await expect(copy).toHaveText('Copy', { timeout: 3000 });
+  }
+});
+
+test('keys are ignored while typing in search', async ({ page }) => {
+  await open(page, THREE);
+  const search = page.locator('[data-search]');
+  await search.click();
+  await page.keyboard.type('jk?/');
+  await expect(search).toHaveValue('jk?/');
+  await expect(page.locator('tr.problem[aria-selected="true"]')).toHaveCount(0);
+  await expect(page.locator('[data-keys]')).toBeHidden();
+  await expect(search).toBeFocused();
+});
+
+test('/ focuses the search and ? toggles the shortcut help', async ({ page }) => {
+  await open(page, THREE);
+  await page.locator('body').click({ position: { x: 600, y: 10 } });
+  await page.keyboard.press('?');
+  await expect(page.locator('[data-keys]')).toBeVisible();
+  await page.keyboard.press('?');
+  await expect(page.locator('[data-keys]')).toBeHidden();
+  await page.keyboard.press('?');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-keys]')).toBeHidden();
+  await page.keyboard.press('/');
+  await expect(page.locator('[data-search]')).toBeFocused();
+  await expect(page.locator('[data-search]')).toHaveValue('');
+  // Modified keys are the browser's.
+  await page.locator('body').click({ position: { x: 600, y: 10 } });
+  await page.keyboard.press('Control+j');
+  await expect(page.locator('tr.problem[aria-selected="true"]')).toHaveCount(0);
+});
+
+test('search finds text past the label', async ({ page }) => {
+  await open(page, [check('chromium', [makeIssue({ text: `${'Long label '.repeat(10)}tail-word` }), makeIssue({ text: 'Other' })])]);
+  await page.locator('[data-search]').fill('tail-word');
+  await expect(rows(page).filter({ visible: true })).toHaveCount(1);
+});
+
+test('at 1440px the panel sits beside the table without covering it', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, THREE);
+  await page.locator('#p1 td').last().click();
+  const aside = (await panel(page).boundingBox())!;
+  expect(aside.width).toBe(480);
+  expect(aside.x + aside.width).toBeCloseTo(1440, 0);
+  const table = (await page.locator('#page-1-1 table').boundingBox())!;
+  expect(table.x + table.width).toBeLessThanOrEqual(aside.x);
+  // Sticky below the top bar, with its own scroll.
+  await page.evaluate(() => { document.querySelector('main')!.style.minHeight = '5000px'; window.scrollTo(0, 1500); });
+  expect((await panel(page).boundingBox())!.y).toBe(64);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+});
+
+test('at 1100px the panel overlays the content', async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 800 });
+  await open(page, THREE);
+  await page.locator('#p1 td').last().click();
+  const aside = (await panel(page).boundingBox())!;
+  expect(aside.width).toBe(480);
+  expect(aside.x + aside.width).toBeCloseTo(1100, 0);
+  expect(await panel(page).evaluate(el => getComputedStyle(el).position)).toBe('fixed');
+});
+
+test('the detail screenshot scrolls to its box', async ({ page }) => {
+  const path = await png(page, 1000, 4000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setContent(renderReport(makeRun([makeCheck({
+    issues: [makeIssue({ box: { x: 100, y: 3000, width: 200, height: 100 } })],
+    screenshots: [{ ...shot({ width: 1000, height: 4000 }), path }],
+  })])));
+  await page.locator('#p1 td').last().click();
+  const crop = detail(page, 'p1').locator('.crop');
+  const box = detail(page, 'p1').locator('.dbox');
+  await expect(box).toBeVisible();
+  const c = (await crop.boundingBox())!, b = (await box.boundingBox())!;
+  expect(b.y).toBeGreaterThanOrEqual(c.y);
+  expect(b.y + b.height).toBeLessThanOrEqual(c.y + c.height + 1);
+});
+
+test.describe('the panel without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('is not shown, and the rows keep the selector and the fix', async ({ page }) => {
+    await page.setContent(renderReport(makeRun([makeCheck({ issues: [makeIssue({ fix: 'Grow it.' })] })])));
+    await expect(panel(page)).toBeHidden();
+    await expect(page.locator('#p1')).toContainText('Grow it.');
+    await expect(page.locator('#p1 details.sel code')).toHaveText('#save');
+    expect(await page.locator('#p1').getAttribute('tabindex')).toBeNull();
+  });
+});
+
+test.describe('the panel at 390px', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('is full width', async ({ page }) => {
+    await open(page, THREE);
+    await page.locator('#p1 td').last().click();
+    const aside = (await panel(page).boundingBox())!;
+    expect(aside.x).toBe(0);
+    expect(aside.width).toBe(390);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    await page.keyboard.press('Escape');
+    await expect(panel(page)).toBeHidden();
+  });
+});

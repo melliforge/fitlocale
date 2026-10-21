@@ -55,7 +55,11 @@ export const SCRIPT = String.raw`(function () {
   function haystack(row) {
     var cached = haystacks ? haystacks.get(row) : undefined;
     if (cached !== undefined) return cached;
-    var text = (row.textContent + ' ' + row.getAttribute('data-locale')).replace(/\s+/g, ' ').toLowerCase();
+    // The row, plus its detail's full text (the label is clipped) and selectors.
+    var text = row.textContent + ' ' + row.getAttribute('data-locale');
+    var detail = document.getElementById('d-' + row.id);
+    if (detail) all('.d-text, .d-sels code', detail).forEach(function (el) { text += ' ' + el.textContent; });
+    text = text.replace(/\s+/g, ' ').toLowerCase();
     if (haystacks) haystacks.set(row, text);
     return text;
   }
@@ -147,7 +151,9 @@ export const SCRIPT = String.raw`(function () {
   function revealHash(hash) {
     var target;
     try { target = document.getElementById(decodeURIComponent(hash.slice(1))); } catch (e) { return; }
-    if (target) reveal(target);
+    if (!target) return;
+    reveal(target);
+    if (target.tagName === 'TR' && target.classList.contains('problem')) openDetail(target);
   }
 
   checks.forEach(function (box) { box.addEventListener('change', apply); });
@@ -234,20 +240,177 @@ export const SCRIPT = String.raw`(function () {
   }
   if (drawerButton) drawerButton.addEventListener('click', function () { setDrawer(!drawerOpen(), false); });
   if (scrim) scrim.addEventListener('click', function () { setDrawer(false, true); });
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && drawerOpen()) setDrawer(false, true);
-  });
   if (wide) {
     var onWide = function () { if (wide.matches && drawerOpen()) setDrawer(false, false); };
     if (wide.addEventListener) wide.addEventListener('change', onWide); else if (wide.addListener) wide.addListener(onWide);
   }
 
+  /* ---------- Problem detail: one article at a time in the right-hand panel ---------- */
+
+  var panel = document.querySelector('aside.panel');
+  var problemRows = all('tr.problem');
+  var selected = null, shown = null;
+  var narrow = window.matchMedia ? window.matchMedia('(max-width: 959px)') : null;
+  // Rows are focusable only with the script: without it they have nothing to open.
+  problemRows.forEach(function (row) { row.tabIndex = 0; });
+
+  function panelOpen() { return !!panel && !panel.hidden; }
+  function choose(row) {
+    if (selected === row) return;
+    if (selected) { selected.classList.remove('selected'); selected.removeAttribute('aria-selected'); }
+    selected = row;
+    if (row) { row.classList.add('selected'); row.setAttribute('aria-selected', 'true'); }
+  }
+  /** The hash follows the open problem without a history entry or a scroll jump. */
+  function setHash(hash) {
+    try { history.replaceState(history.state, '', location.href.split('#')[0] + hash); } catch (e) { /* about:blank, sandboxed frames */ }
+  }
+  /** Each screenshot in the detail scrolls to its first box. */
+  function cropTo(article) {
+    all('.crop', article).forEach(function (crop) {
+      var box = crop.querySelector('.dbox');
+      if (!box) return;
+      var place = function () { crop.scrollTop = Math.max(0, box.offsetTop - (crop.clientHeight - box.offsetHeight) / 2); };
+      place();
+      var img = crop.querySelector('img');
+      if (img && !img.complete) img.addEventListener('load', function () { if (!article.hidden) place(); });
+    });
+  }
+  function openDetail(row) {
+    var article = row ? document.getElementById('d-' + row.id) : null;
+    if (!panel || !article) return;
+    choose(row);
+    if (shown && shown !== article) shown.hidden = true;
+    var wasOpen = panelOpen();
+    article.hidden = false;
+    shown = article;
+    panel.hidden = false;
+    root.classList.add('panel-open');
+    panel.scrollTop = 0;
+    cropTo(article);
+    setHash('#' + row.id);
+    // Full width, the panel covers the row: focus moves into it.
+    if (!wasOpen && narrow && narrow.matches) { var close = panel.querySelector('[data-close]'); if (close) close.focus(); }
+  }
+  function closeDetail(refocus) {
+    if (!panelOpen()) return;
+    panel.hidden = true;
+    root.classList.remove('panel-open');
+    setHash('');
+    if (refocus && selected) selected.focus({ preventScroll: true });
+  }
+
+  /** The next (1) or previous (-1) problem shown, in document order; folded and filtered rows are skipped. */
+  function step(dir) {
+    var list = problemRows.filter(function (r) { return r.getClientRects().length > 0; });
+    if (!list.length) return;
+    var next = null, i;
+    if (!selected) next = list[0];
+    else if (list.indexOf(selected) >= 0) next = list[Math.min(list.length - 1, Math.max(0, list.indexOf(selected) + dir))];
+    else if (dir > 0) {
+      for (i = 0; i < list.length && !next; i++) if (selected.compareDocumentPosition(list[i]) & 4) next = list[i];
+      next = next || list[list.length - 1];
+    } else {
+      for (i = list.length - 1; i >= 0 && !next; i--) if (selected.compareDocumentPosition(list[i]) & 2) next = list[i];
+      next = next || list[0];
+    }
+    choose(next);
+    if (panelOpen()) openDetail(next);
+    if (!panelOpen() || !narrow || !narrow.matches) next.focus({ preventScroll: true });
+    next.scrollIntoView({ block: 'nearest' });
+  }
+
+  var problemsEl = document.querySelector('.problems');
+  if (problemsEl) problemsEl.addEventListener('click', function (e) {
+    var row = e.target.closest ? e.target.closest('tr.problem') : null;
+    if (!row || e.target.closest('a, button, summary, details.sel')) return;
+    var picked = window.getSelection ? window.getSelection() : null;
+    if (picked && !picked.isCollapsed && row.contains(picked.anchorNode)) return; // selecting text, not opening
+    openDetail(row);
+  });
+
+  function copy(button) {
+    var code = button.parentElement.querySelector('code');
+    if (!code) return;
+    // The text is selected too: it shows what was copied, and Ctrl+C still works if copying is refused.
+    var range = document.createRange();
+    range.selectNodeContents(code);
+    var picked = window.getSelection();
+    var pick = function () { picked.removeAllRanges(); picked.addRange(range); };
+    pick();
+    var done = function (ok) {
+      button.textContent = ok ? 'Copied' : 'Selected';
+      clearTimeout(button.copyTimer);
+      button.copyTimer = setTimeout(function () { button.textContent = 'Copy'; }, 1500);
+    };
+    var fallback = function () {
+      var ok = false;
+      pick();
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      done(ok);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code.textContent).then(function () { done(true); }, fallback);
+    else fallback();
+  }
+
+  if (panel) panel.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button') : null;
+    if (!b) return;
+    if (b.hasAttribute('data-copy')) copy(b);
+    else if (b.hasAttribute('data-close')) closeDetail(true);
+    else if (b.hasAttribute('data-step')) step(Number(b.getAttribute('data-step')));
+  });
+
+  /* ---------- Keyboard: j/k move, Enter opens, Esc closes, / searches, ? helps ---------- */
+
+  var keysBox = document.querySelector('[data-keys]');
+  var keysButton = document.querySelector('[data-keys-toggle]');
+  function setKeys(open) {
+    if (!keysBox) return;
+    keysBox.hidden = !open;
+    if (keysButton) keysButton.setAttribute('aria-expanded', String(open));
+  }
+  if (keysButton) keysButton.addEventListener('click', function () { setKeys(keysBox.hidden); });
+  function typing(el) {
+    return !!el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      // The topmost first: the help, then the panel, then the drawer.
+      if (keysBox && !keysBox.hidden) setKeys(false);
+      else if (panelOpen()) closeDetail(true);
+      else if (drawerOpen()) setDrawer(false, true);
+      return;
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented || typing(e.target)) return;
+    if (e.key === 'j' || e.key === 'k') {
+      e.preventDefault();
+      step(e.key === 'j' ? 1 : -1);
+    } else if (e.key === 'Enter') {
+      var row = e.target.tagName === 'TR' && e.target.classList.contains('problem') ? e.target
+        : e.target === document.body ? selected : null;
+      if (row) { e.preventDefault(); openDetail(row); }
+    } else if (e.key === '/' && search) {
+      e.preventDefault();
+      search.focus();
+      search.select();
+    } else if (e.key === '?' && keysBox) {
+      e.preventDefault();
+      setKeys(keysBox.hidden);
+    }
+  });
+
   document.addEventListener('click', function (e) {
+    if (keysBox && !keysBox.hidden && !keysBox.contains(e.target) && !(keysButton && keysButton.contains(e.target))) setKeys(false);
     var link = e.target.closest ? e.target.closest('a[href^="#"]') : null;
     if (!link) return;
     if (drawerOpen() && sidebar && sidebar.contains(link)) setDrawer(false, false);
+    // A full-width panel would cover the section the link shows.
+    if (panel && panel.contains(link) && narrow && narrow.matches) closeDetail(false);
     revealHash(link.getAttribute('href'));
   });
+  window.addEventListener('hashchange', function () { revealHash(location.hash); });
 
   /* ---------- Scrollspy: the sidebar marks the overview or section in view ---------- */
 

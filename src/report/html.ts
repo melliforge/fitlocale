@@ -53,19 +53,138 @@ function row(problem: Problem): string {
     + `<td>${esc(issue.message ?? '')}${fix}</td></tr>`;
 }
 
+/** A box's place on its screenshot, in percentages, so it follows the image at any size. */
+const boxStyle = (issue: Problem['issue'], s: Shot['screenshot']) =>
+  `left:${pct(issue.box.x, s.size.width)};top:${pct(issue.box.y, s.size.height)};width:${pct(issue.box.width, s.size.width)};height:${pct(issue.box.height, s.size.height)}`;
+
+/** Known dimensions reserve the image's height before a lazy image loads. */
+function imageSize(s: Shot['screenshot']): string {
+  const width = Number(s.size?.width), height = Number(s.size?.height);
+  return width > 0 && height > 0 ? ` width="${esc(width)}" height="${esc(height)}"` : '';
+}
+
+const captionOf = (shot: Shot) => [shot.project, shot.viewport, shot.testTitle].filter(Boolean).map(esc).join(' · ');
+
 function figure(section: Section, shot: Shot): string {
   const s = shot.screenshot;
   const boxes = shot.boxes.map(({ problem, issue }) =>
-    `<span class="box ${esc(issue.severity)}${acceptedClass(issue.baselined)}" data-problem="${esc(problem)}" title="${esc(`${issue.rule} · ${labelOf(issue).label}`)}" style="left:${pct(issue.box.x, s.size.width)};top:${pct(issue.box.y, s.size.height)};width:${pct(issue.box.width, s.size.width)};height:${pct(issue.box.height, s.size.height)}"></span>`,
+    `<span class="box ${esc(issue.severity)}${acceptedClass(issue.baselined)}" data-problem="${esc(problem)}" title="${esc(`${issue.rule} · ${labelOf(issue).label}`)}" style="${boxStyle(issue, s)}"></span>`,
   ).join('');
-  // Known dimensions reserve the thumbnail's height before a lazy image loads.
-  const width = Number(s.size?.width), height = Number(s.size?.height);
-  const size = width > 0 && height > 0 ? ` width="${esc(width)}" height="${esc(height)}"` : '';
-  const caption = [shot.project, shot.viewport, shot.testTitle].filter(Boolean).map(esc).join(' · ');
   return `<figure class="shot-wrap" data-project="${esc(shot.project ?? '')}"><button type="button" class="shot" aria-expanded="false"><span class="frame">`
-    + `<img src="${esc(s.path)}"${size} loading="lazy" decoding="async" alt="Screenshot, ${esc(section.label)} · ${esc(shot.viewport)}">${boxes}</span></button>`
-    + `<figcaption>${caption}</figcaption></figure>`;
+    + `<img src="${esc(s.path)}"${imageSize(s)} loading="lazy" decoding="async" alt="Screenshot, ${esc(section.label)} · ${esc(shot.viewport)}">${boxes}</span></button>`
+    + `<figcaption>${captionOf(shot)}</figcaption></figure>`;
 }
+
+/* ---------- Problem detail: one hidden article per problem, shown one at a time by the script ---------- */
+
+/** Screenshots per problem in its detail, and test titles listed; the rest are counted. */
+const MAX_SHOTS = 6;
+
+/** The section's shots that show each problem, with only that problem's boxes (same matching as the section). */
+function shotsByProblem(section: Section): Map<string, Shot[]> {
+  const byProblem = new Map<string, Shot[]>();
+  for (const shot of section.shots) {
+    const mine = new Map<string, Shot['boxes']>();
+    for (const box of shot.boxes) {
+      const list = mine.get(box.problem);
+      if (list) list.push(box); else mine.set(box.problem, [box]);
+    }
+    for (const [problem, boxes] of mine) {
+      const list = byProblem.get(problem) ?? [];
+      list.push({ ...shot, boxes });
+      byProblem.set(problem, list);
+    }
+  }
+  return byProblem;
+}
+
+function detailShot(shot: Shot): string {
+  const s = shot.screenshot;
+  const boxes = shot.boxes.map(({ issue }) => `<span class="dbox ${esc(issue.severity)}${acceptedClass(issue.baselined)}" style="${boxStyle(issue, s)}"></span>`).join('');
+  return `<figure class="dshot"><div class="crop"><span class="dframe"><img src="${esc(s.path)}"${imageSize(s)} loading="lazy" alt="Screenshot, ${esc(shot.viewport)}">${boxes}</span></div>`
+    + `<figcaption>${captionOf(shot)}</figcaption></figure>`;
+}
+
+/** `file:line`, preferring the source-mapped original over the built stylesheet. */
+function cssSource(source: NonNullable<Problem['issue']['source']>): string {
+  const at = source.original && source.original.url ? source.original : source;
+  return `<li><code class="at">${esc(at.url)}:${esc(at.line)}</code>`
+    + `<code class="decl">${esc(source.property)}: ${esc(source.value)} → ${esc(source.replacement)}</code>`
+    + (source.selector ? `<span class="rule-sel">in <code>${esc(source.selector)}</code></span>` : '')
+    + '</li>';
+}
+
+const block = (title: string, body: string) => `<div class="d-block"><h3 class="d-title">${title}</h3>${body}</div>`;
+
+function detail(problem: Problem, section: Section, page: Page, shots: Shot[]): string {
+  const { issue } = problem;
+  const { label } = labelOf(issue);
+  const text = String(issue.text ?? '').replace(/\s+/g, ' ').trim();
+  const full = text && text !== label ? `<p class="d-text" dir="auto">${esc(text)}</p>` : '';
+  const selectors = problem.selectors.map(s =>
+    `<li><code>${esc(s)}</code><button type="button" class="copy" data-copy>Copy</button></li>`).join('');
+
+  const sources = new Map<string, string>();
+  for (const { issue: i } of problem.occurrences) {
+    if (!i.source) continue;
+    const item = cssSource(i.source);
+    if (!sources.has(item)) sources.set(item, item);
+  }
+  const list = [...sources.values()];
+  const source = list.length
+    ? block('CSS source', `<ul class="d-sources">${list.slice(0, MAX_LINKS).join('')}</ul>${list.length > MAX_LINKS ? `<p class="more">and ${list.length - MAX_LINKS} more</p>` : ''}`)
+    : '';
+
+  const tests = [...new Set(problem.occurrences.map(o => String(o.check.testTitle ?? '')))].filter(Boolean);
+  const seen = [
+    problem.projects.length ? `<dt>${problem.projects.length > 1 ? 'Projects' : 'Project'}</dt><dd>${problem.projects.map(esc).join(', ')}</dd>` : '',
+    `<dt>${problem.viewports.length > 1 ? 'Viewports' : 'Viewport'}</dt><dd>${problem.viewports.map(esc).join(', ')}</dd>`,
+    tests.length ? `<dt>${tests.length > 1 ? 'Tests' : 'Test'}</dt><dd>${capped(tests.map(esc))}</dd>` : '',
+    `<dt>Issues</dt><dd>${problem.occurrences.length}</dd>`,
+  ].join('');
+
+  const more = shots.length > MAX_SHOTS ? `<p class="more">+${shots.length - MAX_SHOTS} more in the section</p>` : '';
+  const pictures = shots.length ? block('Screenshots', `<div class="dshots">${shots.slice(0, MAX_SHOTS).map(detailShot).join('')}</div>${more}`) : '';
+
+  return `<article class="detail" id="d-${esc(problem.id)}" hidden>`
+    + `<p class="d-head ${esc(problem.severity)}"><span class="sev">${esc(problem.severity)}</span><code>${esc(problem.rule)}</code>${problem.accepted ? '<span class="tag">accepted</span>' : ''}</p>`
+    + `<h2 class="d-label" dir="auto">${esc(label)}</h2>${full}`
+    + `<p class="d-where"><a href="#${esc(section.id)}">${esc(page.label)} · ${esc(section.label)}</a></p>`
+    + block(problem.selectors.length > 1 ? 'Selectors' : 'Selector', `<ul class="d-sels">${selectors}</ul>`)
+    + block('Problem', `<p>${esc(issue.message ?? '')}</p>${issue.fix ? `<p class="d-fix"><strong>Fix:</strong> ${esc(issue.fix)}</p>` : ''}`)
+    + source
+    + block('Where it was seen', `<dl class="d-seen">${seen}</dl>`)
+    + pictures
+    + '</article>';
+}
+
+const ARROW_UP = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg>';
+const ARROW_DOWN = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+const CROSS = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+
+/** The right-hand panel: hidden until a problem is opened, and left out without the script. */
+function panel(model: ReportModel): string {
+  const articles: string[] = [];
+  for (const p of model.pages) {
+    for (const s of p.sections) {
+      const shots = shotsByProblem(s);
+      for (const problem of s.problems) articles.push(detail(problem, s, p, shots.get(problem.id) ?? []));
+    }
+  }
+  return `<aside class="panel" aria-label="Problem detail" hidden>
+<div class="panel-bar"><span class="panel-title">Problem</span>`
+    + `<button type="button" class="icon-btn" data-step="-1" aria-label="Previous problem" title="Previous problem (k)">${ARROW_UP}</button>`
+    + `<button type="button" class="icon-btn" data-step="1" aria-label="Next problem" title="Next problem (j)">${ARROW_DOWN}</button>`
+    + `<button type="button" class="icon-btn" data-close aria-label="Close" title="Close (Esc)">${CROSS}</button></div>
+${articles.join('\n')}
+</aside>`;
+}
+
+/** The shortcut help, toggled by ? or its button in the top bar. */
+const KEYS_HELP = `<div class="keys" data-keys role="dialog" aria-label="Keyboard shortcuts" hidden><p class="group-title">Keyboard shortcuts</p><dl>`
+  + [['j', 'Next problem'], ['k', 'Previous problem'], ['Enter', 'Open the selected problem'], ['Esc', 'Close the panel'], ['/', 'Search'], ['?', 'This help']]
+    .map(([key, what]) => `<dt><kbd>${key}</kbd></dt><dd>${what}</dd>`).join('')
+  + '</dl></div>';
 
 function section(s: Section): string {
   const shots = s.shots.length ? `<div class="shots">${s.shots.map(shot => figure(s, shot)).join('')}</div>` : '';
@@ -184,7 +303,9 @@ function topBar(hasProblems: boolean, date: string, createdAt: unknown): string 
   return `<header class="bar">
 <div class="brand"><span class="logo" aria-hidden="true">fl</span><span class="name">fitlocale</span><span class="kind">report</span></div>
 <div class="bar-main">${tools}<span class="spacer"></span>${date ? `<time class="date" datetime="${esc(createdAt)}">${esc(date)}</time>` : ''}
+${hasProblems ? `<button type="button" class="icon-btn keys-btn" data-keys-toggle aria-expanded="false" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)"><kbd>?</kbd></button>` : ''}
 <button type="button" class="icon-btn theme" data-theme-toggle aria-label="Theme">${ICONS.auto}${ICONS.light}${ICONS.dark}</button></div>
+${hasProblems ? KEYS_HELP : ''}
 </header>`;
 }
 
@@ -203,7 +324,8 @@ export function renderReport(results: RunResults): string {
 <main id="main"><div class="content">
 ${overview(model, meta)}<div class="problems">
 ${model.pages.map(page).join('')}</div>
-</div></main>`
+</div></main>
+${panel(model)}`
     : `<main id="main"><div class="content">
 <h1>Overview</h1>
 ${meta}

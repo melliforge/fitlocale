@@ -5,6 +5,13 @@ import { STYLES } from '../../src/report/styles';
 import type { CheckResult } from '../../src/types';
 import { makeCheck, makeIssue, makeRun } from './fixtures';
 
+/** The detail article of a problem, as rendered. */
+function detailOf(html: string, id: string): string {
+  const start = html.indexOf(`<article class="detail" id="d-${id}" hidden>`);
+  expect(start, `detail of ${id}`).toBeGreaterThan(-1);
+  return html.slice(start, html.indexOf('</article>', start));
+}
+
 test('report groups by page, then locale · mode', () => {
   const html = renderReport(makeRun([
     makeCheck({ url: 'http://app.test/a', issues: [makeIssue({ url: 'http://app.test/a' }), makeIssue({ url: 'http://app.test/a', mode: 'pseudo-rtl', rule: 'rtl/not-mirrored' })] }),
@@ -45,14 +52,21 @@ test('empty run', () => {
 
 test('every value from results.json is escaped', () => {
   const evil = '"><img src=x onerror=alert(1)>';
+  const source = { url: evil, line: evil as never, column: 1, selector: evil, property: evil, value: evil, replacement: evil, original: { url: evil, line: evil as never, column: 1 } };
   const run = makeRun([makeCheck({
-    issues: [makeIssue({ severity: evil as never, mode: evil as never, viewport: { width: evil as never, height: 1 } })],
+    testTitle: evil, project: evil,
+    issues: [makeIssue({ severity: evil as never, mode: evil as never, viewport: { width: evil as never, height: 1 }, selector: evil, text: evil, fix: evil, message: evil, source })],
     screenshots: [{ mode: evil as never, viewport: { width: evil as never, height: 1 }, path: 'a.png', size: { width: 1000, height: 2000 } }],
   })]);
   run.summary = { error: evil as never, warning: 0, info: 0 };
   const html = renderReport(run);
   expect(html).not.toContain('<img src=x');
   expect(html).toContain('<span class="sev">&quot;&gt;&lt;img src=x onerror=alert(1)&gt;</span>');
+  // The detail panel shows the selector, text, CSS source and test titles too.
+  const detail = detailOf(html, 'p1');
+  expect(detail).not.toContain('<img src=x');
+  expect(detail).toContain('<code>&quot;&gt;&lt;img src=x onerror=alert(1)&gt;</code>');
+  expect(detail).toContain('&quot;&gt;&lt;img src=x onerror=alert(1)&gt;:&quot;&gt;&lt;img src=x onerror=alert(1)&gt;'); // url:line
 });
 
 test('sections are labelled locale · mode', () => {
@@ -249,4 +263,78 @@ test('styles and script come from their modules', () => {
   // Plain ES2017 DOM code that can sit inside a <script> element.
   for (const banned of ['</script', '?.', '??', 'innerHTML', 'http:', 'https:']) expect(SCRIPT).not.toContain(banned);
   for (const banned of ['http:', 'https:', '@import']) expect(STYLES).not.toContain(banned);
+});
+
+test('each problem has a hidden detail article', () => {
+  const html = renderReport(makeRun([makeCheck({ issues: [
+    makeIssue({ selector: '#save', fix: 'Let the button grow.' }),
+    makeIssue({ selector: 'form > button:nth-child(2)', fix: 'Let the button grow.' }),
+    makeIssue({ text: 'Other', selector: '#other' }),
+  ] })]));
+  expect(html).toContain('<aside class="panel" aria-label="Problem detail" hidden>');
+  const detail = detailOf(html, 'p1');
+  // Every full selector, each with a Copy button.
+  expect(detail).toContain('<code>#save</code>');
+  expect(detail).toContain('<code>form &gt; button:nth-child(2)</code>');
+  expect(detail.match(/<button type="button" class="copy" data-copy>Copy<\/button>/g)).toHaveLength(2);
+  expect(detail).toContain('Text is cut off.');
+  expect(detail).toContain('Let the button grow.');
+  expect(detail).toContain('href="#page-1-1"');
+  expect(detailOf(html, 'p2')).toContain('<code>#other</code>');
+  // The panel comes after the content, so the first image is a section thumbnail.
+  expect(html.indexOf('<aside class="panel"')).toBeGreaterThan(html.indexOf('<div class="shots">'));
+});
+
+test('the detail keeps the full text that the label clips', () => {
+  const text = `${'Long label '.repeat(10)}tail-word`;
+  const detail = detailOf(renderReport(makeRun([makeCheck({ issues: [makeIssue({ text })] })])), 'p1');
+  expect(detail).toContain('tail-word');
+});
+
+test('the CSS source of rtl/not-mirrored is shown', () => {
+  const source = { url: 'http://app.test/app.css', line: 12, column: 3, selector: '.nav a', property: 'margin-left', value: '8px', replacement: 'margin-inline-start: 8px' };
+  const html = renderReport(makeRun([makeCheck({ issues: [
+    makeIssue({ rule: 'rtl/not-mirrored', severity: 'warning', mode: 'pseudo-rtl', source }),
+    makeIssue({ rule: 'rtl/not-mirrored', severity: 'warning', mode: 'pseudo-rtl', text: 'Mapped', source: { ...source, original: { url: 'src/nav.css', line: 4, column: 1 } } }),
+  ] })]));
+  const plain = detailOf(html, 'p1');
+  expect(plain).toContain('http://app.test/app.css:12');
+  expect(plain).toContain('margin-left: 8px → margin-inline-start: 8px');
+  expect(plain).toContain('.nav a');
+  // A source-mapped origin wins over the built stylesheet.
+  const mapped = detailOf(html, 'p2');
+  expect(mapped).toContain('src/nav.css:4');
+  expect(mapped).not.toContain('app.css:12');
+  // Other rules have no source.
+  expect(detailOf(renderReport(makeRun([makeCheck()])), 'p1')).not.toContain('CSS source');
+});
+
+test('detail screenshots are capped at 6 with a +N note', () => {
+  const checks = Array.from({ length: 8 }, (_, i) => makeCheck({
+    testTitle: `test ${i}`,
+    issues: [makeIssue(), makeIssue({ text: 'Other', box: { x: 0, y: 0, width: 10, height: 10 } })],
+    screenshots: [{ mode: 'pseudo-long', viewport: { width: 1280, height: 800 }, path: `shots/${i}.png`, size: { width: 1000, height: 2000 } }],
+  }));
+  const html = renderReport(makeRun(checks));
+  const detail = detailOf(html, 'p1');
+  expect(detail.match(/<figure class="dshot"/g)).toHaveLength(6);
+  expect(detail).toContain('+2 more');
+  expect(detail).toContain('shots/5.png');
+  expect(detail).not.toContain('shots/6.png');
+  // Only this problem's boxes, at the same place as in the section.
+  expect(detail.match(/class="dbox /g)).toHaveLength(6);
+  expect(detail).toContain('left:10%;top:10%;width:5%;height:1%');
+  expect(detail).not.toContain('left:0%;top:0%');
+  expect(detail).toContain('loading="lazy"');
+  expect(detail).toMatch(/<img src="shots\/0\.png"/);
+});
+
+test('the detail lists where it was seen, with at most 8 test titles', () => {
+  const checks = Array.from({ length: 10 }, (_, i) => makeCheck({ testTitle: `title ${i}`, project: i % 2 ? 'webkit' : 'chromium' }));
+  const detail = detailOf(renderReport(makeRun(checks)), 'p1');
+  expect(detail).toContain('chromium, webkit');
+  expect(detail).toContain('1280×800');
+  expect(detail).toContain('title 7');
+  expect(detail).not.toContain('title 8');
+  expect(detail).toContain(' and 2 more');
 });
