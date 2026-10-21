@@ -68,6 +68,15 @@ test('pages in first-seen order; a shared origin is dropped from labels', () => 
   expect(mixed.pages.map(p => p.label)).toEqual(['http://app.test/a', 'http://app.test/b?lng=de', 'http://other.test/']);
 });
 
+test('projects come from the checks, first-seen, even when a project has no problems', () => {
+  const model = buildModel(makeRun([
+    makeCheck({ project: 'chromium', issues: [] }),
+    makeCheck({ project: 'firefox', issues: [makeIssue({ severity: 'warning', rule: 'overflow/ellipsis' })] }),
+    makeCheck({ project: 'webkit', issues: [makeIssue()] }),
+  ]));
+  expect(model.projects).toEqual(['chromium', 'firefox', 'webkit']);
+});
+
 test('a single page, hash and unparseable URLs', () => {
   expect(buildModel(makeRun([makeCheck({ url: 'http://app.test/a#top' })])).pages[0].label).toBe('/a#top');
   expect(buildModel(makeRun([makeCheck({ url: 'not a url' })])).pages[0].label).toBe('not a url');

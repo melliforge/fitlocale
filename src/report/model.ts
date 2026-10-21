@@ -72,7 +72,7 @@ export function buildModel(results: RunResults): ReportModel {
     const pageIndex = page ? pages.indexOf(page) : pages.length;
     for (const issue of check.issues ?? []) {
       if (issue.id !== undefined) {
-        // An issue id has no project in it, so the same issue in two projects is two occurrences.
+        // Ids already include the project; keying on it too only keeps hand-edited results with copied ids apart.
         const seen = JSON.stringify([check.project ?? '', issue.id]);
         if (seenIds.has(seen)) continue;
         seenIds.add(seen);
@@ -131,10 +131,10 @@ export function buildModel(results: RunResults): ReportModel {
   const matrix = new Map<string, Map<string, number>>();
   const locales: string[] = [];
   const projects: string[] = [];
+  for (const check of checks) if (check.project) push(projects, check.project);
   for (const problem of all) {
     bySeverity[problem.severity] = (bySeverity[problem.severity] ?? 0) + 1;
     push(locales, problem.locale);
-    for (const project of problem.projects) push(projects, project);
     const row = matrix.get(problem.locale) ?? new Map<string, number>();
     matrix.set(problem.locale, row);
     for (const project of new Set(problem.occurrences.map(o => o.check.project ?? ''))) {
