@@ -1,6 +1,14 @@
-import type { Issue, RunResults, Screenshot, Severity } from '../types';
+import type { RunResults, Severity } from '../types';
+import { elementLabel } from './label';
+import { buildModel } from './model';
+import type { Page, Problem, ReportModel, Section, Shot } from './model';
 
 const SEVERITIES: Severity[] = ['error', 'warning', 'info'];
+/** Section links per rule row in the summary, and test titles per page; the rest are counted. */
+const MAX_LINKS = 8;
+
+const capped = (items: string[]) =>
+  items.slice(0, MAX_LINKS).join(', ') + (items.length > MAX_LINKS ? ` and ${items.length - MAX_LINKS} more` : '');
 
 export function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -11,82 +19,176 @@ const esc = (v: unknown) => escapeHtml(String(v));
 
 const pct = (n: number, of: number) => `${+((n / of) * 100).toFixed(2)}%`;
 
-interface Group { mode: string; viewport: string; locale?: string; project?: string; issues: Issue[]; screenshot?: Screenshot }
+const acceptedClass = (accepted: boolean | undefined) => (accepted === true ? ' accepted' : '');
 
-function shot(group: Group): string {
-  const s = group.screenshot;
-  if (!s) return '';
-  const boxes = group.issues.map(i =>
-    `<div class="box ${esc(i.severity)}${i.baselined ? ' accepted' : ''}" title="${esc(`${i.rule} ${i.selector}`)}" style="left:${pct(i.box.x, s.size.width)};top:${pct(i.box.y, s.size.height)};width:${pct(i.box.width, s.size.width)};height:${pct(i.box.height, s.size.height)}"></div>`,
+/** Hand-edited results may lack `key` or `selector`; the label falls back instead of throwing. */
+const labelOf = (issue: Problem['issue']) =>
+  elementLabel({ key: String(issue.key ?? ''), selector: String(issue.selector ?? ''), text: issue.text, name: issue.name });
+
+function elementCell(problem: Problem): string {
+  const { label, kind, short } = labelOf(problem.issue);
+  const span = `<span class="label" dir="auto">${esc(label)}</span>`;
+  const code = kind === 'test-id' || kind === 'id' || kind === 'path';
+  const count = problem.selectors.length > 1 ? ` · ${problem.selectors.length} elements` : '';
+  const selectors = problem.selectors.map(s => `<code>${esc(s)}</code>`).join('');
+  return `${code ? `<code>${span}</code>` : span}<details class="sel"><summary>${code || !short ? 'selector' : esc(short)}${count}</summary>${selectors}</details>`;
+}
+
+function seenIn(problem: Problem): string {
+  const parts: string[] = [];
+  if (problem.projects.length) parts.push(problem.projects.map(esc).join(', '));
+  parts.push(problem.viewports.map(esc).join(', '));
+  if (problem.occurrences.length > 1) parts.push(`${problem.occurrences.length}×`);
+  return parts.join(' · ');
+}
+
+function row(problem: Problem): string {
+  const { issue } = problem;
+  const fix = issue.fix ? `<div class="fix">${esc(issue.fix)}</div>` : '';
+  return `<tr class="problem ${esc(problem.severity)}${acceptedClass(problem.accepted)}" id="${esc(problem.id)}" data-rule="${esc(problem.rule)}" data-locale="${esc(problem.locale)}" data-projects="${esc(JSON.stringify(problem.projects))}">`
+    + `<td><span class="sev">${esc(problem.severity)}</span>${problem.accepted ? ' <span class="tag">accepted</span>' : ''}</td>`
+    + `<td><code>${esc(problem.rule)}</code></td><td>${elementCell(problem)}</td><td class="seen">${seenIn(problem)}</td>`
+    + `<td>${esc(issue.message ?? '')}${fix}</td></tr>`;
+}
+
+function figure(section: Section, shot: Shot): string {
+  const s = shot.screenshot;
+  const boxes = shot.boxes.map(({ problem, issue }) =>
+    `<span class="box ${esc(issue.severity)}${acceptedClass(issue.baselined)}" data-problem="${esc(problem)}" title="${esc(`${issue.rule} · ${labelOf(issue).label}`)}" style="left:${pct(issue.box.x, s.size.width)};top:${pct(issue.box.y, s.size.height)};width:${pct(issue.box.width, s.size.width)};height:${pct(issue.box.height, s.size.height)}"></span>`,
   ).join('');
-  return `<div class="shot"><img src="${esc(s.path)}" alt="Screenshot, ${esc(group.mode)}">${boxes}</div>`;
+  // Known dimensions reserve the thumbnail's height before a lazy image loads.
+  const width = Number(s.size?.width), height = Number(s.size?.height);
+  const size = width > 0 && height > 0 ? ` width="${esc(width)}" height="${esc(height)}"` : '';
+  const caption = [shot.project, shot.viewport, shot.testTitle].filter(Boolean).map(esc).join(' · ');
+  return `<figure class="shot-wrap" data-project="${esc(shot.project ?? '')}"><button type="button" class="shot" aria-expanded="false"><span class="frame">`
+    + `<img src="${esc(s.path)}"${size} loading="lazy" decoding="async" alt="Screenshot, ${esc(section.label)} · ${esc(shot.viewport)}">${boxes}</span></button>`
+    + `<figcaption>${caption}</figcaption></figure>`;
 }
 
-function table(issues: Issue[]): string {
-  const rows = issues.map(i => `<tr class="${esc(i.severity)}${i.baselined ? ' accepted' : ''}">
-    <td><span class="sev">${esc(i.severity)}</span>${i.baselined ? ' <span class="tag">accepted</span>' : ''}</td><td><code>${esc(i.rule)}</code></td>
-    <td><code>${esc(i.selector)}</code></td><td>${esc(i.message)}</td>
-    <td>${esc(i.fix ?? '')}</td><td dir="auto">${esc(i.text)}</td></tr>`).join('');
-  return `<table><thead><tr><th>Severity</th><th>Rule</th><th>Element</th><th>Problem</th><th>Fix</th><th>Text</th></tr></thead><tbody>${rows}</tbody></table>`;
+function section(s: Section): string {
+  const shots = s.shots.length ? `<div class="shots">${s.shots.map(shot => figure(s, shot)).join('')}</div>` : '';
+  return `<details class="section" open id="${esc(s.id)}"><summary><h3>${esc(s.label)}</h3> <span class="count">${s.problems.length} problem(s)</span></summary>
+<div class="scroll"><table><thead><tr><th>Severity</th><th>Rule</th><th>Element</th><th>Seen in</th><th>Problem</th></tr></thead><tbody>
+${s.problems.map(row).join('\n')}
+</tbody></table></div>${shots}
+</details>
+`;
 }
 
-function sections(results: RunResults): string {
-  const byUrl = new Map<string, Group[]>();
-  for (const check of results.checks) {
-    const groups = byUrl.get(check.url) ?? [];
-    byUrl.set(check.url, groups);
-    const local = new Map<string, Group>();
-    for (const issue of check.issues) {
-      const viewport = `${issue.viewport.width}×${issue.viewport.height}`;
-      const id = `${issue.mode}|${viewport}|${issue.locale ?? ''}`;
-      if (!local.has(id)) {
-        const screenshot = check.screenshots.find(s =>
-          s.mode === issue.mode && s.viewport.width === issue.viewport.width && s.viewport.height === issue.viewport.height);
-        const group: Group = { mode: issue.mode, viewport, locale: issue.locale, project: check.project, issues: [], screenshot };
-        local.set(id, group);
-        groups.push(group);
-      }
-      local.get(id)!.issues.push(issue);
-    }
-  }
-  return [...byUrl].filter(([, groups]) => groups.length).map(([url, groups]) => `<section>
-    <h2>${esc(url)}</h2>
-    ${groups.map(g => `<h3>${esc(g.mode)} · ${esc(g.viewport)}${g.locale ? ` · ${esc(g.locale)}` : ''}${g.project ? ` · ${esc(g.project)}` : ''}</h3>${shot(g)}${table(g.issues)}`).join('')}
-  </section>`).join('');
+const problemsIn = (page: Page) => page.sections.reduce((n, s) => n + s.problems.length, 0);
+
+function page(p: Page): string {
+  const tests = p.tests.length ? `<p class="tests">${p.tests.length > 1 ? 'Tests' : 'Test'}: ${capped(p.tests.map(esc))}</p>\n` : '';
+  return `<details class="page" open id="${esc(p.id)}"><summary><h2>${esc(p.label)}</h2> <span class="count">${problemsIn(p)} problem(s)</span></summary>
+${tests}${p.sections.map(section).join('')}</details>
+`;
+}
+
+function summary(model: ReportModel): string {
+  const rules = model.rules.map(r => {
+    const links = capped(r.sections.map(s => `<a href="#${esc(s.id)}">${esc(s.label)}</a>`));
+    return `<tr class="${esc(r.severity)}"><td><span class="sev">${esc(r.severity)}</span></td>`
+      + `<td><button type="button" class="pick" data-pick-rule="${esc(r.rule)}"><code>${esc(r.rule)}</code></button></td>`
+      + `<td class="num">${r.problems}</td><td class="num">${r.occurrences}</td><td class="where">${links}</td></tr>`;
+  }).join('\n');
+
+  const unassigned = [...model.matrix.values()].some(m => m.has(''));
+  const columns = model.projects.length ? [...model.projects, ...(unassigned ? [''] : [])] : [''];
+  const heading = (project: string) => (project ? esc(project) : model.projects.length ? 'no project' : 'Problems');
+  const matrix = model.locales.map(locale => `<tr><th scope="row">${locale ? esc(locale) : '—'}</th>${columns.map(project => {
+    const n = model.matrix.get(locale)?.get(project) ?? 0;
+    return `<td class="num">${n ? `<button type="button" class="pick" data-pick-locale="${esc(locale)}" data-pick-project="${esc(project)}">${n}</button>` : '<span class="zero">0</span>'}</td>`;
+  }).join('')}</tr>`).join('\n');
+
+  const index = model.pages.map(p => `<li><a href="#${esc(p.id)}">${esc(p.label)}</a> <span class="count">${problemsIn(p)}</span></li>`).join('');
+
+  return `<section id="summary">
+<div class="block rules-block"><h2 class="kicker">By rule</h2><div class="scroll"><table class="rules"><thead><tr><th>Severity</th><th>Rule</th><th class="num">Problems</th><th class="num">Issues</th><th>Where</th></tr></thead><tbody>
+${rules}
+</tbody></table></div></div>
+<div class="block"><h2 class="kicker">By locale${model.projects.length ? ' and project' : ''}</h2><div class="scroll"><table class="matrix"><thead><tr><th>Locale</th>${columns.map(c => `<th class="num">${heading(c)}</th>`).join('')}</tr></thead><tbody>
+${matrix}
+</tbody></table></div></div>
+<div class="block"><h2 class="kicker">Pages</h2><ol class="index">${index}</ol></div>
+</section>
+`;
+}
+
+function filter(name: string, label: string, values: string[]): string {
+  if (values.length < 2) return '';
+  const options = values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  return `<label>${label} <select data-filter="${name}"><option value="">All</option>${options}</select></label>`;
+}
+
+function controls(model: ReportModel, accepted: number): string {
+  const toggles = SEVERITIES.map(s =>
+    `<label class="${s}"><input type="checkbox" checked data-sev="${s}"> ${model.bySeverity[s] ?? 0} ${s}</label>`).join('')
+    + (accepted ? `<label><input type="checkbox" checked data-sev="accepted"> ${accepted} accepted in the baseline</label>` : '');
+  const filters = filter('rule', 'Rule', model.rules.map(r => r.rule))
+    + filter('locale', 'Locale', model.locales.filter(Boolean))
+    + filter('project', 'Project', model.projects);
+  return `<div class="controls"><div class="toggles">${toggles}</div>
+<div class="filters">${filters}<button type="button" data-fold="open">Expand all</button><button type="button" data-fold="close">Collapse all</button><button type="button" data-clear>Clear filters</button></div></div>
+<p class="status" data-status></p>`;
 }
 
 /** A self-contained, offline HTML report. Screenshot paths are used as given (relative to the report). */
 export function renderReport(results: RunResults): string {
-  const total = SEVERITIES.reduce((n, s) => n + (Number(results.summary[s]) || 0), 0);
-  const body = results.checks.some(c => c.issues.length)
-    ? sections(results)
-    : '<p class="empty">No localization layout issues found.</p>';
-  const accepted = results.checks.reduce((n, c) => n + c.issues.filter(i => i.baselined).length, 0);
-  const toggles = SEVERITIES.map(s =>
-    `<label class="${s}"><input type="checkbox" checked data-sev="${s}"> ${esc(results.summary[s])} ${s}</label>`).join('')
-    + (accepted ? `<label><input type="checkbox" checked data-sev="accepted"> ${accepted} accepted in the baseline</label>` : '');
+  const model = buildModel(results);
+  const total = SEVERITIES.reduce((n, s) => n + (Number(results.summary?.[s]) || 0), 0);
+  const accepted = (results.checks ?? []).reduce((n, c) => n + (c.issues ?? []).filter(i => i.baselined).length, 0);
   const counts = accepted ? ` · ${total - accepted} new · ${accepted} accepted` : '';
+  const body = model.problems
+    ? `${controls(model, accepted)}\n${summary(model)}${model.pages.map(page).join('')}`
+    : '<p class="empty">No localization layout issues found.</p>';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>fitlocale report</title>
 <style>
-:root { --bg:#fff; --fg:#1d1d1f; --muted:#6e6e73; --line:#e5e5ea; --error:#d70015; --warning:#b25000; --info:#0060df; }
+:root { color-scheme:light dark; --bg:#fff; --fg:#1d1d1f; --muted:#6e6e73; --line:#e5e5ea; --error:#d70015; --warning:#b25000; --info:#0060df; }
 @media (prefers-color-scheme: dark) { :root { --bg:#161618; --fg:#f2f2f7; --muted:#a1a1a6; --line:#2c2c2e; --error:#ff6961; --warning:#ffb340; --info:#64a8ff; } }
-body { margin:0; padding:24px 16px; background:var(--bg); color:var(--fg); font:14px/1.5 system-ui, sans-serif; }
+body { margin:0; padding:24px 16px 48px; background:var(--bg); color:var(--fg); font:14px/1.5 system-ui, sans-serif; }
 main { max-width:1100px; margin:0 auto; }
-h1 { font-size:22px; margin:0 0 4px; } h2 { font-size:17px; margin:32px 0 8px; word-break:break-all; } h3 { font-size:14px; color:var(--muted); margin:20px 0 8px; }
-.meta { color:var(--muted); margin:0 0 16px; } .toggles { display:flex; gap:16px; flex-wrap:wrap; }
-.shot { position:relative; border:1px solid var(--line); max-width:100%; } .shot img { display:block; width:100%; height:auto; }
-.box { position:absolute; border:2px solid; box-sizing:border-box; box-shadow:0 0 0 1px #000, inset 0 0 0 1px #fff; } /* rings keep any colour visible on any background */ .box.error { border-color:var(--error); } .box.warning { border-color:var(--warning); } .box.info { border-color:var(--info); }
-table { width:100%; border-collapse:collapse; margin:8px 0 0; display:block; overflow-x:auto; } th, td { text-align:start; vertical-align:top; padding:6px 8px; border-bottom:1px solid var(--line); }
-.sev { font-weight:600; } tr.error .sev, label.error { color:var(--error); } tr.warning .sev, label.warning { color:var(--warning); } tr.info .sev, label.info { color:var(--info); }
-.hide-error .error, .hide-warning .warning, .hide-info .info, .hide-accepted .accepted { display:none; } .empty { font-size:16px; }
+h1 { font-size:22px; margin:0 0 4px; } h2 { font-size:17px; margin:10px 0; word-break:break-all; } h3 { font-size:14px; margin:14px 0 6px; }
+code { font:12.5px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+a { color:inherit; text-decoration-color:var(--line); text-underline-offset:3px; }
+.meta { color:var(--muted); margin:0 0 12px; }
+.controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px 32px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+.toggles, .filters { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; } .filters label { color:var(--muted); }
+button, select { font:inherit; font-size:13px; color:inherit; }
+button { background:none; border:1px solid var(--line); border-radius:6px; padding:2px 10px; cursor:pointer; }
+select { background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:2px 4px; max-width:16em; }
+.status { color:var(--muted); font-size:13px; margin:8px 0 0; } .status:empty { display:none; }
+#summary { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:16px 48px; margin:24px 0 32px; } .rules-block { grid-column:1 / -1; }
+.kicker { font-size:12px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin:0 0 4px; word-break:normal; }
+.pick { border:0; border-radius:0; padding:0; text-decoration:underline dotted var(--muted); text-underline-offset:3px; } .pick:hover { text-decoration-style:solid; }
+.where { color:var(--muted); font-size:13px; } .zero { color:var(--line); } .index { margin:0; padding-left:1.6em; } .index li { padding:2px 0; }
+.count { color:var(--muted); font-size:13px; font-weight:400; white-space:nowrap; }
+.scroll { overflow-x:auto; } .scroll > table:not(.matrix) { min-width:600px; }
+table { width:100%; border-collapse:collapse; } th, td { text-align:start; vertical-align:top; padding:6px 8px; border-bottom:1px solid var(--line); }
+thead th { color:var(--muted); font-size:12px; font-weight:500; } tbody th { font-weight:400; } .num { text-align:end; font-variant-numeric:tabular-nums; }
+.page { border-top:1px solid var(--line); margin-top:8px; } .section { margin:0 0 8px 20px; }
+.page > summary, .section > summary { display:flex; align-items:baseline; gap:10px; cursor:pointer; list-style:none; }
+.page > summary::-webkit-details-marker, .section > summary::-webkit-details-marker { display:none; }
+.page > summary::before, .section > summary::before { content:'▸'; width:10px; color:var(--muted); font-size:12px; }
+.page[open] > summary::before, .section[open] > summary::before { content:'▾'; }
+.tests { color:var(--muted); font-size:13px; margin:-6px 0 4px 20px; }
+.sev { font-weight:600; font-size:13px; } tr.error .sev, label.error { color:var(--error); } tr.warning .sev, label.warning { color:var(--warning); } tr.info .sev, label.info { color:var(--info); }
+.sel { margin-top:2px; } .sel summary { color:var(--muted); font-size:12px; cursor:pointer; } .sel code { display:block; color:var(--muted); font-size:12px; word-break:break-all; margin-top:2px; }
+.seen, .fix { color:var(--muted); font-size:13px; } .fix { margin-top:2px; }
+.shots { display:flex; flex-wrap:wrap; align-items:flex-start; gap:16px; margin:14px 0 8px; }
+.shot-wrap { width:240px; margin:0; } .shot-wrap.big { width:100%; }
+.shot { display:block; width:100%; max-height:360px; overflow:hidden; padding:0; border:1px solid var(--line); border-radius:4px; background:none; cursor:zoom-in; } .big .shot { max-height:none; cursor:zoom-out; }
+.frame { position:relative; display:block; } .frame img { display:block; width:100%; height:auto; }
+figcaption { color:var(--muted); font-size:12px; margin-top:4px; overflow-wrap:anywhere; }
+.box { display:block; position:absolute; border:2px solid; box-sizing:border-box; box-shadow:0 0 0 1px #000, inset 0 0 0 1px #fff; } /* rings keep any colour visible on any background */ .box.error { border-color:var(--error); } .box.warning { border-color:var(--warning); } .box.info { border-color:var(--info); }
+.hide-error tr.problem.error, .hide-error .box.error, .hide-warning tr.problem.warning, .hide-warning .box.warning, .hide-info tr.problem.info, .hide-info .box.info, .hide-accepted tr.problem.accepted, .hide-accepted .box.accepted { display:none; }
 .box.accepted { border-style:dashed; } tr.accepted td { opacity:.65; } .tag { font-size:12px; border:1px solid var(--line); border-radius:4px; padding:0 4px; color:var(--muted); }
+.empty { font-size:16px; }
 </style></head>
 <body><main>
 <h1>fitlocale report</h1>
-<p class="meta">${esc(total)} issue(s)${counts} · ${esc(results.createdAt)}</p>
-<div class="toggles">${toggles}</div>
+<p class="meta">${model.problems} problem(s) · ${esc(total)} issue(s)${counts} · ${esc(results.createdAt)}</p>
 ${body}
 </main>
 <script>
