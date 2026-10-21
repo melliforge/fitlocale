@@ -9,7 +9,7 @@ Run your Playwright tests as usual, then add the fitlocale step with `if: always
 
 ```yaml
 - run: npx playwright test
-- uses: melliforge/localization-layout-tester@v0
+- uses: melliforge/fitlocale@v0
   if: always()
 ```
 
@@ -31,7 +31,7 @@ With a fitlocale cloud plan, `upload: true` sends the report to fitlocale cloud.
 ```yaml
 permissions: { contents: read, id-token: write }
 # after the tests:
-- uses: melliforge/localization-layout-tester@v0
+- uses: melliforge/fitlocale@v0
   if: always()
   with: { upload: true }
 ```

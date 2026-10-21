@@ -1,12 +1,12 @@
 # fitlocale
 
-[![Tests](https://github.com/melliforge/localization-layout-tester/actions/workflows/ci.yml/badge.svg)](https://github.com/melliforge/localization-layout-tester/actions/workflows/ci.yml) [![npm](https://img.shields.io/npm/v/fitlocale)](https://www.npmjs.com/package/fitlocale) [![license: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Tests](https://github.com/melliforge/fitlocale/actions/workflows/ci.yml/badge.svg)](https://github.com/melliforge/fitlocale/actions/workflows/ci.yml) [![npm](https://img.shields.io/npm/v/fitlocale)](https://www.npmjs.com/package/fitlocale) [![license: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-**Docs:** [melliforge.github.io/localization-layout-tester](https://melliforge.github.io/localization-layout-tester/) · Guides: [RTL layout in Playwright](https://melliforge.github.io/localization-layout-tester/guides/rtl-testing-playwright) · [Text truncation in CI](https://melliforge.github.io/localization-layout-tester/guides/text-truncation-ci) · [Pseudo-localization with i18next](https://melliforge.github.io/localization-layout-tester/guides/pseudo-localization-i18next)
+**Docs:** [melliforge.github.io/fitlocale](https://melliforge.github.io/fitlocale/) · Guides: [RTL layout in Playwright](https://melliforge.github.io/fitlocale/guides/rtl-testing-playwright) · [Text truncation in CI](https://melliforge.github.io/fitlocale/guides/text-truncation-ci) · [Pseudo-localization with i18next](https://melliforge.github.io/fitlocale/guides/pseudo-localization-i18next)
 
 Catch layout bugs caused by translation before your users do. These are German labels cut off inside buttons, text spilling out of its box, translation keys showing on screen, the language silently switching back, and right-to-left (Arabic, Hebrew) layouts that never mirrored. fitlocale plugs into the Playwright tests you already have. It needs no approved screenshots and no translations yet, and it uses no AI guesses: every issue comes from a measured rule.
 
-![fitlocale report: filters and pages in the sidebar, a list of problems with one selected, and a panel with that problem's selector, CSS source and where it was seen](https://melliforge.github.io/localization-layout-tester/report.png)
+![fitlocale report: filters and pages in the sidebar, a list of problems with one selected, and a panel with that problem's selector, CSS source and where it was seen](https://melliforge.github.io/fitlocale/report.png)
 
 *A report with one problem open: its row is selected in the list, and the panel beside it gives the selector with a Copy button, the CSS line to change (`left: 16px` → `inset-inline-start: 16px`), where it was seen and its screenshots. Press j and k to move between problems.*
 
@@ -225,7 +225,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test
-      - uses: melliforge/localization-layout-tester@v0
+      - uses: melliforge/fitlocale@v0
         if: always()
 ```
 
@@ -238,7 +238,7 @@ jobs:
 
 The step never fails the job. Your test step already did, if there were new issues. In a matrix or with shards, give each job its own `artifact-name` (for example `fitlocale-report-${{ matrix.shardIndex }}`): an artifact name can be used once per workflow run.
 
-With a fitlocale cloud plan, `with: { upload: true }` also posts one pull request comment with a crop of each new issue, and links a hosted report. It needs `permissions: id-token: write` and no secret. Screenshots, crops and `results.json` are uploaded: `mask` paints over customer data in the images, and `ignore` keeps an element's text out of the results. See the [Action reference](https://melliforge.github.io/localization-layout-tester/reference/github-action#upload).
+With a fitlocale cloud plan, `with: { upload: true }` also posts one pull request comment with a crop of each new issue, and links a hosted report. It needs `permissions: id-token: write` and no secret. Screenshots, crops and `results.json` are uploaded: `mask` paints over customer data in the images, and `ignore` keeps an element's text out of the results. See the [Action reference](https://melliforge.github.io/fitlocale/reference/github-action#upload).
 
 ## CLI
 

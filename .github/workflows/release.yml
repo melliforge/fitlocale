@@ -119,7 +119,7 @@ jobs:
               --title "$PKG_NAME $VERSION" --notes-file release-notes.md --verify-tag $PRERELEASE
           fi
 
-      # Workflows can use the Action as melliforge/localization-layout-tester@v0: point that tag at this release.
+      # Workflows can use the Action as melliforge/fitlocale@v0: point that tag at this release.
       - name: Move the major tag (v0) to this release
         if: env.NPM_TAG == 'latest'
         # The release is done by now: a refused tag push must not turn it red.

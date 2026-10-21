@@ -19,13 +19,13 @@
     "visual-testing",
     "ci"
   ],
-  "homepage": "https://melliforge.github.io/localization-layout-tester/",
+  "homepage": "https://melliforge.github.io/fitlocale/",
   "bugs": {
-    "url": "https://github.com/melliforge/localization-layout-tester/issues"
+    "url": "https://github.com/melliforge/fitlocale/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/melliforge/localization-layout-tester.git"
+    "url": "git+https://github.com/melliforge/fitlocale.git"
   },
   "author": "melliforge",
   "type": "module",

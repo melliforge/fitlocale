@@ -13,6 +13,10 @@ Each section becomes the notes of the matching GitHub Release.
 - `fitlocale upload <report-dir>`: sends a report to fitlocale cloud from GitHub Actions, signing in with the job's OIDC token. It never fails the job: without a token, plan or answer it prints one line and exits 0.
 - The Action's `upload` and `upload-url` inputs run `fitlocale upload` after the summary. The fitlocale cloud service itself is not live yet.
 
+### Changed
+
+- The repository is now `melliforge/fitlocale` (it was `melliforge/localization-layout-tester`), and the docs moved to https://melliforge.github.io/fitlocale/. Workflows that still say `uses: melliforge/localization-layout-tester@v0` keep working through GitHub's redirect; switch them to `melliforge/fitlocale@v0`.
+
 ### Fixed
 
 - In Chromium, on a right-to-left page wider than the window, the report drew each issue's box in the wrong place on the screenshot, since Chromium's full-page screenshot starts at the page's leftmost overflow. Screenshots now record that offset as `origin`.
@@ -106,7 +110,7 @@ Found by running fitlocale on two real apps, Excalidraw and Elk:
 - Baseline file (`fitlocale-baseline.json`, `baseline` option): accepted issues stay in the report but no longer fail tests; only new issues do.
 - `fitlocale baseline` writes the baseline from one or more `results.json` files (one per shard).
 - `fitlocale summary` prints a Markdown summary of the new issues, for CI job summaries.
-- GitHub Action (`uses: melliforge/localization-layout-tester@v0.3.0`): writes the summary to the job summary and uploads the HTML report.
+- GitHub Action (`uses: melliforge/fitlocale@v0.3.0`): writes the summary to the job summary and uploads the HTML report.
 - Every issue in `results.json` has a stable `id`, and accepted ones are marked `baselined`.
 - Right-to-left checks:
   - `rtl/icon-not-mirrored`: arrows and chevrons that did not flip;
@@ -176,13 +180,13 @@ First public release.
 - CLI: `fitlocale pseudo` writes pseudo-locale message files, and `fitlocale report` re-renders a report.
 - CommonJS and ESM builds with TypeScript types.
 
-[Unreleased]: https://github.com/melliforge/localization-layout-tester/compare/v0.4.3...HEAD
-[0.4.3]: https://github.com/melliforge/localization-layout-tester/compare/v0.4.2...v0.4.3
-[0.4.2]: https://github.com/melliforge/localization-layout-tester/compare/v0.4.1...v0.4.2
-[0.4.1]: https://github.com/melliforge/localization-layout-tester/compare/v0.4.0...v0.4.1
-[0.4.0]: https://github.com/melliforge/localization-layout-tester/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/melliforge/localization-layout-tester/compare/v0.2.1...v0.3.0
-[0.2.1]: https://github.com/melliforge/localization-layout-tester/compare/v0.2.0...v0.2.1
-[0.2.0]: https://github.com/melliforge/localization-layout-tester/compare/v0.1.1...v0.2.0
-[0.1.1]: https://github.com/melliforge/localization-layout-tester/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/melliforge/localization-layout-tester/releases/tag/v0.1.0
+[Unreleased]: https://github.com/melliforge/fitlocale/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/melliforge/fitlocale/compare/v0.4.2...v0.4.3
+[0.4.2]: https://github.com/melliforge/fitlocale/compare/v0.4.1...v0.4.2
+[0.4.1]: https://github.com/melliforge/fitlocale/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/melliforge/fitlocale/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/melliforge/fitlocale/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/melliforge/fitlocale/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/melliforge/fitlocale/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/melliforge/fitlocale/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/melliforge/fitlocale/releases/tag/v0.1.0

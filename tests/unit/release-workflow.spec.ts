@@ -18,15 +18,15 @@ test('each stable release moves the major tag (v0) after the GitHub Release', ()
 test('docs and examples use the Action through its major tag', () => {
   for (const file of ['README.md', 'examples/github-workflow.yml', ...docsPages()]) {
     const text = read(file);
-    expect(text, file).not.toMatch(/localization-layout-tester@v\d+\.\d+\.\d+/);
+    expect(text, file).not.toMatch(/fitlocale@v\d+\.\d+\.\d+/);
   }
-  expect(read('README.md')).toContain('melliforge/localization-layout-tester@v0');
-  expect(read('examples/github-workflow.yml')).toContain('melliforge/localization-layout-tester@v0');
+  expect(read('README.md')).toContain('melliforge/fitlocale@v0');
+  expect(read('examples/github-workflow.yml')).toContain('melliforge/fitlocale@v0');
 });
 
 test('the README shows the report, and says which part it shows', () => {
   const readme = read('README.md');
-  expect(readme).toContain('](https://melliforge.github.io/localization-layout-tester/report.png)');
+  expect(readme).toContain('](https://melliforge.github.io/fitlocale/report.png)');
   // The image is one view of a report, not the whole of it: say which.
   for (const page of [readme, read('docs/index.md')]) expect(page).toContain('*A report with one problem open');
 });
