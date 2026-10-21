@@ -113,6 +113,7 @@ export const SCRIPT = String.raw`(function () {
       var inProject = !project || fig.getAttribute('data-project') === project;
       fig.hidden = !(inProject && fig.querySelector('.box:not([hidden])'));
     });
+    all('.shots').forEach(capStrip);
     all('details.section, details.page').forEach(function (el) { el.hidden = !el.querySelector('tr.problem:not([hidden])'); });
     syncSidebar();
     var status = document.querySelector('[data-status]');
@@ -120,6 +121,33 @@ export const SCRIPT = String.raw`(function () {
     // Sections shown or hidden below the window move no intersection: the mark is checked here too.
     if (spyUpdate) spyUpdate();
   }
+
+  /* ---------- Thumbnail strips: the first few, and a control for the rest ---------- */
+
+  var STRIP_CAP = 6;
+  /** The first STRIP_CAP thumbnails the filters leave stay; the others are marked, and hidden until the strip is expanded. */
+  function capStrip(strip) {
+    var button = strip.querySelector('.shots-toggle');
+    var left = all('figure.shot-wrap', strip).filter(function (fig) { return !fig.hidden; });
+    all('figure.shot-wrap', strip).forEach(function (fig) { fig.removeAttribute('data-over'); });
+    left.slice(STRIP_CAP).forEach(function (fig) { fig.setAttribute('data-over', ''); });
+    if (!button) return;
+    var open = strip.classList.contains('all');
+    button.hidden = left.length <= STRIP_CAP;
+    button.setAttribute('aria-expanded', String(open));
+    button.textContent = open ? 'Show fewer' : 'Show all ' + left.length + ' screenshots';
+  }
+  all('.shots').forEach(function (strip) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'link-btn shots-toggle';
+    button.hidden = true;
+    button.addEventListener('click', function () {
+      strip.classList.toggle('all');
+      capStrip(strip);
+    });
+    strip.appendChild(button);
+  });
 
   /** Sidebar entries follow the filters: hidden with their section, counting what is shown. */
   function syncSidebar() {
@@ -310,6 +338,7 @@ export const SCRIPT = String.raw`(function () {
       copy.className = 'dshot';
       copy.hidden = false;
       copy.removeAttribute('data-project');
+      copy.removeAttribute('data-over');
       all('.box', frame).forEach(function (box) {
         if (box.getAttribute('data-problem') !== id) { frame.removeChild(box); return; }
         box.className = box.className.replace(/^box\b/, 'dbox');

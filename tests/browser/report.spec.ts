@@ -835,6 +835,70 @@ test('detail screenshots show even when a filter hides the section figure', asyn
   await expect(detail(page, 'p1').locator('.dbox:visible')).toHaveCount(2);
 });
 
+/** `n` checks of one project, each with one screenshot of the same problem: one section with `n` thumbnails. */
+const strip = (n: number, project = 'chromium') => Array.from({ length: n }, (_, i) =>
+  makeCheck({ project, testTitle: `${project} ${i}`, issues: [makeIssue()], screenshots: [shot()] }));
+const thumbnails = (page: Page) => page.locator('#page-1-1 .shots figure.shot-wrap');
+const showAll = (page: Page) => page.locator('#page-1-1 .shots .shots-toggle');
+
+test('a long thumbnail strip shows the first 6 and a control for the rest', async ({ page }) => {
+  await open(page, strip(10));
+  await expect(thumbnails(page)).toHaveCount(10);
+  await expect(thumbnails(page).filter({ visible: true })).toHaveCount(6);
+  await expect(thumbnails(page).nth(5)).toBeVisible();
+  await expect(thumbnails(page).nth(6)).toBeHidden();
+  await expect(showAll(page)).toHaveText('Show all 10 screenshots');
+  await expect(showAll(page)).toHaveAttribute('aria-expanded', 'false');
+
+  await showAll(page).click();
+  await expect(thumbnails(page).filter({ visible: true })).toHaveCount(10);
+  await expect(showAll(page)).toHaveText('Show fewer');
+  await expect(showAll(page)).toHaveAttribute('aria-expanded', 'true');
+
+  await showAll(page).click();
+  await expect(thumbnails(page).filter({ visible: true })).toHaveCount(6);
+  await expect(showAll(page)).toHaveText('Show all 10 screenshots');
+});
+
+test('a strip of 6 or fewer has no control', async ({ page }) => {
+  await open(page, strip(6));
+  await expect(thumbnails(page).filter({ visible: true })).toHaveCount(6);
+  await expect(page.locator('.shots-toggle:visible')).toHaveCount(0);
+});
+
+test('the cap counts the thumbnails a filter leaves, not the hidden ones', async ({ page }) => {
+  await open(page, [...strip(8, 'chromium'), ...strip(8, 'webkit')]);
+  await expect(showAll(page)).toHaveText('Show all 16 screenshots');
+  await filter(page, 'project').selectOption('webkit');
+  await expect(thumbnails(page).filter({ visible: true })).toHaveCount(6);
+  await expect(thumbnails(page).filter({ visible: true }).first()).toHaveAttribute('data-project', 'webkit');
+  await expect(showAll(page)).toHaveText('Show all 8 screenshots');
+  // Fewer than 7 left: nothing to expand.
+  await open(page, [...strip(8, 'chromium'), ...strip(3, 'webkit')]);
+  await filter(page, 'project').selectOption('webkit');
+  await expect(thumbnails(page).filter({ visible: true })).toHaveCount(3);
+  await expect(showAll(page)).toBeHidden();
+});
+
+test('a thumbnail past the cap still feeds the detail panel', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, strip(10));
+  await page.locator('#p1 td').last().click();
+  await expect(detail(page, 'p1').locator('.dshot:visible')).toHaveCount(6);
+  await expect(detail(page, 'p1').locator('.d-block .more')).toHaveText('+4 more in the section');
+  await expect(detail(page, 'p1').locator('[data-over]')).toHaveCount(0);
+});
+
+test.describe('the thumbnail strip without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('shows every thumbnail and no dead control', async ({ page }) => {
+    await open(page, strip(10));
+    await expect(thumbnails(page).filter({ visible: true })).toHaveCount(10);
+    await expect(page.locator('.shots-toggle')).toHaveCount(0);
+  });
+});
+
 test.describe('the panel without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 

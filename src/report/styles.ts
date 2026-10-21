@@ -209,6 +209,9 @@ summary > h2, summary > h3 { min-width:0; }
 .shot { display:block; width:100%; padding:0; border:1px solid var(--divider); border-radius:8px; background:var(--bg-soft); cursor:default; }
 /* Cropping and zoom need the script; without it the whole screenshot stays reachable. */
 .js .shot { max-height:360px; overflow:hidden; cursor:zoom-in; transition:border-color .25s; } .js .shot:hover { border-color:var(--border); } .js .big .shot { max-height:none; cursor:zoom-out; }
+/* A long strip shows its first thumbnails; the script marks the rest and adds the control, so without it all are shown. */
+.shots:not(.all) [data-over] { display:none; }
+.shots-toggle { align-self:center; padding:6px 4px; font-size:13px; }
 .frame { position:relative; display:block; } .frame img { display:block; width:100%; height:auto; }
 figcaption { margin-top:6px; color:var(--text-2); font-size:12px; overflow-wrap:anywhere; }
 .box, .dbox { display:block; position:absolute; border:2px solid; box-shadow:0 0 0 1px #000, inset 0 0 0 1px #fff; } /* rings keep any colour visible on any background */
