@@ -10,7 +10,7 @@ import { openDevtools, type Devtools } from './devtools/session';
 import { attachCssSources } from './devtools/css-pointer';
 import { findFontFallback } from './devtools/fonts';
 import { subtractSource } from './rules/noise';
-import { resolveSelectors } from './selectors';
+import { nameIssues, resolveSelectors } from './selectors';
 import { findUntranslated, sourceMatcher, type SourceMatcher } from './rules/untranslated';
 import {
   FIXES, LOCALE_NOT_REFLECTED_MESSAGE, MESSAGES, SEVERITY, type CheckResult, type Issue, type Mode, type RawIssue, type Screenshot, type Viewport,
@@ -200,8 +200,14 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
     return subtractSource(asIs, approx);
   };
 
+  let named = 0;
   try {
     for (const [index, viewport] of viewports.entries()) {
+      // The page still shows the previous viewport here: name its issues before resizing.
+      if (index > 0) {
+        await nameIssues(page, issues.slice(named));
+        named = issues.length;
+      }
       if (options.viewports !== 'current') {
         await page.setViewportSize(viewport);
         // Responsive apps draw their layout for the new size a frame or two later: measure that one.
@@ -343,6 +349,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
         }
       }
     }
+    await nameIssues(page, issues.slice(named));
   } finally {
     if (options.viewports !== 'current') await page.setViewportSize(original);
     if (devtools) await devtools.close();

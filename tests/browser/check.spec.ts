@@ -167,6 +167,24 @@ test.describe('a page that redraws after a resize', () => {
   });
 });
 
+test.describe('issues in two viewports', () => {
+  test.use({ fitlocale: { viewports: [{ width: 1280, height: 800 }, { width: 390, height: 844 }], failOn: 'never' } });
+
+  test('each viewport\'s issues are named from that viewport\'s page', async ({ page, localeCheck }) => {
+    const BADGE_STYLE = 'style="position:absolute;left:16px">New</div>';
+    await page.setContent(`<div id=wrap></div><script>
+      const draw = () => { wrap.innerHTML = innerWidth < 600
+        ? '<div aria-label="Phone badge" ${BADGE_STYLE}'
+        : '<div aria-label="Desktop badge" ${BADGE_STYLE}'; };
+      draw();
+      addEventListener('resize', () => requestAnimationFrame(() => requestAnimationFrame(draw)));
+    </script>`);
+    const result = await localeCheck();
+    const named = result.issues.filter(i => i.rule === 'rtl/not-mirrored');
+    expect(Object.fromEntries(named.map(i => [i.viewport.width, i.name]))).toEqual({ 1280: 'Desktop badge', 390: 'Phone badge' });
+  });
+});
+
 test.describe('two viewports on an RTL page', () => {
   test.use({ fitlocale: { viewports: [{ width: 1280, height: 800 }, { width: 390, height: 844 }], failOn: 'never' } });
 

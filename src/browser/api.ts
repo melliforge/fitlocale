@@ -12,6 +12,8 @@ export interface FitlocaleBrowserApi {
   assignKeys(testIdAttribute?: string): void;
   /** The key of an element, also one inside an open shadow root or a same-origin frame. */
   keyFor(el: Element): string;
+  /** The accessible name (aria-label, aria-labelledby, alt, title or placeholder) of each key's element; null when it has none or is gone. */
+  namesFor(keys: string[]): Array<string | null>;
   /** Did the last assignKeys() meet an open shadow root or a readable frame? */
   hasComposed(): boolean;
   /** Rewrite visible text nodes into pseudo-long text. Returns the number of nodes rewritten. */

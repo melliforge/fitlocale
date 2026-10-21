@@ -1,5 +1,5 @@
 import type { FitlocaleBrowserApi } from './api';
-import { assignKeys, hasComposed, keyOf, withLayoutCache } from './dom';
+import { accessibleName, assignKeys, elementAt, hasComposed, keyOf, withLayoutCache } from './dom';
 import { documentDir, replaceText, restoreText, rewriteText, setDir, unpseudoText, visibleTexts } from './rewrite';
 import { contentDir, findCanvases, fontSamples, scanLeaks, snapshotBoxes } from './boxes';
 import { findOverflow } from './overflow';
@@ -18,6 +18,10 @@ const api: FitlocaleBrowserApi = {
   version: '0.1.0',
   assignKeys,
   keyFor: keyOf,
+  namesFor: keys => keys.map(k => {
+    const el = elementAt(k);
+    return (el && accessibleName(el)) || null;
+  }),
   hasComposed,
   rewriteText,
   unpseudoText,
