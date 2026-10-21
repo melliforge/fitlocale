@@ -132,3 +132,21 @@ test('reporter counts accepted issues', async () => {
   expect(text).toContain('fitlocale: 2 errors, 0 warnings, 0 info (1 accepted in the baseline) →');
   expect(text).not.toContain('no baseline file yet');
 });
+
+test('the reporter copies crops and rewrites their paths', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fitlocale-'));
+  const crop = join(dir, 'crop.png');
+  writeFileSync(crop, 'png');
+  const check = makeCheck({
+    issues: [makeIssue({ crop }), makeIssue({ crop: join(dir, 'deleted.png') })],
+    screenshots: [],
+  });
+  const out = join(dir, 'report');
+  const reporter = new FitlocaleReporter({ outputDir: out });
+  reporter.onTestEnd({ id: 't' } as TestCase, attempt(check));
+  await reporter.onEnd();
+  const [kept, lost] = (JSON.parse(readFileSync(join(out, 'results.json'), 'utf8')) as RunResults).checks[0].issues;
+  expect(kept.crop).toMatch(/^screenshots\/[0-9a-f]{12}\.png$/);
+  expect(existsSync(join(out, kept.crop!))).toBe(true);
+  expect(lost).not.toHaveProperty('crop');
+});

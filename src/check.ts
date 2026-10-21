@@ -13,7 +13,7 @@ import { subtractSource } from './rules/noise';
 import { nameIssues, resolveSelectors } from './selectors';
 import { findUntranslated, sourceMatcher, type SourceMatcher } from './rules/untranslated';
 import {
-  FIXES, LOCALE_NOT_REFLECTED_MESSAGE, MESSAGES, SEVERITY, type CheckResult, type Issue, type Mode, type RawIssue, type Screenshot, type Viewport,
+  FIXES, LOCALE_NOT_REFLECTED_MESSAGE, MESSAGES, SEVERITY, type Box, type CheckResult, type Issue, type Mode, type RawIssue, type Screenshot, type Viewport,
 } from './types';
 import type { FitlocaleBrowserApi } from './browser/api';
 
@@ -117,6 +117,23 @@ export async function maskLocators(page: Page, mask: string[]): Promise<Locator[
   return locators;
 }
 
+/** Crops per check, so a page with hundreds of issues does not take hundreds of screenshots. */
+export const CROPS_PER_CHECK = 20;
+/** CSS pixels of context around an issue's box in its crop. */
+export const CROP_PADDING = 24;
+
+/** The issue's box grown by the padding and clamped to the document, at least 1×1. */
+function cropClip(box: Box, doc: { width: number; height: number }): Box {
+  const x = Math.max(0, Math.floor(box.x - CROP_PADDING));
+  const y = Math.max(0, Math.floor(box.y - CROP_PADDING));
+  const right = Math.min(doc.width, Math.ceil(box.x + box.width + CROP_PADDING));
+  const bottom = Math.min(doc.height, Math.ceil(box.y + box.height + CROP_PADDING));
+  return {
+    x: Math.min(x, Math.max(0, doc.width - 1)), y: Math.min(y, Math.max(0, doc.height - 1)),
+    width: Math.max(1, right - x), height: Math.max(1, bottom - y),
+  };
+}
+
 const CONTEXT_DESTROYED = /Execution context was destroyed/;
 
 /** Run a check; a navigation part-way through gets one clear error instead of whatever call it broke. */
@@ -171,14 +188,28 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
   const shot = new Set<string>();
   // Validated up front, so a mistyped selector fails the first check rather than the first one with an issue.
   const mask = options.screenshots ? await maskLocators(page, options.mask) : [];
-  const shoot = async (mode: Mode, viewport: Viewport) => {
-    const id = `${mode}-${viewport.width}x${viewport.height}`;
-    if (!options.screenshots || shot.has(id)) return;
-    shot.add(id);
-    const path = testInfo.outputPath(`fitlocale-${checkIndex}-${mode}-${viewport.width}x${viewport.height}.png`);
+  let crops = 0;
+  /** A full-page screenshot of this mode and viewport (once), and a crop around each of `found`, while the page still shows them. */
+  const shoot = async (mode: Mode, viewport: Viewport, found: Issue[]) => {
+    if (!options.screenshots || !found.length) return;
     const size = await page.evaluate(() => (window as unknown as Api).__fitlocale.documentSize());
-    await page.screenshot({ fullPage: true, path, mask });
-    screenshots.push({ mode, viewport, path, size });
+    const id = `${mode}-${viewport.width}x${viewport.height}`;
+    if (!shot.has(id)) {
+      shot.add(id);
+      const path = testInfo.outputPath(`fitlocale-${checkIndex}-${mode}-${viewport.width}x${viewport.height}.png`);
+      await page.screenshot({ fullPage: true, path, mask });
+      screenshots.push({ mode, viewport, path, size });
+    }
+    for (const issue of found) {
+      if (crops >= CROPS_PER_CHECK) break;
+      const path = testInfo.outputPath(`fitlocale-${checkIndex}-crop-${crops++}.png`);
+      try {
+        await page.screenshot({ fullPage: true, clip: cropClip(issue.box, size), path, mask });
+        issue.crop = path;
+      } catch {
+        // A crop is a convenience: an engine refusing this clip leaves the issue without one.
+      }
+    }
   };
 
   // Checked first: a pseudo locale such as en-XA shares its language with the source.
@@ -280,7 +311,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
           const dt = await getDevtools();
           if (dt) sourceIssues.push(...enrich(await findFontFallback(page, dt, options.ignore), 'source', viewport));
         }
-        if (sourceIssues.length) await shoot('source', viewport);
+        await shoot('source', viewport, sourceIssues);
         issues.push(...sourceIssues);
       }
 
@@ -300,7 +331,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
             await page.evaluate(([r, ig]) => (window as unknown as Api).__fitlocale.replaceText(r, ig), [replacements, options.ignore] as const) > 0);
           found = enrich(raw, 'source', viewport);
         }
-        if (found.length) await shoot('source', viewport);
+        await shoot('source', viewport, found);
         issues.push(...found);
       }
 
@@ -310,8 +341,9 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
         // The text is already long: compare the page as it is with an approximation of its source text.
         const found = await overflowAgainst(async () =>
           await page.evaluate(ig => (window as unknown as Api).__fitlocale.unpseudoText(ig), options.ignore) > 0);
-        if (found.length) await shoot('source', viewport);
-        issues.push(...enrich(found, 'source', viewport));
+        const enriched = enrich(found, 'source', viewport);
+        await shoot('source', viewport, enriched);
+        issues.push(...enriched);
       }
 
       if (isSource && options.modes.includes('pseudo-long')) {
@@ -323,8 +355,9 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
             await page.evaluate(ig => (window as unknown as Api).__fitlocale.findOverflow(ig), options.ignore),
             sourceOverflow,
           );
-          if (found.length) await shoot('pseudo-long', viewport);
-          issues.push(...enrich(found, 'pseudo-long', viewport));
+          const enriched = enrich(found, 'pseudo-long', viewport);
+          await shoot('pseudo-long', viewport, enriched);
+          issues.push(...enriched);
         } finally {
           await page.evaluate(() => (window as unknown as Api).__fitlocale.restoreText());
         }
@@ -353,8 +386,8 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
             // Canvases do not depend on the viewport: list them once per check.
             ...(index === 0 ? await page.evaluate(ig => (window as unknown as Api).__fitlocale.findCanvases(ig), options.ignore) : []),
           ];
-          if (found.length) await shoot('pseudo-rtl', viewport);
           rtlIssues = enrich(found, 'pseudo-rtl', viewport);
+          await shoot('pseudo-rtl', viewport, rtlIssues);
           issues.push(...rtlIssues);
         } finally {
           await page.evaluate(() => (window as unknown as Api).__fitlocale.setDir(null));

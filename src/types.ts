@@ -72,6 +72,8 @@ export interface Issue extends RawIssue {
   fails?: boolean;
   /** For `rtl/not-mirrored`: the CSS declaration responsible (Chromium). */
   source?: CssSource;
+  /** A small screenshot around the issue (at most 20 per check): a PNG path, relative to results.json once reported. */
+  crop?: string;
 }
 
 export interface Screenshot { mode: Mode; viewport: Viewport; path: string; size: { width: number; height: number } }

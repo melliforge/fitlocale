@@ -49,6 +49,7 @@ interface Issue {
     property: string; value: string; replacement: string;
     original?: { url: string; line: number; column: number }; // through source maps
   };
+  crop?: string;                           // a small screenshot around the issue (at most 20 per check), relative to results.json
 }
 ```
 
