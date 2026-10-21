@@ -364,6 +364,14 @@ test('search filters by free text and tokens', async ({ page }) => {
   await search.fill('locale:ar');
   await expect(visible()).toHaveCount(1);
 
+  // An unterminated quote runs to the end of the query.
+  await search.fill('project:"webk');
+  await expect(visible()).toHaveCount(1);
+  await expect(visible()).toContainText('Old');
+  await search.fill('"cart.em');
+  await expect(visible()).toHaveCount(1);
+  await expect(visible()).toContainText('cart.empty');
+
   // Tokens and the selects combine (AND).
   await search.fill('rule:leak');
   await expect(visible()).toHaveCount(2);
@@ -394,6 +402,20 @@ test('the sidebar highlights the section in view', async ({ page }) => {
   await expect(link('summary')).not.toHaveAttribute('aria-current', 'true');
 });
 
+test('the sidebar marks the last section once the page is scrolled to the bottom', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  const locales = ['de', 'fr', 'ar', 'ja'];
+  await open(page, [
+    check('chromium', locales.map(locale => makeIssue({ locale, text: `Text ${locale}` }))),
+    // A short last section: no screenshot, one row.
+    makeCheck({ project: 'chromium', url: 'http://app.test/z', issues: [makeIssue({ url: 'http://app.test/z', locale: 'pl', text: 'Last' })], screenshots: [] }),
+  ]);
+  const last = page.locator('nav.sidebar a[href="#page-2-1"]');
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await expect(last).toHaveAttribute('aria-current', 'true');
+  await expect(page.locator('nav.sidebar [aria-current]')).toHaveCount(1);
+});
+
 test('the sidebar hides sections that the filters hide', async ({ page }) => {
   await open(page, THREE);
   await filter(page, 'locale').selectOption('de');
@@ -414,6 +436,7 @@ test.describe('at 390px', () => {
     await button.click();
     await expect(sidebar).toBeVisible();
     await expect(button).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('nav.sidebar [data-sev="error"]')).toBeFocused();
     await filter(page, 'locale').selectOption('ar');
     await expect(rows(page).filter({ visible: true })).toHaveCount(1);
 
@@ -426,6 +449,19 @@ test.describe('at 390px', () => {
     await page.locator('nav.sidebar a[href="#page-1-2"]').click();
     await expect(sidebar).toBeHidden();
     await expect(page.locator('#page-1-2')).toBeInViewport();
+  });
+
+  test('the by-rule table fits without sideways scrolling', async ({ page }) => {
+    await open(page, [...THREE, check('chromium', [makeIssue({ rule: 'i18n/untranslated', locale: 'de-DE', text: 'Hallo' })])]);
+    const card = page.locator('table.rules').locator('xpath=..');
+    const overflow = await card.evaluate(el => el.scrollWidth - el.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+    // Each row stays compact: the section links sit under the rule, across the card, not in a narrow column.
+    const table = (await page.locator('table.rules').boundingBox())!;
+    for (const where of await page.locator('table.rules td.where').all()) {
+      const box = (await where.boundingBox())!;
+      expect(box.width).toBeGreaterThan(table.width * 0.8);
+    }
   });
 
   test('no horizontal page scroll', async ({ page }) => {

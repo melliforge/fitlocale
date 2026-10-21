@@ -111,7 +111,7 @@ main { min-width:0; }
 .tree a[aria-current="true"] { color:var(--brand); font-weight:500; }
 .tree .t { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .tree .pg > a { color:var(--text-1); font-weight:500; }
-.tree .pg > a[aria-current="true"] { color:var(--brand); }
+.tree .pg > a[aria-current="true"] { color:var(--brand); } /* the Overview link, a top-level entry */
 .tree .n { flex:none; color:var(--text-3); font-size:12px; font-weight:400; font-variant-numeric:tabular-nums; }
 
 /* Overview */
@@ -195,11 +195,10 @@ figcaption { margin-top:6px; color:var(--text-2); font-size:12px; overflow-wrap:
   .js .drawer-btn { display:inline-flex; }
   .search input:placeholder-shown + .hint { display:none; }
   .js .sidebar { position:fixed; z-index:30; top:var(--nav); bottom:0; left:0; width:min(320px, 86vw); height:auto; overflow-y:auto; padding:8px 24px 48px; box-shadow:var(--shadow); transform:translateX(-100%); visibility:hidden; transition:transform .25s ease, visibility .25s; }
-  .js.drawer-open .sidebar { transform:none; visibility:visible; }
+  /* Visible at once on opening, so focus can move into it; hidden only after the slide-out. */
+  .js.drawer-open .sidebar { transform:none; visibility:visible; transition:transform .25s ease, visibility 0s; }
   .js .scrim { display:block; position:fixed; z-index:25; inset:var(--nav) 0 0 0; background:var(--scrim); }
   .js .scrim[hidden] { display:none !important; }
-/* Controls that need the script are left out without it; the navigation stays. */
-:root:not(.js) .js-only { display:none !important; }
 }
 @media (max-width: 767px) {
   .date { display:none; } .when { display:inline; }
@@ -221,6 +220,19 @@ figcaption { margin-top:6px; color:var(--text-2); font-size:12px; overflow-wrap:
   .section tr.problem > td:nth-child(-n+2) { display:inline-block; margin:0 6px 6px 0; vertical-align:middle; }
   .section tr.problem > td:nth-child(n+3) { margin-top:4px; }
   .section tr.problem .tag { margin:0 0 0 4px; }
+}
+/* Phones: each rule is one compact row, its section links underneath. */
+@media (max-width: 639px) {
+  .scroll > table.rules { min-width:0; }
+  .rules, .rules thead, .rules tbody { display:block; }
+  .rules tr { display:grid; grid-template-columns:68px minmax(0, 1fr) 56px 40px; align-items:center; column-gap:6px; padding:8px 12px; border-top:1px solid var(--divider); }
+  .rules .pick { text-align:start; }
+  .rules .pick code { font-size:12px; }
+  .rules thead tr { border-top:0; background:var(--bg-soft); }
+  .rules th, .rules td { padding:0; border:0; background:none; }
+  .rules thead th:last-child { display:none; }
+  .rules td.where { grid-column:1 / -1; min-width:0; margin-top:4px; overflow-wrap:anywhere; }
+  .rules .pick code { white-space:normal; overflow-wrap:anywhere; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition:none !important; } }
 @media print { .bar, .sidebar, .scrim { display:none !important; } .layout { display:block; } }

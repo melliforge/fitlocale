@@ -37,7 +37,7 @@ export const SCRIPT = String.raw`(function () {
   /** Words must all appear; tokens of one key match any of their values, and different keys all must match. */
   function parseQuery(text) {
     var query = { words: [], rule: [], locale: [], project: [], sev: [], is: [], empty: true };
-    var re = /([a-z]+):"([^"]*)"|"([^"]*)"|(\S+)/gi, m;
+    var re = /([a-z]+):"([^"]*)"?|"([^"]*)"?|(\S+)/gi, m; // an unterminated quote runs to the end
     while ((m = re.exec(text.toLowerCase()))) {
       var key = m[1], val = m[2], word = m[3];
       if (key === undefined && word === undefined) {
@@ -268,13 +268,30 @@ export const SCRIPT = String.raw`(function () {
   }
   if (sidebar && spy.length && typeof IntersectionObserver === 'function') {
     var inView = {};
+    var atBottom = function () {
+      var doc = document.documentElement;
+      return doc.scrollHeight > window.innerHeight && window.innerHeight + window.pageYOffset >= doc.scrollHeight - 4;
+    };
+    var update = function () {
+      var i;
+      // Short sections at the end never reach the band: at the bottom of the page, the last one shown wins.
+      if (atBottom()) {
+        for (i = spy.length - 1; i >= 0; i--) if (!isHidden(spy[i])) { mark(spy[i].id); return; }
+      }
+      for (i = 0; i < spy.length; i++) if (inView[spy[i].id] && !isHidden(spy[i])) { mark(spy[i].id); return; }
+    };
     var observer = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) { inView[entry.target.id] = entry.isIntersecting; });
-      for (var i = 0; i < spy.length; i++) {
-        if (inView[spy[i].id] && !isHidden(spy[i])) { mark(spy[i].id); return; }
-      }
+      update();
     }, { rootMargin: '-96px 0px -55% 0px' });
     spy.forEach(function (el) { observer.observe(el); });
+    // Reaching the bottom need not change any intersection, so scrolling checks it too (once per frame).
+    var queued = false;
+    window.addEventListener('scroll', function () {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(function () { queued = false; update(); });
+    }, { passive: true });
   }
 
   apply(); // a reload can restore the controls' state
