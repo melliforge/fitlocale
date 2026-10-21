@@ -1,0 +1,1635 @@
+{
+  "version": 1,
+  "createdAt": "2026-10-21T04:31:45.551Z",
+  "checks": [
+    {
+      "testTitle": "home page: finds every planted bug, no false alarms",
+      "testFile": "tests/demo/demo.spec.ts",
+      "checkIndex": 0,
+      "url": "http://localhost:4310/",
+      "issues": [
+        {
+          "rule": "leak/raw-key",
+          "key": "body>main:nth-child(3)>p:nth-child(2)",
+          "selector": "#welcome",
+          "box": {
+            "x": 240,
+            "y": 167.046875,
+            "width": 800,
+            "height": 24
+          },
+          "text": "dashboard.welcome.title",
+          "mode": "source",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A translation key is shown instead of translated text.",
+          "id": "091cc87f6e7fdd58",
+          "fails": false
+        },
+        {
+          "rule": "leak/placeholder",
+          "key": "body>main:nth-child(3)>p:nth-child(3)",
+          "selector": "#inbox-count",
+          "box": {
+            "x": 240,
+            "y": 207.046875,
+            "width": 800,
+            "height": 24
+          },
+          "text": "You have {count} messages",
+          "mode": "source",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A placeholder was shown without being filled in.",
+          "id": "59c2b172652aa514",
+          "fails": false
+        },
+        {
+          "rule": "leak/bad-value",
+          "key": "body>main:nth-child(3)>p:nth-child(4)>span:nth-child(1)",
+          "selector": "#price",
+          "box": {
+            "x": 240,
+            "y": 250.046875,
+            "width": 118.25,
+            "height": 18
+          },
+          "text": "Price: undefined",
+          "mode": "source",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A broken value (undefined, NaN, null or [object Object]) is shown to users.",
+          "id": "fbfa9b3b3437e854",
+          "fails": false
+        },
+        {
+          "rule": "overflow/escapes-box",
+          "key": "body>main:nth-child(3)>div:nth-child(7)>div:nth-child(1)",
+          "selector": "#tab-billing",
+          "box": {
+            "x": 240,
+            "y": 367.046875,
+            "width": 130,
+            "height": 21
+          },
+          "text": "⟦Bîllîñg détáîlš ~~~~~⟧",
+          "mode": "pseudo-long",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "Text spills outside its box.",
+          "fix": "Let the box grow with its text (min-width instead of width) or allow wrapping.",
+          "id": "3f9370a9828a8114",
+          "fails": false
+        },
+        {
+          "rule": "overflow/clipped",
+          "key": "body>main:nth-child(3)>p:nth-child(21)>button:nth-child(1)",
+          "selector": "#save-btn",
+          "box": {
+            "x": 240,
+            "y": 981.046875,
+            "width": 120,
+            "height": 22
+          },
+          "text": "⟦Šávé çháñgéš ~~~~⟧",
+          "mode": "pseudo-long",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "Text is cut off: it no longer fits its box and the overflow is hidden.",
+          "fix": "Let the box grow with its text (min-width instead of width) or allow wrapping.",
+          "id": "6c1c88c05b5096bb",
+          "fails": false
+        },
+        {
+          "rule": "overflow/overlap",
+          "key": "body>main:nth-child(3)>div:nth-child(20)>button:nth-child(1)",
+          "selector": "#btn-delete",
+          "box": {
+            "x": 240,
+            "y": 922.046875,
+            "width": 98.890625,
+            "height": 25
+          },
+          "text": "⟦Délété ~~⟧",
+          "mode": "pseudo-long",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "This control overlaps a neighbouring control.",
+          "id": "02de51ad53e6a7d5",
+          "fails": false
+        },
+        {
+          "rule": "rtl/not-mirrored",
+          "key": "body>header:nth-child(1)>span:nth-child(2)",
+          "selector": "#promo-badge",
+          "box": {
+            "x": 16,
+            "y": 16,
+            "width": 37.0625,
+            "height": 18
+          },
+          "text": "New",
+          "mode": "pseudo-rtl",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "This element stayed in place when the page switched to right-to-left; it should usually move to the opposite side.",
+          "fix": "In http://localhost:4310/styles.css:5 (.promo), replace \"left: 16px\" with \"inset-inline-start: 16px\".",
+          "source": {
+            "selector": ".promo",
+            "property": "left",
+            "value": "16px",
+            "replacement": "inset-inline-start: 16px",
+            "url": "http://localhost:4310/styles.css",
+            "line": 5,
+            "column": 30
+          },
+          "id": "4e3e7ed3cdd8a114",
+          "fails": false
+        },
+        {
+          "rule": "rtl/icon-not-mirrored",
+          "key": "body>main:nth-child(3)>p:nth-child(17)>a:nth-child(2)>svg:nth-child(2)",
+          "selector": "#next-chevron",
+          "box": {
+            "x": 893.625,
+            "y": 746.046875,
+            "width": 12,
+            "height": 12
+          },
+          "text": "icon chevron right next chevron",
+          "mode": "pseudo-rtl",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "This directional icon (arrow, chevron, back or next) points the same way in right-to-left; it should usually flip.",
+          "fix": "Flip it in right-to-left, for example [dir=\"rtl\"] .icon { transform: scaleX(-1); }, or mark it data-fitlocale-icon=\"invariant\" if it must not flip.",
+          "id": "08a7401bb3cd37cb",
+          "fails": false
+        },
+        {
+          "rule": "rtl/icon-mirrored",
+          "key": "body>main:nth-child(3)>div:nth-child(18)>button:nth-child(1)>svg:nth-child(1)",
+          "selector": "#play-icon",
+          "box": {
+            "x": 1020,
+            "y": 786.046875,
+            "width": 12,
+            "height": 12
+          },
+          "text": "icon flip icon play play icon",
+          "mode": "pseudo-rtl",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "This icon flipped in right-to-left, but media controls, clocks, check marks and logos keep their direction.",
+          "fix": "Exclude it from your right-to-left flip rule.",
+          "id": "e52e60586e8823f2",
+          "fails": false
+        },
+        {
+          "rule": "rtl/canvas",
+          "key": "body>main:nth-child(3)>p:nth-child(19)>canvas:nth-child(1)",
+          "selector": "#sales-chart",
+          "box": {
+            "x": 840,
+            "y": 820.046875,
+            "width": 200,
+            "height": 80
+          },
+          "text": "",
+          "mode": "pseudo-rtl",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "info",
+          "message": "Canvas drawings ignore the page direction: check this chart or drawing by hand in right-to-left.",
+          "id": "5b638556a1dd8535",
+          "fails": false
+        }
+      ],
+      "screenshots": [
+        {
+          "mode": "source",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "path": "screenshots/c14b2c11279b.png",
+          "size": {
+            "width": 1280,
+            "height": 1077
+          }
+        },
+        {
+          "mode": "pseudo-long",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "path": "screenshots/2ba458ba107f.png",
+          "size": {
+            "width": 1280,
+            "height": 1078
+          }
+        },
+        {
+          "mode": "pseudo-rtl",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "path": "screenshots/a4b82690e776.png",
+          "size": {
+            "width": 1280,
+            "height": 1077
+          }
+        }
+      ],
+      "baseline": {
+        "status": "missing",
+        "path": "fitlocale-baseline.json"
+      },
+      "project": "demo"
+    },
+    {
+      "testTitle": "locale reset across navigation is caught",
+      "testFile": "tests/demo/demo.spec.ts",
+      "checkIndex": 0,
+      "url": "http://localhost:4310/page2.html",
+      "issues": [
+        {
+          "rule": "locale/persistence",
+          "key": "html",
+          "selector": "html",
+          "box": {
+            "x": 0,
+            "y": 0,
+            "width": 1280,
+            "height": 800
+          },
+          "text": "en",
+          "mode": "source",
+          "locale": "de",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/page2.html",
+          "severity": "error",
+          "message": "The page language changed back: expected \"de\", found \"en\".",
+          "id": "362ee3bfeaac7d73",
+          "fails": false
+        }
+      ],
+      "screenshots": [
+        {
+          "mode": "source",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "path": "screenshots/f7fa168b9ceb.png",
+          "size": {
+            "width": 1280,
+            "height": 800
+          }
+        }
+      ],
+      "baseline": {
+        "status": "missing",
+        "path": "fitlocale-baseline.json"
+      },
+      "project": "demo"
+    },
+    {
+      "testTitle": "pseudo locale en-XA: hardcoded and concatenated text, real overflow",
+      "testFile": "tests/demo/demo.spec.ts",
+      "checkIndex": 0,
+      "url": "http://localhost:4310/",
+      "issues": [
+        {
+          "rule": "leak/raw-key",
+          "key": "body>main:nth-child(3)>p:nth-child(2)",
+          "selector": "#welcome",
+          "box": {
+            "x": 240,
+            "y": 167.046875,
+            "width": 800,
+            "height": 24
+          },
+          "text": "dashboard.welcome.title",
+          "mode": "source",
+          "locale": "en-XA",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A translation key is shown instead of translated text.",
+          "id": "bcf6750695d510d9",
+          "fails": false
+        },
+        {
+          "rule": "leak/placeholder",
+          "key": "body>main:nth-child(3)>p:nth-child(3)",
+          "selector": "#inbox-count",
+          "box": {
+            "x": 240,
+            "y": 207.046875,
+            "width": 800,
+            "height": 24
+          },
+          "text": "⟦Ýöü hávé {count} méššágéš ~~~~~~~⟧",
+          "mode": "source",
+          "locale": "en-XA",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A placeholder was shown without being filled in.",
+          "id": "afad2c430c1ad606",
+          "fails": false
+        },
+        {
+          "rule": "leak/bad-value",
+          "key": "body>main:nth-child(3)>p:nth-child(4)>span:nth-child(1)",
+          "selector": "#price",
+          "box": {
+            "x": 240,
+            "y": 250.046875,
+            "width": 155.46875,
+            "height": 18
+          },
+          "text": "⟦Prîçé: ~~⟧ undefined",
+          "mode": "source",
+          "locale": "en-XA",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A broken value (undefined, NaN, null or [object Object]) is shown to users.",
+          "id": "c1d1d5a931c8f83c",
+          "fails": false
+        },
+        {
+          "rule": "i18n/hardcoded",
+          "key": "body>main:nth-child(3)>p:nth-child(9)",
+          "selector": "#shipping-note",
+          "box": {
+            "x": 240,
+            "y": 420.046875,
+            "width": 800,
+            "height": 24
+          },
+          "text": "Free shipping on all orders",
+          "mode": "source",
+          "locale": "en-XA",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "This text has no pseudo-locale markers, so it did not come from your message files. It is hardcoded, or it is data: mark data areas with data-fitlocale-ignore.",
+          "fix": "Move the text into your message files and render it with your i18n library.",
+          "id": "e73d457d01361f7d",
+          "fails": false
+        },
+        {
+          "rule": "i18n/concatenated",
+          "key": "body>main:nth-child(3)>p:nth-child(10)",
+          "selector": "#cart-summary",
+          "box": {
+            "x": 240,
+            "y": 460.046875,
+            "width": 800,
+            "height": 24
+          },
+          "text": "⟦Ýöü šávéd ~~~⟧ ⟦öñ thîš ördér ~~~~~⟧",
+          "mode": "source",
+          "locale": "en-XA",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "This sentence is built from several separately translated pieces. Word order differs between languages, so translate it as one message with placeholders.",
+          "fix": "Use one message with placeholders, for example \"You have {count} messages\", or your library's rich-text component for links inside a sentence.",
+          "id": "114a0ae2ade9844a",
+          "fails": false
+        },
+        {
+          "rule": "overflow/escapes-box",
+          "key": "body>main:nth-child(3)>div:nth-child(7)>div:nth-child(1)",
+          "selector": "#tab-billing",
+          "box": {
+            "x": 240,
+            "y": 367.046875,
+            "width": 130,
+            "height": 21
+          },
+          "text": "⟦Bîllîñg détáîlš ~~~~~⟧",
+          "mode": "source",
+          "locale": "en-XA",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "Text spills outside its box.",
+          "fix": "Let the box grow with its text (min-width instead of width) or allow wrapping.",
+          "id": "04eab557a23ff252",
+          "fails": false
+        },
+        {
+          "rule": "overflow/clipped",
+          "key": "body>main:nth-child(3)>p:nth-child(21)>button:nth-child(1)",
+          "selector": "#save-btn",
+          "box": {
+            "x": 240,
+            "y": 981.046875,
+            "width": 120,
+            "height": 22
+          },
+          "text": "⟦Šávé çháñgéš ~~~~⟧",
+          "mode": "source",
+          "locale": "en-XA",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "Text is cut off: it no longer fits its box and the overflow is hidden.",
+          "fix": "Let the box grow with its text (min-width instead of width) or allow wrapping.",
+          "id": "a820f6e07429bec3",
+          "fails": false
+        },
+        {
+          "rule": "overflow/overlap",
+          "key": "body>main:nth-child(3)>div:nth-child(20)>button:nth-child(1)",
+          "selector": "#btn-delete",
+          "box": {
+            "x": 240,
+            "y": 922.046875,
+            "width": 98.890625,
+            "height": 25
+          },
+          "text": "⟦Délété ~~⟧",
+          "mode": "source",
+          "locale": "en-XA",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "This control overlaps a neighbouring control.",
+          "id": "3d8eb38ab6ff7cc4",
+          "fails": false
+        },
+        {
+          "rule": "rtl/not-mirrored",
+          "key": "body>header:nth-child(1)>span:nth-child(2)",
+          "selector": "#promo-badge",
+          "box": {
+            "x": 16,
+            "y": 16,
+            "width": 58.125,
+            "height": 18
+          },
+          "text": "⟦Ñéw ~⟧",
+          "mode": "pseudo-rtl",
+          "locale": "en-XA",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "This element stayed in place when the page switched to right-to-left; it should usually move to the opposite side.",
+          "fix": "In http://localhost:4310/styles.css:5 (.promo), replace \"left: 16px\" with \"inset-inline-start: 16px\".",
+          "source": {
+            "selector": ".promo",
+            "property": "left",
+            "value": "16px",
+            "replacement": "inset-inline-start: 16px",
+            "url": "http://localhost:4310/styles.css",
+            "line": 5,
+            "column": 30
+          },
+          "id": "2f15acc8a6155c88",
+          "fails": false
+        },
+        {
+          "rule": "rtl/icon-not-mirrored",
+          "key": "body>main:nth-child(3)>p:nth-child(17)>a:nth-child(2)>svg:nth-child(2)",
+          "selector": "#next-chevron",
+          "box": {
+            "x": 818.875,
+            "y": 746.046875,
+            "width": 12,
+            "height": 12
+          },
+          "text": "icon chevron right next chevron",
+          "mode": "pseudo-rtl",
+          "locale": "en-XA",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "This directional icon (arrow, chevron, back or next) points the same way in right-to-left; it should usually flip.",
+          "fix": "Flip it in right-to-left, for example [dir=\"rtl\"] .icon { transform: scaleX(-1); }, or mark it data-fitlocale-icon=\"invariant\" if it must not flip.",
+          "id": "86d458442b65d048",
+          "fails": false
+        },
+        {
+          "rule": "rtl/icon-mirrored",
+          "key": "body>main:nth-child(3)>div:nth-child(18)>button:nth-child(1)>svg:nth-child(1)",
+          "selector": "#play-icon",
+          "box": {
+            "x": 1020,
+            "y": 786.046875,
+            "width": 12,
+            "height": 12
+          },
+          "text": "icon flip icon play play icon",
+          "mode": "pseudo-rtl",
+          "locale": "en-XA",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "This icon flipped in right-to-left, but media controls, clocks, check marks and logos keep their direction.",
+          "fix": "Exclude it from your right-to-left flip rule.",
+          "id": "e00c09ec46f25472",
+          "fails": false
+        },
+        {
+          "rule": "rtl/canvas",
+          "key": "body>main:nth-child(3)>p:nth-child(19)>canvas:nth-child(1)",
+          "selector": "#sales-chart",
+          "box": {
+            "x": 840,
+            "y": 820.046875,
+            "width": 200,
+            "height": 80
+          },
+          "text": "",
+          "mode": "pseudo-rtl",
+          "locale": "en-XA",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "info",
+          "message": "Canvas drawings ignore the page direction: check this chart or drawing by hand in right-to-left.",
+          "id": "cb20385341f184c3",
+          "fails": false
+        }
+      ],
+      "screenshots": [
+        {
+          "mode": "source",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "path": "screenshots/5f0dd431bdf6.png",
+          "size": {
+            "width": 1280,
+            "height": 1078
+          }
+        },
+        {
+          "mode": "pseudo-rtl",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "path": "screenshots/e5177e1b6ede.png",
+          "size": {
+            "width": 1280,
+            "height": 1078
+          }
+        }
+      ],
+      "baseline": {
+        "status": "missing",
+        "path": "fitlocale-baseline.json"
+      },
+      "project": "demo"
+    },
+    {
+      "testTitle": "German: text left in English, and text that no longer fits",
+      "testFile": "tests/demo/demo.spec.ts",
+      "checkIndex": 0,
+      "url": "http://localhost:4310/",
+      "issues": [
+        {
+          "rule": "leak/raw-key",
+          "key": "body>main:nth-child(3)>p:nth-child(2)",
+          "selector": "#welcome",
+          "box": {
+            "x": 240,
+            "y": 167.046875,
+            "width": 800,
+            "height": 24
+          },
+          "text": "dashboard.welcome.title",
+          "mode": "source",
+          "locale": "de",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A translation key is shown instead of translated text.",
+          "id": "dc574659a838fcc0",
+          "fails": false
+        },
+        {
+          "rule": "leak/placeholder",
+          "key": "body>main:nth-child(3)>p:nth-child(3)",
+          "selector": "#inbox-count",
+          "box": {
+            "x": 240,
+            "y": 207.046875,
+            "width": 800,
+            "height": 24
+          },
+          "text": "Sie haben {count} Nachrichten",
+          "mode": "source",
+          "locale": "de",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A placeholder was shown without being filled in.",
+          "id": "e4874af24f7df06c",
+          "fails": false
+        },
+        {
+          "rule": "leak/bad-value",
+          "key": "body>main:nth-child(3)>p:nth-child(4)>span:nth-child(1)",
+          "selector": "#price",
+          "box": {
+            "x": 240,
+            "y": 250.046875,
+            "width": 117.4375,
+            "height": 18
+          },
+          "text": "Preis: undefined",
+          "mode": "source",
+          "locale": "de",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A broken value (undefined, NaN, null or [object Object]) is shown to users.",
+          "id": "62d7b8dfaf78847f",
+          "fails": false
+        },
+        {
+          "rule": "i18n/untranslated",
+          "key": "body>main:nth-child(3)>p:nth-child(11)",
+          "selector": "#help-line",
+          "box": {
+            "x": 240,
+            "y": 500.046875,
+            "width": 800,
+            "height": 24
+          },
+          "text": "Read the help center first",
+          "mode": "source",
+          "locale": "de",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "This text is identical to a source-language message, so it was probably left untranslated.",
+          "fix": "Add the translation to this locale's message file.",
+          "id": "06defcf5e6a8c926",
+          "fails": false
+        },
+        {
+          "rule": "overflow/clipped",
+          "key": "body>main:nth-child(3)>p:nth-child(21)>button:nth-child(1)",
+          "selector": "#save-btn",
+          "box": {
+            "x": 240,
+            "y": 981.046875,
+            "width": 120,
+            "height": 21
+          },
+          "text": "Änderungen speichern",
+          "mode": "source",
+          "locale": "de",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "Text is cut off: it no longer fits its box and the overflow is hidden.",
+          "fix": "Let the box grow with its text (min-width instead of width) or allow wrapping.",
+          "id": "08beb192b08d124b",
+          "fails": false
+        }
+      ],
+      "screenshots": [
+        {
+          "mode": "source",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "path": "screenshots/f1e5e9ac55f1.png",
+          "size": {
+            "width": 1280,
+            "height": 1077
+          }
+        }
+      ],
+      "baseline": {
+        "status": "missing",
+        "path": "fitlocale-baseline.json"
+      },
+      "project": "demo"
+    },
+    {
+      "testTitle": "Arabic: mixed-direction text drawn in the wrong order, and the chart",
+      "testFile": "tests/demo/demo.spec.ts",
+      "checkIndex": 0,
+      "url": "http://localhost:4310/",
+      "issues": [
+        {
+          "rule": "leak/raw-key",
+          "key": "body>main:nth-child(3)>p:nth-child(2)",
+          "selector": "#welcome",
+          "box": {
+            "x": 240,
+            "y": 167.046875,
+            "width": 800,
+            "height": 24
+          },
+          "text": "dashboard.welcome.title",
+          "mode": "source",
+          "locale": "ar",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A translation key is shown instead of translated text.",
+          "id": "3729cab32d7dadf1",
+          "fails": false
+        },
+        {
+          "rule": "leak/placeholder",
+          "key": "body>main:nth-child(3)>p:nth-child(3)",
+          "selector": "#inbox-count",
+          "box": {
+            "x": 240,
+            "y": 207.046875,
+            "width": 800,
+            "height": 24
+          },
+          "text": "لديك {count} رسائل",
+          "mode": "source",
+          "locale": "ar",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A placeholder was shown without being filled in.",
+          "id": "89385795b7329789",
+          "fails": false
+        },
+        {
+          "rule": "leak/bad-value",
+          "key": "body>main:nth-child(3)>p:nth-child(4)>span:nth-child(1)",
+          "selector": "#price",
+          "box": {
+            "x": 922.390625,
+            "y": 250.046875,
+            "width": 117.609375,
+            "height": 18
+          },
+          "text": "السعر: undefined",
+          "mode": "source",
+          "locale": "ar",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A broken value (undefined, NaN, null or [object Object]) is shown to users.",
+          "id": "e98353079a673978",
+          "fails": false
+        },
+        {
+          "rule": "rtl/bidi-order",
+          "key": "body>main:nth-child(3)>p:nth-child(3)",
+          "selector": "#inbox-count",
+          "text": "{count}",
+          "visual": "}count{",
+          "box": {
+            "x": 951.171875,
+            "y": 210.046875,
+            "width": 52.921875,
+            "height": 18
+          },
+          "mode": "source",
+          "locale": "ar",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "Mixed-direction text is shown in the wrong order: \"{count}\" appears as \"}count{\".",
+          "fix": "Isolate the value: wrap it in <bdi>, or set dir=\"auto\" (or dir=\"ltr\") on its element.",
+          "id": "6187bf1b89ade01f",
+          "fails": false
+        },
+        {
+          "rule": "rtl/bidi-order",
+          "key": "body>main:nth-child(3)>p:nth-child(15)",
+          "selector": "#course-title",
+          "text": "C++",
+          "visual": "++C",
+          "box": {
+            "x": 976.28125,
+            "y": 663.046875,
+            "width": 30.6875,
+            "height": 18
+          },
+          "mode": "source",
+          "locale": "ar",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "Mixed-direction text is shown in the wrong order: \"C++\" appears as \"++C\".",
+          "fix": "Isolate the value: wrap it in <bdi>, or set dir=\"auto\" (or dir=\"ltr\") on its element.",
+          "id": "118397734e1f9457",
+          "fails": false
+        },
+        {
+          "rule": "rtl/bidi-order",
+          "key": "body>main:nth-child(3)>p:nth-child(16)",
+          "selector": "#price-ar",
+          "text": "$220",
+          "visual": "220$",
+          "box": {
+            "x": 937.171875,
+            "y": 703.046875,
+            "width": 38.21875,
+            "height": 18
+          },
+          "mode": "source",
+          "locale": "ar",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "Mixed-direction text is shown in the wrong order: \"$220\" appears as \"220$\".",
+          "fix": "Isolate the value: wrap it in <bdi>, or set dir=\"auto\" (or dir=\"ltr\") on its element.",
+          "id": "e745224034c7c084",
+          "fails": false
+        },
+        {
+          "rule": "rtl/canvas",
+          "key": "body>main:nth-child(3)>p:nth-child(19)>canvas:nth-child(1)",
+          "selector": "#sales-chart",
+          "box": {
+            "x": 840,
+            "y": 820.046875,
+            "width": 200,
+            "height": 80
+          },
+          "text": "",
+          "mode": "source",
+          "locale": "ar",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "info",
+          "message": "Canvas drawings ignore the page direction: check this chart or drawing by hand in right-to-left.",
+          "id": "79499628fe4a7804",
+          "fails": false
+        },
+        {
+          "rule": "rtl/clipped-marks",
+          "key": "body>main:nth-child(3)>div:nth-child(8)",
+          "selector": "#ar-tab",
+          "box": {
+            "x": 240,
+            "y": 388.046875,
+            "width": 800,
+            "height": 16
+          },
+          "text": "الخِطَطُ الشَّهْرِيَّةُ",
+          "mode": "source",
+          "locale": "ar",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "Accent marks or descenders of this right-to-left text are cut off: its box or line height is too tight.",
+          "fix": "Give right-to-left text more room: a line-height around 1.6 to 1.8, and no fixed height with overflow: hidden.",
+          "id": "c39301b0e42c57b5",
+          "fails": false
+        }
+      ],
+      "screenshots": [
+        {
+          "mode": "source",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "path": "screenshots/af75675d5242.png",
+          "size": {
+            "width": 1280,
+            "height": 1077
+          }
+        }
+      ],
+      "baseline": {
+        "status": "missing",
+        "path": "fitlocale-baseline.json"
+      },
+      "project": "demo"
+    },
+    {
+      "testTitle": "failing build on errors",
+      "testFile": "tests/demo/demo.spec.ts",
+      "checkIndex": 0,
+      "url": "http://localhost:4310/",
+      "issues": [
+        {
+          "rule": "leak/raw-key",
+          "key": "body>main:nth-child(3)>p:nth-child(2)",
+          "selector": "#welcome",
+          "box": {
+            "x": 240,
+            "y": 167.046875,
+            "width": 800,
+            "height": 24
+          },
+          "text": "dashboard.welcome.title",
+          "mode": "source",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A translation key is shown instead of translated text.",
+          "id": "282cf6283f600164",
+          "fails": true
+        },
+        {
+          "rule": "leak/placeholder",
+          "key": "body>main:nth-child(3)>p:nth-child(3)",
+          "selector": "#inbox-count",
+          "box": {
+            "x": 240,
+            "y": 207.046875,
+            "width": 800,
+            "height": 24
+          },
+          "text": "You have {count} messages",
+          "mode": "source",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A placeholder was shown without being filled in.",
+          "id": "c47d8b40a5be6e23",
+          "fails": true
+        },
+        {
+          "rule": "leak/bad-value",
+          "key": "body>main:nth-child(3)>p:nth-child(4)>span:nth-child(1)",
+          "selector": "#price",
+          "box": {
+            "x": 240,
+            "y": 250.046875,
+            "width": 118.25,
+            "height": 18
+          },
+          "text": "Price: undefined",
+          "mode": "source",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A broken value (undefined, NaN, null or [object Object]) is shown to users.",
+          "id": "86c8b32ce76e26ba",
+          "fails": true
+        },
+        {
+          "rule": "overflow/escapes-box",
+          "key": "body>main:nth-child(3)>div:nth-child(7)>div:nth-child(1)",
+          "selector": "#tab-billing",
+          "box": {
+            "x": 240,
+            "y": 367.046875,
+            "width": 130,
+            "height": 21
+          },
+          "text": "⟦Bîllîñg détáîlš ~~~~~⟧",
+          "mode": "pseudo-long",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "Text spills outside its box.",
+          "fix": "Let the box grow with its text (min-width instead of width) or allow wrapping.",
+          "id": "8c793008f6a7b339",
+          "fails": true
+        },
+        {
+          "rule": "overflow/clipped",
+          "key": "body>main:nth-child(3)>p:nth-child(21)>button:nth-child(1)",
+          "selector": "#save-btn",
+          "box": {
+            "x": 240,
+            "y": 981.046875,
+            "width": 120,
+            "height": 22
+          },
+          "text": "⟦Šávé çháñgéš ~~~~⟧",
+          "mode": "pseudo-long",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "Text is cut off: it no longer fits its box and the overflow is hidden.",
+          "fix": "Let the box grow with its text (min-width instead of width) or allow wrapping.",
+          "id": "99a21c2d855bae4c",
+          "fails": true
+        },
+        {
+          "rule": "overflow/overlap",
+          "key": "body>main:nth-child(3)>div:nth-child(20)>button:nth-child(1)",
+          "selector": "#btn-delete",
+          "box": {
+            "x": 240,
+            "y": 922.046875,
+            "width": 98.890625,
+            "height": 25
+          },
+          "text": "⟦Délété ~~⟧",
+          "mode": "pseudo-long",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "This control overlaps a neighbouring control.",
+          "id": "82ae6e7acdfc41bf",
+          "fails": true
+        },
+        {
+          "rule": "rtl/not-mirrored",
+          "key": "body>header:nth-child(1)>span:nth-child(2)",
+          "selector": "#promo-badge",
+          "box": {
+            "x": 16,
+            "y": 16,
+            "width": 37.0625,
+            "height": 18
+          },
+          "text": "New",
+          "mode": "pseudo-rtl",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "This element stayed in place when the page switched to right-to-left; it should usually move to the opposite side.",
+          "fix": "In http://localhost:4310/styles.css:5 (.promo), replace \"left: 16px\" with \"inset-inline-start: 16px\".",
+          "source": {
+            "selector": ".promo",
+            "property": "left",
+            "value": "16px",
+            "replacement": "inset-inline-start: 16px",
+            "url": "http://localhost:4310/styles.css",
+            "line": 5,
+            "column": 30
+          },
+          "id": "33931114c7cf8219",
+          "fails": false
+        },
+        {
+          "rule": "rtl/icon-not-mirrored",
+          "key": "body>main:nth-child(3)>p:nth-child(17)>a:nth-child(2)>svg:nth-child(2)",
+          "selector": "#next-chevron",
+          "box": {
+            "x": 893.625,
+            "y": 746.046875,
+            "width": 12,
+            "height": 12
+          },
+          "text": "icon chevron right next chevron",
+          "mode": "pseudo-rtl",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "This directional icon (arrow, chevron, back or next) points the same way in right-to-left; it should usually flip.",
+          "fix": "Flip it in right-to-left, for example [dir=\"rtl\"] .icon { transform: scaleX(-1); }, or mark it data-fitlocale-icon=\"invariant\" if it must not flip.",
+          "id": "14454ae946255dc6",
+          "fails": false
+        },
+        {
+          "rule": "rtl/icon-mirrored",
+          "key": "body>main:nth-child(3)>div:nth-child(18)>button:nth-child(1)>svg:nth-child(1)",
+          "selector": "#play-icon",
+          "box": {
+            "x": 1020,
+            "y": 786.046875,
+            "width": 12,
+            "height": 12
+          },
+          "text": "icon flip icon play play icon",
+          "mode": "pseudo-rtl",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "This icon flipped in right-to-left, but media controls, clocks, check marks and logos keep their direction.",
+          "fix": "Exclude it from your right-to-left flip rule.",
+          "id": "f39e84d9adf34e40",
+          "fails": false
+        },
+        {
+          "rule": "rtl/canvas",
+          "key": "body>main:nth-child(3)>p:nth-child(19)>canvas:nth-child(1)",
+          "selector": "#sales-chart",
+          "box": {
+            "x": 840,
+            "y": 820.046875,
+            "width": 200,
+            "height": 80
+          },
+          "text": "",
+          "mode": "pseudo-rtl",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "info",
+          "message": "Canvas drawings ignore the page direction: check this chart or drawing by hand in right-to-left.",
+          "id": "64334d8d30f22bc7",
+          "fails": false
+        }
+      ],
+      "screenshots": [
+        {
+          "mode": "source",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "path": "screenshots/8cb71b0699a0.png",
+          "size": {
+            "width": 1280,
+            "height": 1077
+          }
+        },
+        {
+          "mode": "pseudo-long",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "path": "screenshots/fe7c056eb763.png",
+          "size": {
+            "width": 1280,
+            "height": 1078
+          }
+        },
+        {
+          "mode": "pseudo-rtl",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "path": "screenshots/5a000cc26d7d.png",
+          "size": {
+            "width": 1280,
+            "height": 1077
+          }
+        }
+      ],
+      "project": "demo"
+    },
+    {
+      "testTitle": "check stays within time budget",
+      "testFile": "tests/demo/demo.spec.ts",
+      "checkIndex": 0,
+      "url": "http://localhost:4310/",
+      "issues": [
+        {
+          "rule": "leak/raw-key",
+          "key": "body>main:nth-child(3)>p:nth-child(2)",
+          "selector": "#welcome",
+          "box": {
+            "x": 240,
+            "y": 167.046875,
+            "width": 800,
+            "height": 24
+          },
+          "text": "dashboard.welcome.title",
+          "mode": "source",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A translation key is shown instead of translated text.",
+          "id": "0e45df8462eaf733",
+          "fails": false
+        },
+        {
+          "rule": "leak/placeholder",
+          "key": "body>main:nth-child(3)>p:nth-child(3)",
+          "selector": "#inbox-count",
+          "box": {
+            "x": 240,
+            "y": 207.046875,
+            "width": 800,
+            "height": 24
+          },
+          "text": "You have {count} messages",
+          "mode": "source",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A placeholder was shown without being filled in.",
+          "id": "aeffdadd9b7618ba",
+          "fails": false
+        },
+        {
+          "rule": "leak/bad-value",
+          "key": "body>main:nth-child(3)>p:nth-child(4)>span:nth-child(1)",
+          "selector": "#price",
+          "box": {
+            "x": 240,
+            "y": 250.046875,
+            "width": 118.25,
+            "height": 18
+          },
+          "text": "Price: undefined",
+          "mode": "source",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "A broken value (undefined, NaN, null or [object Object]) is shown to users.",
+          "id": "3da03c4f8bd48366",
+          "fails": false
+        },
+        {
+          "rule": "overflow/escapes-box",
+          "key": "body>main:nth-child(3)>div:nth-child(7)>div:nth-child(1)",
+          "selector": "#tab-billing",
+          "box": {
+            "x": 240,
+            "y": 367.046875,
+            "width": 130,
+            "height": 21
+          },
+          "text": "⟦Bîllîñg détáîlš ~~~~~⟧",
+          "mode": "pseudo-long",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "Text spills outside its box.",
+          "fix": "Let the box grow with its text (min-width instead of width) or allow wrapping.",
+          "id": "e15a560c686e974e",
+          "fails": false
+        },
+        {
+          "rule": "overflow/clipped",
+          "key": "body>main:nth-child(3)>p:nth-child(21)>button:nth-child(1)",
+          "selector": "#save-btn",
+          "box": {
+            "x": 240,
+            "y": 981.046875,
+            "width": 120,
+            "height": 22
+          },
+          "text": "⟦Šávé çháñgéš ~~~~⟧",
+          "mode": "pseudo-long",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "Text is cut off: it no longer fits its box and the overflow is hidden.",
+          "fix": "Let the box grow with its text (min-width instead of width) or allow wrapping.",
+          "id": "5e6d938eac085b17",
+          "fails": false
+        },
+        {
+          "rule": "overflow/overlap",
+          "key": "body>main:nth-child(3)>div:nth-child(20)>button:nth-child(1)",
+          "selector": "#btn-delete",
+          "box": {
+            "x": 240,
+            "y": 922.046875,
+            "width": 98.890625,
+            "height": 25
+          },
+          "text": "⟦Délété ~~⟧",
+          "mode": "pseudo-long",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "error",
+          "message": "This control overlaps a neighbouring control.",
+          "id": "9310c67d31d63e42",
+          "fails": false
+        },
+        {
+          "rule": "rtl/not-mirrored",
+          "key": "body>header:nth-child(1)>span:nth-child(2)",
+          "selector": "#promo-badge",
+          "box": {
+            "x": 16,
+            "y": 16,
+            "width": 37.0625,
+            "height": 18
+          },
+          "text": "New",
+          "mode": "pseudo-rtl",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "This element stayed in place when the page switched to right-to-left; it should usually move to the opposite side.",
+          "fix": "In http://localhost:4310/styles.css:5 (.promo), replace \"left: 16px\" with \"inset-inline-start: 16px\".",
+          "source": {
+            "selector": ".promo",
+            "property": "left",
+            "value": "16px",
+            "replacement": "inset-inline-start: 16px",
+            "url": "http://localhost:4310/styles.css",
+            "line": 5,
+            "column": 30
+          },
+          "id": "dcd21bc352146c34",
+          "fails": false
+        },
+        {
+          "rule": "rtl/icon-not-mirrored",
+          "key": "body>main:nth-child(3)>p:nth-child(17)>a:nth-child(2)>svg:nth-child(2)",
+          "selector": "#next-chevron",
+          "box": {
+            "x": 893.625,
+            "y": 746.046875,
+            "width": 12,
+            "height": 12
+          },
+          "text": "icon chevron right next chevron",
+          "mode": "pseudo-rtl",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "This directional icon (arrow, chevron, back or next) points the same way in right-to-left; it should usually flip.",
+          "fix": "Flip it in right-to-left, for example [dir=\"rtl\"] .icon { transform: scaleX(-1); }, or mark it data-fitlocale-icon=\"invariant\" if it must not flip.",
+          "id": "476dbc8826555c29",
+          "fails": false
+        },
+        {
+          "rule": "rtl/icon-mirrored",
+          "key": "body>main:nth-child(3)>div:nth-child(18)>button:nth-child(1)>svg:nth-child(1)",
+          "selector": "#play-icon",
+          "box": {
+            "x": 1020,
+            "y": 786.046875,
+            "width": 12,
+            "height": 12
+          },
+          "text": "icon flip icon play play icon",
+          "mode": "pseudo-rtl",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "warning",
+          "message": "This icon flipped in right-to-left, but media controls, clocks, check marks and logos keep their direction.",
+          "fix": "Exclude it from your right-to-left flip rule.",
+          "id": "1c7d80e6878b0fc7",
+          "fails": false
+        },
+        {
+          "rule": "rtl/canvas",
+          "key": "body>main:nth-child(3)>p:nth-child(19)>canvas:nth-child(1)",
+          "selector": "#sales-chart",
+          "box": {
+            "x": 840,
+            "y": 820.046875,
+            "width": 200,
+            "height": 80
+          },
+          "text": "",
+          "mode": "pseudo-rtl",
+          "locale": "en",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "url": "http://localhost:4310/",
+          "severity": "info",
+          "message": "Canvas drawings ignore the page direction: check this chart or drawing by hand in right-to-left.",
+          "id": "998eb8d816d98654",
+          "fails": false
+        }
+      ],
+      "screenshots": [
+        {
+          "mode": "source",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "path": "screenshots/481a1a4594eb.png",
+          "size": {
+            "width": 1280,
+            "height": 1077
+          }
+        },
+        {
+          "mode": "pseudo-long",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "path": "screenshots/c5131dab3e46.png",
+          "size": {
+            "width": 1280,
+            "height": 1078
+          }
+        },
+        {
+          "mode": "pseudo-rtl",
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "path": "screenshots/c18e399d22ee.png",
+          "size": {
+            "width": 1280,
+            "height": 1077
+          }
+        }
+      ],
+      "baseline": {
+        "status": "missing",
+        "path": "fitlocale-baseline.json"
+      },
+      "project": "demo"
+    }
+  ],
+  "summary": {
+    "error": 32,
+    "warning": 19,
+    "info": 5
+  }
+}

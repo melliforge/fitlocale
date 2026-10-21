@@ -37,7 +37,7 @@ interface Issue {
   key: string;                             // DOM path; a Playwright selector chain inside shadow roots and iframes
   box: { x: number; y: number; width: number; height: number }; // on the screenshot
   text: string;                            // at most 120 characters
-  name?: string;                           // accessible name (aria-label, alt, title…), when the element has one
+  name?: string;                           // accessible name (aria-labelledby, aria-label, <label>, alt, title, placeholder), when it has one
   message: string;
   fix?: string;
   id?: string;                             // stable fingerprint, used by the baseline

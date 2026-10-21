@@ -77,32 +77,11 @@ function figure(section: Section, shot: Shot): string {
 
 /* ---------- Problem detail: one hidden article per problem, shown one at a time by the script ---------- */
 
-/** Screenshots per problem in its detail, and test titles listed; the rest are counted. */
-const MAX_SHOTS = 6;
-
-/** The section's shots that show each problem, with only that problem's boxes (same matching as the section). */
-function shotsByProblem(section: Section): Map<string, Shot[]> {
-  const byProblem = new Map<string, Shot[]>();
-  for (const shot of section.shots) {
-    const mine = new Map<string, Shot['boxes']>();
-    for (const box of shot.boxes) {
-      const list = mine.get(box.problem);
-      if (list) list.push(box); else mine.set(box.problem, [box]);
-    }
-    for (const [problem, boxes] of mine) {
-      const list = byProblem.get(problem) ?? [];
-      list.push({ ...shot, boxes });
-      byProblem.set(problem, list);
-    }
-  }
-  return byProblem;
-}
-
-function detailShot(shot: Shot): string {
-  const s = shot.screenshot;
-  const boxes = shot.boxes.map(({ issue }) => `<span class="dbox ${esc(issue.severity)}${acceptedClass(issue.baselined)}" style="${boxStyle(issue, s)}"></span>`).join('');
-  return `<figure class="dshot"><div class="crop"><span class="dframe"><img src="${esc(s.path)}"${imageSize(s)} loading="lazy" alt="Screenshot, ${esc(shot.viewport)}">${boxes}</span></div>`
-    + `<figcaption>${captionOf(shot)}</figcaption></figure>`;
+/** Ids of the problems that appear in some screenshot of the section. */
+function problemsWithShots(section: Section): Set<string> {
+  const ids = new Set<string>();
+  for (const shot of section.shots) for (const box of shot.boxes) ids.add(box.problem);
+  return ids;
 }
 
 /** `file:line`, preferring the source-mapped original over the built stylesheet. */
@@ -116,7 +95,7 @@ function cssSource(source: NonNullable<Problem['issue']['source']>): string {
 
 const block = (title: string, body: string) => `<div class="d-block"><h3 class="d-title">${title}</h3>${body}</div>`;
 
-function detail(problem: Problem, section: Section, page: Page, shots: Shot[]): string {
+function detail(problem: Problem, section: Section, page: Page, hasShots: boolean): string {
   const { issue } = problem;
   const { label } = labelOf(issue);
   const text = String(issue.text ?? '').replace(/\s+/g, ' ').trim();
@@ -137,10 +116,10 @@ function detail(problem: Problem, section: Section, page: Page, shots: Shot[]): 
     `<dt>Issues</dt><dd>${problem.occurrences.length}</dd>`,
   ].join('');
 
-  const more = shots.length > MAX_SHOTS ? `<p class="more">+${shots.length - MAX_SHOTS} more in the section</p>` : '';
-  const pictures = shots.length ? block('Screenshots', `<div class="dshots">${shots.slice(0, MAX_SHOTS).map(detailShot).join('')}</div>${more}`) : '';
+  // The screenshots are not shipped twice: the script copies the section's figures into this block when the problem opens.
+  const pictures = hasShots ? '<div class="d-block" data-shots hidden><h3 class="d-title">Screenshots</h3><div class="dshots"></div></div>' : '';
 
-  return `<article class="detail" id="d-${esc(problem.id)}" hidden>`
+  return `<article class="detail" id="d-${esc(problem.id)}" data-section="${esc(section.id)}" hidden>`
     + `<p class="d-head ${esc(problem.severity)}"><span class="sev">${esc(problem.severity)}</span><code>${esc(problem.rule)}</code>${problem.accepted ? '<span class="tag">accepted</span>' : ''}</p>`
     + `<h2 class="d-label" dir="auto">${esc(label)}</h2>${full}`
     + `<p class="d-where"><a href="#${esc(section.id)}">${esc(page.label)} · ${esc(section.label)}</a></p>`
@@ -161,8 +140,8 @@ function panel(model: ReportModel): string {
   const articles: string[] = [];
   for (const p of model.pages) {
     for (const s of p.sections) {
-      const shots = shotsByProblem(s);
-      for (const problem of s.problems) articles.push(detail(problem, s, p, shots.get(problem.id) ?? []));
+      const withShots = problemsWithShots(s);
+      for (const problem of s.problems) articles.push(detail(problem, s, p, withShots.has(problem.id)));
     }
   }
   return `<aside class="panel" aria-label="Problem detail" hidden>
@@ -223,9 +202,16 @@ function overview(model: ReportModel, meta: string): string {
   const unassigned = [...model.matrix.values()].some(m => m.has(''));
   const columns = model.projects.length ? [...model.projects, ...(unassigned ? [''] : [])] : [''];
   const heading = (project: string) => (project ? esc(project) : model.projects.length ? 'no project' : 'Problems');
+  // A cell is a filter button when locale and project each name something to filter by. "No locale" and "no project"
+  // are not options of the filters (an empty value there means All), so those cells are plain counts. Without
+  // projects the project filter does not exist, and the cell sets the locale only.
   const matrix = model.locales.map(locale => `<tr><th scope="row">${locale ? esc(locale) : '—'}</th>${columns.map(project => {
     const n = model.matrix.get(locale)?.get(project) ?? 0;
-    return `<td class="num">${n ? `<button type="button" class="pick" data-pick-locale="${esc(locale)}" data-pick-project="${esc(project)}">${n}</button>` : '<span class="zero">0</span>'}</td>`;
+    if (!n) return '<td class="num"><span class="zero">0</span></td>';
+    const byProject = model.projects.length > 0;
+    if (!locale || (byProject && !project)) return `<td class="num">${n}</td>`;
+    const name = `${locale}${byProject ? ` in ${project}` : ''}: ${n} ${n === 1 ? 'problem' : 'problems'}`;
+    return `<td class="num"><button type="button" class="pick" data-pick-locale="${esc(locale)}"${byProject ? ` data-pick-project="${esc(project)}"` : ''} aria-label="${esc(name)}">${n}</button></td>`;
   }).join('')}</tr>`).join('\n');
 
   return `<section id="summary">

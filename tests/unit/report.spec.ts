@@ -8,7 +8,7 @@ import { makeCheck, makeIssue, makeRun } from './fixtures';
 
 /** The detail article of a problem, as rendered. */
 function detailOf(html: string, id: string): string {
-  const start = html.indexOf(`<article class="detail" id="d-${id}" hidden>`);
+  const start = html.indexOf(`<article class="detail" id="d-${id}" `);
   expect(start, `detail of ${id}`).toBeGreaterThan(-1);
   return html.slice(start, html.indexOf('</article>', start));
 }
@@ -218,6 +218,8 @@ test('a large run renders quickly', () => {
   const html = renderReport(makeRun(checks));
   expect(Date.now() - start).toBeLessThan(3000);
   expect(html.match(/<tr class="problem/g)).toHaveLength(2560);
+  // The detail screenshots are built in the browser, not shipped: this run was 8.2 MB when they were rendered here.
+  expect(Buffer.byteLength(html)).toBeLessThan(6 * 1024 * 1024);
 });
 
 test('the report uses the docs theme tokens', () => {
@@ -355,7 +357,7 @@ test('the CSS source of rtl/not-mirrored is shown', () => {
   expect(detailOf(renderReport(makeRun([makeCheck()])), 'p1')).not.toContain('CSS source');
 });
 
-test('detail screenshots are capped at 6 with a +N note', () => {
+test('detail articles carry no screenshots: the script builds them when a problem opens', () => {
   const checks = Array.from({ length: 8 }, (_, i) => makeCheck({
     testTitle: `test ${i}`,
     issues: [makeIssue(), makeIssue({ text: 'Other', box: { x: 0, y: 0, width: 10, height: 10 } })],
@@ -363,16 +365,19 @@ test('detail screenshots are capped at 6 with a +N note', () => {
   }));
   const html = renderReport(makeRun(checks));
   const detail = detailOf(html, 'p1');
-  expect(detail.match(/<figure class="dshot"/g)).toHaveLength(6);
-  expect(detail).toContain('+2 more');
-  expect(detail).toContain('shots/5.png');
-  expect(detail).not.toContain('shots/6.png');
-  // Only this problem's boxes, at the same place as in the section.
-  expect(detail.match(/class="dbox /g)).toHaveLength(6);
-  expect(detail).toContain('left:10%;top:10%;width:5%;height:1%');
-  expect(detail).not.toContain('left:0%;top:0%');
-  expect(detail).toContain('loading="lazy"');
-  expect(detail).toMatch(/<img src="shots\/0\.png"/);
+  expect(detail).not.toContain('<img');
+  expect(detail).not.toContain('class="dshot"');
+  expect(detail).not.toContain('class="dbox');
+  // The script finds the section's figures through the article, and a placeholder tells it there is something to show.
+  expect(detail).toContain('data-section="page-1-1"');
+  expect(detail).toMatch(/<div class="d-block" data-shots hidden>/);
+  // Each screenshot is in the page once: the section's thumbnail.
+  expect(html.match(/<img src="shots\/0\.png"/g)).toHaveLength(1);
+});
+
+test('a problem without screenshots has no placeholder for them', () => {
+  const detail = detailOf(renderReport(makeRun([makeCheck({ screenshots: [] })])), 'p1');
+  expect(detail).not.toContain('data-shots');
 });
 
 test('the detail lists where it was seen, with at most 8 test titles', () => {
@@ -383,4 +388,55 @@ test('the detail lists where it was seen, with at most 8 test titles', () => {
   expect(detail).toContain('title 7');
   expect(detail).not.toContain('title 8');
   expect(detail).toContain(' and 2 more');
+});
+
+/** The by-locale matrix of a rendered report. */
+const matrixOf = (html: string) => html.slice(html.indexOf('<table class="matrix">'), html.indexOf('</table>', html.indexOf('<table class="matrix">')));
+const matrixCells = (html: string) => matrixOf(html).match(/<td class="num">[\s\S]*?<\/td>/g) ?? [];
+
+test('a matrix cell is named by its locale, project and count', () => {
+  const html = renderReport(makeRun([
+    makeCheck({ project: 'chromium', issues: [makeIssue({ locale: 'de', text: 'One' }), makeIssue({ locale: 'de', text: 'Two' })] }),
+    makeCheck({ project: 'webkit', issues: [makeIssue({ locale: 'de', text: 'One' })] }),
+  ]));
+  const cells = matrixCells(html);
+  expect(cells).toHaveLength(2);
+  expect(cells[0]).toContain('aria-label="de in chromium: 2 problems"');
+  expect(cells[1]).toContain('aria-label="de in webkit: 1 problem"');
+});
+
+test('a matrix cell with one problem says problem, not problems', () => {
+  const html = renderReport(makeRun([makeCheck({ project: 'chromium', issues: [makeIssue({ locale: 'de' })] }), makeCheck({ project: 'webkit', issues: [makeIssue({ locale: 'fr' })] })]));
+  expect(matrixCells(html).filter(c => c.includes('<button'))[0]).toContain('aria-label="de in chromium: 1 problem"');
+});
+
+test('without projects a matrix cell is named by its locale alone and sets no project', () => {
+  const html = renderReport(makeRun([makeCheck({ issues: [makeIssue({ locale: 'de' }), makeIssue({ locale: 'fr', text: 'Other' })] })]));
+  const [cell] = matrixCells(html);
+  expect(cell).toContain('aria-label="de: 1 problem"');
+  expect(cell).toContain('data-pick-locale="de"');
+  expect(cell).not.toContain('data-pick-project');
+});
+
+test('the "no locale" and "no project" matrix cells are not buttons, since no filter selects them', () => {
+  const html = renderReport(makeRun([
+    makeCheck({ project: 'chromium', issues: [makeIssue({ locale: 'de' }), makeIssue({ locale: '', text: 'No locale' })] }),
+    makeCheck({ issues: [makeIssue({ locale: 'de', text: 'No project' })] }),
+  ]));
+  const matrix = matrixOf(html);
+  // Rows: de, then the one without a locale. Columns: chromium, then the one without a project.
+  expect(matrix).toContain('<th scope="row">—</th>');
+  expect(matrix).toContain('no project');
+  const rows = matrix.split('<tr>').slice(2);
+  expect(rows).toHaveLength(2);
+  const [de, none] = rows.map(r => r.match(/<td class="num">[\s\S]*?<\/td>/g)!);
+  expect(de[0]).toContain('data-pick-locale="de" data-pick-project="chromium"');
+  expect(de[1]).not.toContain('<button');
+  expect(none[0]).not.toContain('<button');
+  expect(none[1]).not.toContain('<button');
+  // The counts are still shown.
+  expect(de[1]).toContain('>1<');
+  expect(none[0]).toContain('>1<');
+  // Nothing in the matrix sets a filter to "All".
+  expect(matrix).not.toMatch(/data-pick-(locale|project)=""/);
 });

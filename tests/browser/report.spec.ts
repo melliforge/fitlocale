@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { renderReport } from '../../src/report/html';
@@ -780,6 +781,125 @@ test('the detail screenshot scrolls to its box', async ({ page }) => {
   expect(b.y + b.height).toBeLessThanOrEqual(c.y + c.height + 1);
 });
 
+/** Eight checks, each with one screenshot showing two problems; p1 is the first. */
+const shotChecks = () => Array.from({ length: 8 }, (_, i) => makeCheck({
+  testTitle: `test ${i}`,
+  issues: [makeIssue(), makeIssue({ text: 'Other', box: { x: 0, y: 0, width: 10, height: 10 } })],
+  screenshots: [{ ...shot({ width: 1000, height: 2000 }), path: `data:image/png;base64,AAA${i}` }],
+}));
+
+test('opening a problem builds its screenshots from the section figures', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, shotChecks());
+  // Nothing is built before a problem opens.
+  await expect(page.locator('.dshot')).toHaveCount(0);
+  await expect(detail(page, 'p1').locator('[data-shots]')).toBeHidden();
+
+  await page.locator('#p1 td').last().click();
+  const shots = detail(page, 'p1').locator('.dshot');
+  // At most 6, with a note for the rest.
+  await expect(shots).toHaveCount(6);
+  await expect(detail(page, 'p1').locator('.d-block .more')).toHaveText('+2 more in the section');
+  await expect(detail(page, 'p1').locator('[data-shots]')).toBeVisible();
+  await expect(shots.first().locator('img')).toHaveAttribute('src', /AAA0$/);
+  await expect(shots.last().locator('img')).toHaveAttribute('src', /AAA5$/);
+  await expect(shots.first().locator('figcaption')).toContainText('test 0');
+  // Only this problem's boxes, at the place they have in the section.
+  await expect(detail(page, 'p1').locator('.dbox')).toHaveCount(6);
+  expect(await detail(page, 'p1').locator('.dbox').first().getAttribute('style')).toContain('left:10%;top:10%;width:5%;height:1%');
+  // Copies, not the thumbnails: no thumbnail button, no section classes, and the section keeps its own.
+  await expect(detail(page, 'p1').locator('button.shot, .shot-wrap, .box')).toHaveCount(0);
+  await expect(page.locator('details.section figure.shot-wrap')).toHaveCount(8);
+  await expect(page.locator('details.section .box')).toHaveCount(16);
+
+  // Opening it again, or another problem and back, does not stack a second set.
+  await page.locator('#p2 td').last().click();
+  await expect(detail(page, 'p2').locator('.dshot')).toHaveCount(6);
+  await expect(detail(page, 'p2').locator('.dbox')).toHaveCount(6);
+  expect(await detail(page, 'p2').locator('.dbox').first().getAttribute('style')).toContain('left:0%;top:0%');
+  await page.locator('#p1 td').last().click();
+  await expect(detail(page, 'p1').locator('.dshot')).toHaveCount(6);
+  await expect(detail(page, 'p1').locator('.d-block .more')).toHaveCount(1);
+});
+
+test('detail screenshots show even when a filter hides the section figure', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, [
+    check('chromium', [makeIssue({ text: 'One' })]),
+    check('webkit', [makeIssue({ text: 'One' })]),
+  ]);
+  await filter(page, 'project').selectOption('webkit');
+  await expect(page.locator('figure.shot-wrap[data-project="chromium"]')).toBeHidden();
+  await page.locator('#p1 td').last().click();
+  // Both projects' screenshots of the problem, none of them hidden or enlarged.
+  await expect(detail(page, 'p1').locator('.dshot:visible')).toHaveCount(2);
+  await expect(detail(page, 'p1').locator('.dbox:visible')).toHaveCount(2);
+});
+
+/** `n` checks of one project, each with one screenshot of the same problem: one section with `n` thumbnails. */
+const strip = (n: number, project = 'chromium') => Array.from({ length: n }, (_, i) =>
+  makeCheck({ project, testTitle: `${project} ${i}`, issues: [makeIssue()], screenshots: [shot()] }));
+const thumbnails = (page: Page) => page.locator('#page-1-1 .shots figure.shot-wrap');
+const showAll = (page: Page) => page.locator('#page-1-1 .shots .shots-toggle');
+
+test('a long thumbnail strip shows the first 6 and a control for the rest', async ({ page }) => {
+  await open(page, strip(10));
+  await expect(thumbnails(page)).toHaveCount(10);
+  await expect(thumbnails(page).filter({ visible: true })).toHaveCount(6);
+  await expect(thumbnails(page).nth(5)).toBeVisible();
+  await expect(thumbnails(page).nth(6)).toBeHidden();
+  await expect(showAll(page)).toHaveText('Show all 10 screenshots');
+  await expect(showAll(page)).toHaveAttribute('aria-expanded', 'false');
+
+  await showAll(page).click();
+  await expect(thumbnails(page).filter({ visible: true })).toHaveCount(10);
+  await expect(showAll(page)).toHaveText('Show fewer');
+  await expect(showAll(page)).toHaveAttribute('aria-expanded', 'true');
+
+  await showAll(page).click();
+  await expect(thumbnails(page).filter({ visible: true })).toHaveCount(6);
+  await expect(showAll(page)).toHaveText('Show all 10 screenshots');
+});
+
+test('a strip of 6 or fewer has no control', async ({ page }) => {
+  await open(page, strip(6));
+  await expect(thumbnails(page).filter({ visible: true })).toHaveCount(6);
+  await expect(page.locator('.shots-toggle:visible')).toHaveCount(0);
+});
+
+test('the cap counts the thumbnails a filter leaves, not the hidden ones', async ({ page }) => {
+  await open(page, [...strip(8, 'chromium'), ...strip(8, 'webkit')]);
+  await expect(showAll(page)).toHaveText('Show all 16 screenshots');
+  await filter(page, 'project').selectOption('webkit');
+  await expect(thumbnails(page).filter({ visible: true })).toHaveCount(6);
+  await expect(thumbnails(page).filter({ visible: true }).first()).toHaveAttribute('data-project', 'webkit');
+  await expect(showAll(page)).toHaveText('Show all 8 screenshots');
+  // Fewer than 7 left: nothing to expand.
+  await open(page, [...strip(8, 'chromium'), ...strip(3, 'webkit')]);
+  await filter(page, 'project').selectOption('webkit');
+  await expect(thumbnails(page).filter({ visible: true })).toHaveCount(3);
+  await expect(showAll(page)).toBeHidden();
+});
+
+test('a thumbnail past the cap still feeds the detail panel', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, strip(10));
+  await page.locator('#p1 td').last().click();
+  await expect(detail(page, 'p1').locator('.dshot:visible')).toHaveCount(6);
+  await expect(detail(page, 'p1').locator('.d-block .more')).toHaveText('+4 more in the section');
+  await expect(detail(page, 'p1').locator('[data-over]')).toHaveCount(0);
+});
+
+test.describe('the thumbnail strip without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('shows every thumbnail and no dead control', async ({ page }) => {
+    await open(page, strip(10));
+    await expect(thumbnails(page).filter({ visible: true })).toHaveCount(10);
+    await expect(page.locator('.shots-toggle')).toHaveCount(0);
+  });
+});
+
 test.describe('the panel without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
@@ -869,4 +989,51 @@ test.describe('the panel at 390px', () => {
     await page.keyboard.press('Escape');
     await expect(panel(page)).toBeHidden();
   });
+});
+
+test('a matrix cell of a run without projects filters by locale only', async ({ page }) => {
+  await open(page, [makeCheck({ issues: [makeIssue({ locale: 'de', text: 'One' }), makeIssue({ locale: 'fr', text: 'Two' })], screenshots: [shot()] })]);
+  await filter(page, 'locale').selectOption('');
+  await page.locator('#summary [data-pick-locale="fr"]').click();
+  await expect(filter(page, 'locale')).toHaveValue('fr');
+  await expect(rows(page).filter({ visible: true })).toHaveCount(1);
+});
+
+test('matrix cells for no locale or no project are plain counts, and a project cell still sets its project', async ({ page }) => {
+  await open(page, [
+    check('chromium', [makeIssue({ locale: 'de', text: 'One' }), makeIssue({ locale: '', text: 'Nolocale' })]),
+    check('webkit', [makeIssue({ locale: 'de', text: 'Two' })]),
+    makeCheck({ issues: [makeIssue({ locale: 'de', text: 'Noproject' })], screenshots: [shot()] }),
+  ]);
+  await filter(page, 'project').selectOption('webkit');
+  await page.locator('#summary .matrix td.num').filter({ hasText: '1' }).locator('button').first().click(); // de in chromium
+  await expect(filter(page, 'project')).toHaveValue('chromium');
+  // The cells without a button have nothing to click: their count is plain text.
+  await expect(page.locator('#summary .matrix td.num:not(:has(button)):not(:has(.zero))')).toHaveCount(2);
+});
+
+test('a results.json written by 0.4.2 opens, filters and shows a problem', async ({ page }) => {
+  const results = JSON.parse(readFileSync('tests/fixtures/results-0.4.2.json', 'utf8'));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setContent(renderReport(results));
+  await expect(rows(page)).toHaveCount(36);
+  await expect(page.locator('[data-status]')).toHaveText('Showing 36 of 36 problems');
+  // The matrix cell for German in the demo project filters to it.
+  const cell = page.locator('#summary .matrix button[data-pick-locale="de"]');
+  await expect(cell).toHaveAttribute('aria-label', /^de in demo: \d+ problems?$/);
+  await cell.click();
+  await expect(filter(page, 'locale')).toHaveValue('de');
+  const shown = await rows(page).filter({ visible: true }).count();
+  expect(shown).toBeGreaterThan(0);
+  expect(shown).toBeLessThan(36);
+  // A problem opens its detail, with its full selector.
+  await rows(page).filter({ visible: true }).first().locator('td').last().click();
+  await expect(page.locator('article.detail:visible')).toHaveCount(1);
+  await expect(page.locator('article.detail:visible .d-sels code').first()).not.toBeEmpty();
+  // A rule with a CSS source shows it, and the fix.
+  await page.locator('[data-clear]').click();
+  await page.locator('tr.problem[data-rule="rtl/not-mirrored"]').first().locator('td').last().click();
+  const open = page.locator('article.detail:visible');
+  await expect(open).toContainText('inset-inline-start: 16px');
+  await expect(open).toContainText('Fix:');
 });

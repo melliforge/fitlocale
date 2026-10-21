@@ -113,6 +113,7 @@ export const SCRIPT = String.raw`(function () {
       var inProject = !project || fig.getAttribute('data-project') === project;
       fig.hidden = !(inProject && fig.querySelector('.box:not([hidden])'));
     });
+    all('.shots').forEach(capStrip);
     all('details.section, details.page').forEach(function (el) { el.hidden = !el.querySelector('tr.problem:not([hidden])'); });
     syncSidebar();
     var status = document.querySelector('[data-status]');
@@ -120,6 +121,33 @@ export const SCRIPT = String.raw`(function () {
     // Sections shown or hidden below the window move no intersection: the mark is checked here too.
     if (spyUpdate) spyUpdate();
   }
+
+  /* ---------- Thumbnail strips: the first few, and a control for the rest ---------- */
+
+  var STRIP_CAP = 6;
+  /** The first STRIP_CAP thumbnails the filters leave stay; the others are marked, and hidden until the strip is expanded. */
+  function capStrip(strip) {
+    var button = strip.querySelector('.shots-toggle');
+    var left = all('figure.shot-wrap', strip).filter(function (fig) { return !fig.hidden; });
+    all('figure.shot-wrap', strip).forEach(function (fig) { fig.removeAttribute('data-over'); });
+    left.slice(STRIP_CAP).forEach(function (fig) { fig.setAttribute('data-over', ''); });
+    if (!button) return;
+    var open = strip.classList.contains('all');
+    button.hidden = left.length <= STRIP_CAP;
+    button.setAttribute('aria-expanded', String(open));
+    button.textContent = open ? 'Show fewer' : 'Show all ' + left.length + ' screenshots';
+  }
+  all('.shots').forEach(function (strip) {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'link-btn shots-toggle';
+    button.hidden = true;
+    button.addEventListener('click', function () {
+      strip.classList.toggle('all');
+      capStrip(strip);
+    });
+    strip.appendChild(button);
+  });
 
   /** Sidebar entries follow the filters: hidden with their section, counting what is shown. */
   function syncSidebar() {
@@ -183,7 +211,7 @@ export const SCRIPT = String.raw`(function () {
   all('[data-pick-locale]').forEach(function (b) {
     b.addEventListener('click', function () {
       setValue('locale', b.getAttribute('data-pick-locale'));
-      setValue('project', b.getAttribute('data-pick-project'));
+      if (b.hasAttribute('data-pick-project')) setValue('project', b.getAttribute('data-pick-project'));
       apply();
     });
   });
@@ -283,6 +311,50 @@ export const SCRIPT = String.raw`(function () {
   function setHash(hash) {
     try { history.replaceState(history.state, '', location.href.split('#')[0] + hash); } catch (e) { /* about:blank, sandboxed frames */ }
   }
+  /** Screenshots in a problem's detail, and the rest are counted. */
+  var MAX_SHOTS = 6;
+  /**
+   * The detail's screenshots are copies of its section's figures, made the first time the problem opens: the page
+   * does not carry every screenshot twice. A copy keeps the image and caption, and only this problem's boxes.
+   */
+  function buildShots(article) {
+    var block = article.querySelector('[data-shots]');
+    var section = document.getElementById(article.getAttribute('data-section'));
+    if (!block || !section || block.getAttribute('data-built') !== null) return;
+    block.setAttribute('data-built', '');
+    var id = article.id.slice(2);
+    var holder = block.querySelector('.dshots');
+    var figures = all('figure.shot-wrap', section).filter(function (fig) {
+      return all('.box', fig).some(function (box) { return box.getAttribute('data-problem') === id; });
+    });
+    figures.slice(0, MAX_SHOTS).forEach(function (fig) {
+      var copy = fig.cloneNode(true);
+      var frame = copy.querySelector('.frame');
+      var crop = document.createElement('div');
+      crop.className = 'crop';
+      frame.className = 'dframe';
+      crop.appendChild(frame);
+      copy.replaceChild(crop, copy.querySelector('button.shot'));
+      copy.className = 'dshot';
+      copy.hidden = false;
+      copy.removeAttribute('data-project');
+      copy.removeAttribute('data-over');
+      all('.box', frame).forEach(function (box) {
+        if (box.getAttribute('data-problem') !== id) { frame.removeChild(box); return; }
+        box.className = box.className.replace(/^box\b/, 'dbox');
+        box.removeAttribute('data-problem');
+        box.hidden = false;
+      });
+      holder.appendChild(copy);
+    });
+    if (figures.length > MAX_SHOTS) {
+      var more = document.createElement('p');
+      more.className = 'more';
+      more.textContent = '+' + (figures.length - MAX_SHOTS) + ' more in the section';
+      block.appendChild(more);
+    }
+    block.hidden = false;
+  }
   /** Each screenshot in the detail scrolls to its first box. */
   function cropTo(article) {
     all('.crop', article).forEach(function (crop) {
@@ -312,6 +384,7 @@ export const SCRIPT = String.raw`(function () {
     panel.hidden = false;
     root.classList.add('panel-open');
     panel.scrollTop = 0;
+    buildShots(article);
     cropTo(article);
     setHash('#' + row.id);
     // Opening changes the layout (the rows stack, the sidebar may give way): the row stays in view.
