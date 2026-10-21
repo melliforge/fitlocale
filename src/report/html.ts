@@ -124,13 +124,7 @@ function detail(problem: Problem, section: Section, page: Page, shots: Shot[]): 
   const selectors = problem.selectors.map(s =>
     `<li><code>${esc(s)}</code><button type="button" class="copy" data-copy>Copy</button></li>`).join('');
 
-  const sources = new Map<string, string>();
-  for (const { issue: i } of problem.occurrences) {
-    if (!i.source) continue;
-    const item = cssSource(i.source);
-    if (!sources.has(item)) sources.set(item, item);
-  }
-  const list = [...sources.values()];
+  const list = [...new Set(problem.occurrences.flatMap(({ issue: i }) => (i.source ? [cssSource(i.source)] : [])))];
   const source = list.length
     ? block('CSS source', `<ul class="d-sources">${list.slice(0, MAX_LINKS).join('')}</ul>${list.length > MAX_LINKS ? `<p class="more">and ${list.length - MAX_LINKS} more</p>` : ''}`)
     : '';

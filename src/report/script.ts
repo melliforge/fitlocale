@@ -156,10 +156,13 @@ export const SCRIPT = String.raw`(function () {
     if (target.tagName === 'TR' && target.classList.contains('problem')) openDetail(target);
   }
 
-  checks.forEach(function (box) { box.addEventListener('change', apply); });
-  all('[data-filter]').forEach(function (s) { s.addEventListener('change', apply); });
+  /** Full width, the panel covers the content: what the reader does there next needs it closed. */
+  function uncover() { if (narrow && narrow.matches) closeDetail(false); }
+  var filtered = function () { uncover(); apply(); };
+  checks.forEach(function (box) { box.addEventListener('change', filtered); });
+  all('[data-filter]').forEach(function (s) { s.addEventListener('change', filtered); });
   if (search) {
-    search.addEventListener('input', apply);
+    search.addEventListener('input', filtered);
     // The query stays on the page: Enter never submits or navigates.
     search.addEventListener('keydown', function (e) { if (e.key === 'Enter') e.preventDefault(); });
   }
@@ -296,7 +299,8 @@ export const SCRIPT = String.raw`(function () {
     if (!panelOpen()) return;
     panel.hidden = true;
     root.classList.remove('panel-open');
-    setHash('');
+    // Only the problem's own hash goes: one the reader navigated to since stays.
+    if (shown && location.hash === '#' + shown.id.slice(2)) setHash('');
     if (refocus && selected) selected.focus({ preventScroll: true });
   }
 
@@ -377,10 +381,10 @@ export const SCRIPT = String.raw`(function () {
 
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
-      // The topmost first: the help, then the panel, then the drawer.
+      // The topmost first: the help, then the drawer (above the panel on narrow screens), then the panel.
       if (keysBox && !keysBox.hidden) setKeys(false);
-      else if (panelOpen()) closeDetail(true);
       else if (drawerOpen()) setDrawer(false, true);
+      else if (panelOpen()) closeDetail(true);
       return;
     }
     if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented || typing(e.target)) return;
@@ -407,7 +411,7 @@ export const SCRIPT = String.raw`(function () {
     if (!link) return;
     if (drawerOpen() && sidebar && sidebar.contains(link)) setDrawer(false, false);
     // A full-width panel would cover the section the link shows.
-    if (panel && panel.contains(link) && narrow && narrow.matches) closeDetail(false);
+    uncover();
     revealHash(link.getAttribute('href'));
   });
   window.addEventListener('hashchange', function () { revealHash(location.hash); });

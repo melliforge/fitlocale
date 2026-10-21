@@ -27,6 +27,24 @@ const DARK = `
   --shadow:0 12px 32px rgba(0,0,0,.4), 0 2px 6px rgba(0,0,0,.3);
   --scrim:rgba(0,0,0,.6);`;
 
+/**
+ * Problem rows as stacked cards: severity and rule on one line, then the element and the problem.
+ * Used on phones, and beside the detail panel while the content column is narrow.
+ */
+const stacked = (scope: string, scripted: string) => `
+  ${scope} .scroll > table { min-width:0; }
+  ${scope} thead { display:none; }
+  ${scope} table, ${scope} tbody, ${scope} tr.problem, ${scope} tr.problem > td { display:block; }
+  ${scope} tr.problem { padding:12px 16px; border-top:1px solid var(--divider); }
+  ${scope} tbody > tr.problem:first-child { border-top:0; }
+  ${scope} tr.problem > td { padding:0; border:0; }
+  ${scope} tr.problem > td:nth-child(-n+2) { display:inline-block; margin:0 6px 6px 0; vertical-align:middle; }
+  ${scope} tr.problem > td:nth-child(n+3) { margin-top:4px; }
+  ${scope} tr.problem .tag { margin:0 0 0 4px; }
+  ${scripted} tr.problem:hover { background:var(--bg-soft); }
+  ${scripted} tr.problem.selected { background:var(--sel); box-shadow:inset 3px 0 0 var(--brand); }
+  ${scripted} tr.problem > td, ${scripted} tr.problem.selected > td { background:none; box-shadow:none; }`;
+
 export const STYLES = `
 :root { color-scheme:light dark;${LIGHT}
   --error:var(--red); --error-soft:var(--red-soft); --warning:var(--yellow); --warning-soft:var(--yellow-soft); --info:var(--brand); --info-soft:var(--brand-soft);
@@ -224,7 +242,7 @@ tr.problem:focus { outline:0; } tr.problem:not(.selected):focus-visible { outlin
 .d-seen dt { color:var(--text-2); } .d-seen dd { margin:0; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
 .dshots { display:flex; flex-direction:column; gap:16px; }
 .dshot { margin:0; }
-.crop { max-height:320px; overflow:auto; overscroll-behavior:contain; border:1px solid var(--divider); border-radius:8px; background:var(--bg-soft); }
+.crop { max-height:320px; overflow:auto; border:1px solid var(--divider); border-radius:8px; background:var(--bg-soft); }
 .dframe { position:relative; display:block; } .dframe img { display:block; width:100%; height:auto; }
 .d-block .more { margin-top:8px; color:var(--text-2); font-size:12px; }
 
@@ -238,6 +256,10 @@ tr.problem:focus { outline:0; } tr.problem:not(.selected):focus-visible { outlin
 @media (min-width: 1280px) {
   .js.panel-open .section .scroll > table { min-width:0; }
   .js.panel-open .section th:nth-child(4), .js.panel-open .section td.seen, .js.panel-open .section .fix { display:none; }
+}
+/* Until the column is wide enough for four columns, the rows stack, as on phones. */
+@media (min-width: 1280px) and (max-width: 1439px) {
+${stacked('.js.panel-open .section', '.js.panel-open .section')}
 }
 @media (max-width: 1279px) {
   .js.panel-open .layout { grid-template-columns:var(--side) minmax(0, 1fr); }
@@ -275,17 +297,7 @@ tr.problem:focus { outline:0; } tr.problem:not(.selected):focus-visible { outlin
   .shots { margin:0 12px; padding:12px 0; gap:12px; }
   .shot-wrap { width:calc(50% - 6px); }
   /* Problem rows stack instead of scrolling sideways. */
-  .section .scroll > table { min-width:0; }
-  .section thead { display:none; }
-  .section table, .section tbody, .section tr.problem, .section tr.problem > td { display:block; }
-  .section tr.problem { padding:12px 16px; border-top:1px solid var(--divider); }
-  .section tbody > tr.problem:first-child { border-top:0; }
-  .section tr.problem > td { padding:0; border:0; }
-  .section tr.problem > td:nth-child(-n+2) { display:inline-block; margin:0 6px 6px 0; vertical-align:middle; }
-  .section tr.problem > td:nth-child(n+3) { margin-top:4px; }
-  .section tr.problem .tag { margin:0 0 0 4px; }
-  .js .section tr.problem.selected { background:var(--sel); box-shadow:inset 3px 0 0 var(--brand); }
-  .js .section tr.problem.selected > td { background:none; box-shadow:none; }
+${stacked('.section', '.js .section')}
 }
 /* Phones: each rule is one compact row, its section links underneath. */
 @media (max-width: 639px) {

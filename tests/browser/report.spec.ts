@@ -665,8 +665,72 @@ test.describe('the panel without JavaScript', () => {
   });
 });
 
+test('closing the panel keeps a hash the reader navigated to', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await serve(page, THREE);
+  await page.locator('#p1 td').last().click();
+  expect(page.url()).toBe('http://report.test/#p1');
+  await page.locator('nav.sidebar a[href="#page-1-2"]').click();
+  await expect(page).toHaveURL('http://report.test/#page-1-2');
+  await expect(panel(page)).toBeVisible(); // beside the content, the panel stays open
+  await page.keyboard.press('Escape');
+  await expect(panel(page)).toBeHidden();
+  expect(page.url()).toBe('http://report.test/#page-1-2');
+});
+
+test('at 1280px the table beside the panel needs no sideways scrolling', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const fix = 'In http://localhost:3001/:141 (.excalidraw .welcome-screen-menu-item__text), replace "margin-right: auto" with "margin-inline-end: auto".';
+  await open(page, [check('chromium', [
+    makeIssue({ rule: 'i18n/locale-messages-not-matched', severity: 'warning', text: 'Open', message: 'None of the visible text matches the "de" messages in localeMessages, so overflow was not checked in this locale.', fix }),
+    makeIssue({ rule: 'rtl/not-mirrored', severity: 'warning', text: 'Live collaboration and sharing', selector: 'body>div:nth-child(3)>div:nth-child(1)>div:nth-child(1)>button:nth-child(1)', fix }),
+  ])]);
+  await page.locator('#p1 td').last().click();
+  await expect(panel(page)).toBeVisible();
+  const overflow = await page.locator('#page-1-1 .scroll').evaluate(el => el.scrollWidth - el.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  // Every row keeps its message readable: at least about 200px wide.
+  for (const td of await page.locator('#page-1-1 tr.problem > td:last-child').all()) expect((await td.boundingBox())!.width).toBeGreaterThan(200);
+});
+
 test.describe('the panel at 390px', () => {
   test.use({ viewport: { width: 390, height: 844 } });
+
+  test('closes when the reader navigates, filters or searches, since it covers the content', async ({ page }) => {
+    await open(page, THREE);
+    const filters = page.getByRole('button', { name: 'Filters', exact: true });
+
+    await page.locator('#p1 td').last().click();
+    await expect(panel(page)).toBeVisible();
+    await filters.click();
+    await page.locator('nav.sidebar a[href="#page-1-2"]').click();
+    await expect(panel(page)).toBeHidden();
+    await expect(page.locator('#page-1-2')).toBeInViewport();
+
+    await page.locator('#p1 td').last().click();
+    await filters.click();
+    await filter(page, 'rule').selectOption('overflow/clipped');
+    await page.keyboard.press('Escape'); // the drawer
+    await expect(panel(page)).toBeHidden();
+
+    await page.locator('#p1 td').last().click();
+    await expect(panel(page)).toBeVisible();
+    await page.locator('[data-search]').fill('One');
+    await expect(panel(page)).toBeHidden();
+    await expect(rows(page).filter({ visible: true })).toHaveCount(1);
+  });
+
+  test('Esc closes the drawer above the panel first, then the panel', async ({ page }) => {
+    await open(page, THREE);
+    await page.locator('#p1 td').last().click();
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
+    await expect(page.locator('nav.sidebar')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('nav.sidebar')).toBeHidden();
+    await expect(panel(page)).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(panel(page)).toBeHidden();
+  });
 
   test('is full width', async ({ page }) => {
     await open(page, THREE);
