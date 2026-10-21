@@ -5,6 +5,14 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+### Added
+
+- `mask` option: selectors whose boxes are painted over in every fitlocale screenshot and crop, for customer data. A selector that is not valid CSS fails the check with an error naming it.
+- `crop` on issues in `results.json`: a small screenshot around the issue (24 px around its box, at most 20 per check), copied into the report's `screenshots/` folder.
+- `fitlocale/report`: the HTML report renderer as its own entry point (`renderReport`, `escapeHtml`), in one file that uses nothing from Node.
+- `fitlocale upload <report-dir>`: sends a report to fitlocale cloud from GitHub Actions, signing in with the job's OIDC token. It never fails the job: without a token, plan or answer it prints one line and exits 0.
+- The Action's `upload` and `upload-url` inputs run `fitlocale upload` after the summary. The fitlocale cloud service itself is not live yet.
+
 ## [0.4.3] - 2026-10-21
 
 ### Changed
