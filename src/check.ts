@@ -1,5 +1,5 @@
 import { dirname, relative, resolve } from 'node:path';
-import type { Frame, FullConfig, Page, TestInfo } from '@playwright/test';
+import type { Frame, FullConfig, Locator, Page, TestInfo } from '@playwright/test';
 import { ensureInjected } from './inject';
 import type { FitlocaleOptions } from './options';
 import { flattenKeys, flattenValues } from './pseudo';
@@ -102,6 +102,21 @@ const settle = (page: Page, waitForFonts: boolean) =>
     return ready;
   }, [FONT_TIMEOUT_MS, waitForFonts, FRAME_TIMEOUT_MS] as const);
 
+/** Locators for the `mask` option; an invalid selector is reported once, by name. */
+export async function maskLocators(page: Page, mask: string[]): Promise<Locator[]> {
+  const locators: Locator[] = [];
+  for (const selector of mask) {
+    const locator = page.locator(selector);
+    try {
+      await locator.count();
+    } catch (err) {
+      throw new Error(`fitlocale: mask selector "${selector}" is not a valid selector: ${(err as Error).message.split('\n')[0]}`, { cause: err });
+    }
+    locators.push(locator);
+  }
+  return locators;
+}
+
 const CONTEXT_DESTROYED = /Execution context was destroyed/;
 
 /** Run a check; a navigation part-way through gets one clear error instead of whatever call it broke. */
@@ -154,13 +169,15 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
     }));
 
   const shot = new Set<string>();
+  // Validated up front, so a mistyped selector fails the first check rather than the first one with an issue.
+  const mask = options.screenshots ? await maskLocators(page, options.mask) : [];
   const shoot = async (mode: Mode, viewport: Viewport) => {
     const id = `${mode}-${viewport.width}x${viewport.height}`;
     if (!options.screenshots || shot.has(id)) return;
     shot.add(id);
     const path = testInfo.outputPath(`fitlocale-${checkIndex}-${mode}-${viewport.width}x${viewport.height}.png`);
     const size = await page.evaluate(() => (window as unknown as Api).__fitlocale.documentSize());
-    await page.screenshot({ fullPage: true, path });
+    await page.screenshot({ fullPage: true, path, mask });
     screenshots.push({ mode, viewport, path, size });
   };
 

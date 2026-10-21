@@ -33,6 +33,8 @@ export interface FitlocaleOptions {
    */
   baseline: string | false;
   screenshots: boolean;
+  /** Selectors whose boxes are painted over in every fitlocale screenshot and crop: customer data, and anything you upload. */
+  mask: string[];
   /** Use Chromium DevTools for the font-fallback check and for pointing mirroring issues at their CSS line. */
   devtools: boolean;
 }
@@ -49,6 +51,7 @@ export const DEFAULT_OPTIONS: FitlocaleOptions = {
   failOn: 'error',
   baseline: 'fitlocale-baseline.json',
   screenshots: true,
+  mask: [],
   devtools: true,
 };
 

@@ -118,6 +118,16 @@ The accepted-issues file, relative to `playwright.config`. Without the file, iss
 
 Save a full-page screenshot when a mode finds issues, for the HTML report.
 
+### `mask`
+
+`string[]` · default `[]`
+
+Selectors whose boxes are painted over in every fitlocale screenshot and crop, for customer data and anything you upload. A selector that matches nothing is fine; one that is not valid CSS fails the check with an error naming it.
+
+```ts
+fitlocale: { mask: ['.customer-email', '[data-private]'] }
+```
+
 ### `devtools`
 
 `boolean` · default `true`

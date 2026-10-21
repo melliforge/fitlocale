@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../src/playwright';
 import { FIXES, type CheckResult } from '../../src/types';
@@ -537,5 +537,56 @@ test.describe('a web font that never loads', () => {
     const t0 = Date.now();
     await localeCheck(); // two viewports, two text changes each: four waits of up to 3 s before
     expect(Date.now() - t0).toBeLessThan(7000);
+  });
+});
+
+test.describe('mask', () => {
+  const SECRET = `<div id=secret style="position:absolute;left:0;top:200px;width:200px;height:100px;background:#fff;color:#000">card 4242</div>`;
+  /** The colour at (x, y) of a PNG file, read through the page. */
+  const pixel = async (page: Page, path: string, x: number, y: number) => page.evaluate(async ([src, x, y]) => {
+    const img = new Image();
+    img.src = src;
+    await img.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(img, 0, 0);
+    return [...ctx.getImageData(x, y, 1, 1).data].slice(0, 3);
+  }, [`data:image/png;base64,${readFileSync(path).toString('base64')}`, x, y] as const);
+
+  test.describe('on a secret', () => {
+    test.use({ fitlocale: { viewports: 'current', failOn: 'never', mask: ['#secret'] } });
+
+    test('masked elements are painted over in screenshots', async ({ page, localeCheck }) => {
+      await page.setContent(CLIPPED + SECRET);
+      const result = await localeCheck();
+      expect(result.screenshots.length).toBeGreaterThan(0);
+      const [r, g, b] = await pixel(page, result.screenshots[0].path, 100, 250);
+      expect(Math.abs(r - 255)).toBeLessThanOrEqual(2);
+      expect(g).toBeLessThanOrEqual(2);
+      expect(Math.abs(b - 255)).toBeLessThanOrEqual(2);
+    });
+  });
+
+  test.describe('with an invalid selector', () => {
+    test.use({ fitlocale: { viewports: 'current', failOn: 'never', mask: ['#'] } });
+
+    test('an invalid mask selector is a clear error', async ({ page, localeCheck }) => {
+      await page.setContent(CLIPPED);
+      await expect(localeCheck()).rejects.toThrow(/^fitlocale: mask selector "#"/);
+    });
+  });
+
+  test.describe('matching nothing', () => {
+    test.use({ fitlocale: { viewports: 'current', failOn: 'never', mask: ['#nothing'] } });
+
+    test('a mask that matches nothing changes nothing', async ({ page, localeCheck }) => {
+      await page.setContent(CLIPPED);
+      const result = await localeCheck();
+      expect(list(result)).toEqual(['overflow/clipped #s pseudo-long']);
+      expect(result.screenshots.length).toBeGreaterThan(0);
+      expect(existsSync(result.screenshots[0].path)).toBe(true);
+    });
   });
 });
