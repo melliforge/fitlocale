@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 
@@ -20,7 +21,7 @@ test('README documents the baseline file and the GitHub Action', () => {
   expect(readme).toContain('## Baseline');
   expect(readme).toContain('npx fitlocale baseline');
   expect(readme).toContain('## GitHub Actions');
-  expect(readme).toContain('uses: melliforge/localization-layout-tester@v');
+  expect(readme).toContain('uses: melliforge/fitlocale@v');
   expect(readme).toMatch(/\| `baseline` \|/);
 });
 
@@ -40,4 +41,11 @@ test('the declared Node and Playwright floors are the ones CI tests and the docs
 
 test('the package is built for the oldest Node it declares', () => {
   expect(readFileSync('tsdown.config.ts', 'utf8')).toContain("target: 'node16.17'");
+});
+
+// The repository was renamed from localization-layout-tester to fitlocale: only the changelog's note may name the old one.
+test('the old repository name appears only in the changelog note about the rename', () => {
+  const out = execFileSync('git', ['grep', '-n', 'localization-layout-tester', '--', '.', ':!tests/unit/readme.spec.ts'], { encoding: 'utf8' }).trim().split('\n');
+  expect(out.filter(line => !line.startsWith('CHANGELOG.md:'))).toEqual([]);
+  expect(out.filter(line => line.startsWith('CHANGELOG.md:'))).toHaveLength(1);
 });
