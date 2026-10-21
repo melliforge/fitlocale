@@ -449,6 +449,8 @@ test.describe('at 390px', () => {
     await page.locator('nav.sidebar a[href="#page-1-2"]').click();
     await expect(sidebar).toBeHidden();
     await expect(page.locator('#page-1-2')).toBeInViewport();
+    // Focus goes to the section, not back to the top of the page.
+    await expect(page.locator('#page-1-2 > summary')).toBeFocused();
   });
 
   test('the by-rule table fits without sideways scrolling', async ({ page }) => {
@@ -486,7 +488,7 @@ test('clicking a row opens its detail and Esc closes it', async ({ page }) => {
   await expect(panel(page)).toBeVisible();
   await expect(detail(page, 'p2')).toBeVisible();
   await expect(page.locator('article.detail:visible')).toHaveCount(1);
-  await expect(page.locator('#p2')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#p2')).toHaveAttribute('aria-current', 'true');
   await expect(page.locator('#p2')).toHaveClass(/\bselected\b/);
   expect(page.url()).toBe('http://report.test/#p2');
 
@@ -494,7 +496,7 @@ test('clicking a row opens its detail and Esc closes it', async ({ page }) => {
   await page.locator('#p1 td').last().click();
   await expect(detail(page, 'p1')).toBeVisible();
   await expect(detail(page, 'p2')).toBeHidden();
-  await expect(page.locator('#p2')).not.toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#p2')).not.toHaveAttribute('aria-current', 'true');
 
   await page.keyboard.press('Escape');
   await expect(panel(page)).toBeHidden();
@@ -519,17 +521,17 @@ test('j and k move through visible problems only', async ({ page }) => {
   await filter(page, 'rule').selectOption('overflow/clipped'); // hides p2
   await page.locator('body').click({ position: { x: 600, y: 10 } });
   await page.keyboard.press('j');
-  await expect(page.locator('#p1')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#p1')).toHaveAttribute('aria-current', 'true');
   await expect(page.locator('#p1')).toBeFocused();
   await expect(panel(page)).toBeHidden(); // moving does not open the panel
   await page.keyboard.press('j');
-  await expect(page.locator('#p3')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#p3')).toHaveAttribute('aria-current', 'true');
   await expect(page.locator('#p3')).toBeInViewport();
   await page.keyboard.press('j'); // the last one stays
-  await expect(page.locator('#p3')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#p3')).toHaveAttribute('aria-current', 'true');
   await page.keyboard.press('k');
-  await expect(page.locator('#p1')).toHaveAttribute('aria-selected', 'true');
-  await expect(page.locator('tr.problem[aria-selected="true"]')).toHaveCount(1);
+  await expect(page.locator('#p1')).toHaveAttribute('aria-current', 'true');
+  await expect(page.locator('tr.problem[aria-current="true"]')).toHaveCount(1);
 
   // With the panel open, moving updates it.
   await page.keyboard.press('Enter');
@@ -545,7 +547,7 @@ test('#p2 opens problem 2 on load, and a later hash change opens another', async
   await page.goto('http://report.test/#p2');
   await expect(panel(page)).toBeVisible();
   await expect(detail(page, 'p2')).toBeVisible();
-  await expect(page.locator('#p2')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#p2')).toHaveAttribute('aria-current', 'true');
 
   // A link to a problem hidden by a filter clears the filter first.
   await filter(page, 'locale').selectOption('de');
@@ -567,6 +569,8 @@ test('Copy puts the selector on the clipboard', async ({ page, context, browserN
   const copy = detail(page, 'p1').locator('[data-copy]');
   await expect(copy).toHaveText('Copy');
   await copy.click();
+  await expect(panel(page).locator('[data-announce]')).toHaveAttribute('aria-live', 'polite');
+  await expect(panel(page).locator('[data-announce]')).toHaveText(/^(Copied|Selected)$/);
   // The copied text stays selected, so it is visible what was copied (and Ctrl+C works if copying failed).
   expect(await page.evaluate(() => String(window.getSelection()))).toBe(selector);
   if (browserName === 'chromium') {
@@ -582,7 +586,7 @@ test('keys are ignored while typing in search', async ({ page }) => {
   await search.click();
   await page.keyboard.type('jk?/');
   await expect(search).toHaveValue('jk?/');
-  await expect(page.locator('tr.problem[aria-selected="true"]')).toHaveCount(0);
+  await expect(page.locator('tr.problem[aria-current="true"]')).toHaveCount(0);
   await expect(page.locator('[data-keys]')).toBeHidden();
   await expect(search).toBeFocused();
 });
@@ -603,7 +607,7 @@ test('/ focuses the search and ? toggles the shortcut help', async ({ page }) =>
   // Modified keys are the browser's.
   await page.locator('body').click({ position: { x: 600, y: 10 } });
   await page.keyboard.press('Control+j');
-  await expect(page.locator('tr.problem[aria-selected="true"]')).toHaveCount(0);
+  await expect(page.locator('tr.problem[aria-current="true"]')).toHaveCount(0);
 });
 
 test('search finds text past the label', async ({ page }) => {
@@ -627,14 +631,137 @@ test('at 1440px the panel sits beside the table without covering it', async ({ p
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
 });
 
-test('at 1100px the panel overlays the content', async ({ page }) => {
+test('at 1100px the open panel takes the sidebar\'s place, which becomes a drawer', async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 800 });
   await open(page, THREE);
+  const sidebar = page.locator('nav.sidebar');
+  const filters = page.getByRole('button', { name: 'Filters', exact: true });
+  await expect(sidebar).toBeVisible();
+  await expect(filters).toBeHidden();
+
   await page.locator('#p1 td').last().click();
   const aside = (await panel(page).boundingBox())!;
   expect(aside.width).toBe(480);
   expect(aside.x + aside.width).toBeCloseTo(1100, 0);
-  expect(await panel(page).evaluate(el => getComputedStyle(el).position)).toBe('fixed');
+  // The list gets the rest of the width.
+  const main = (await page.locator('main').boundingBox())!;
+  expect(main.x).toBe(0);
+  expect(main.width).toBeCloseTo(1100 - 480, 0);
+  await expect(sidebar).toBeHidden();
+  await expect(filters).toBeVisible();
+
+  // The sidebar is a drawer, as on phones: Filters opens it, Esc closes it first, then the panel.
+  await filters.click();
+  await expect(sidebar).toBeVisible();
+  await expect(page.locator('[data-scrim]')).toBeVisible();
+  await expect(page.locator('nav.sidebar [data-sev="error"]')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(sidebar).toBeHidden();
+  await expect(filters).toBeFocused();
+  await expect(panel(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(panel(page)).toBeHidden();
+  await expect(sidebar).toBeVisible();
+  await expect(filters).toBeHidden();
+});
+
+test('at 1100px the selected row stays readable beside the panel', async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 800 });
+  const fix = 'In http://localhost:3001/:141 (.excalidraw .welcome-screen-menu-item__text), replace "margin-right: auto" with "margin-inline-end: auto".';
+  await open(page, [check('chromium', [
+    makeIssue({ rule: 'i18n/locale-messages-not-matched', severity: 'warning', text: 'Open', fix }),
+    makeIssue({ rule: 'rtl/not-mirrored', severity: 'warning', text: 'Live collaboration and sharing', selector: 'body>div:nth-child(3)>div:nth-child(1)>div:nth-child(1)>button:nth-child(1)', fix }),
+  ])]);
+  await page.locator('#p2 td').last().click();
+  await expect(panel(page)).toBeVisible();
+  const label = page.locator('#p2 .label');
+  await expect(label).toBeInViewport();
+  const l = (await label.boundingBox())!, aside = (await panel(page).boundingBox())!;
+  expect(l.x + l.width).toBeLessThanOrEqual(aside.x);
+  const overflow = await page.locator('#page-1-1 .scroll').evaluate(el => el.scrollWidth - el.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+});
+
+test('at 1440px a keyboard user reaches the panel and keeps focus in it', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, THREE);
+  const inPanel = () => page.evaluate(() => !!document.activeElement && document.querySelector('aside.panel')!.contains(document.activeElement));
+
+  await page.locator('#p1').focus();
+  await page.keyboard.press('Enter');
+  await expect(detail(page, 'p1')).toBeVisible();
+  expect(await inPanel()).toBe(true);
+  await expect(detail(page, 'p1').locator('[data-copy]').first()).toBeFocused();
+
+  // j and k still move, and focus stays in the panel.
+  await page.keyboard.press('j');
+  await expect(detail(page, 'p2')).toBeVisible();
+  expect(await inPanel()).toBe(true);
+  await page.keyboard.press('k');
+  await expect(detail(page, 'p1')).toBeVisible();
+  expect(await inPanel()).toBe(true);
+
+  // The step buttons keep focus on themselves.
+  const down = panel(page).locator('[data-step="1"]');
+  await down.focus();
+  await page.keyboard.press('Enter');
+  await expect(detail(page, 'p2')).toBeVisible();
+  await expect(down).toBeFocused();
+  await down.click();
+  await expect(detail(page, 'p3')).toBeVisible();
+  expect(await inPanel()).toBe(true);
+  await expect(down).toBeFocused();
+
+  // Esc closes the panel and returns to the row.
+  await page.keyboard.press('Escape');
+  await expect(panel(page)).toBeHidden();
+  await expect(page.locator('#p3')).toBeFocused();
+});
+
+test('at 1440px a click on a row leaves focus where it is', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, THREE);
+  await page.locator('#p1 td').last().click();
+  await expect(detail(page, 'p1')).toBeVisible();
+  expect(await page.evaluate(() => document.querySelector('aside.panel')!.contains(document.activeElement))).toBe(false);
+});
+
+test('at 700px ? does nothing, since the help is not shown there', async ({ page }) => {
+  await page.setViewportSize({ width: 700, height: 800 });
+  await open(page, THREE);
+  await page.locator('#p1 td').last().click();
+  await expect(panel(page)).toBeVisible();
+  await page.keyboard.press('?');
+  await expect(page.locator('[data-keys]')).toHaveAttribute('hidden', '');
+  // Esc is not swallowed by an invisible help.
+  await page.keyboard.press('Escape');
+  await expect(panel(page)).toBeHidden();
+});
+
+test('the sidebar highlight follows a filter change', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  // Short sections (no screenshots), and a last page that only the info toggle hides.
+  await open(page, [
+    makeCheck({ issues: ['de', 'fr', 'ar', 'ja'].map(locale => makeIssue({ locale, text: `Text ${locale}` })), screenshots: [] }),
+    makeCheck({ url: 'http://app.test/z', issues: [makeIssue({ url: 'http://app.test/z', locale: 'pl', severity: 'info', text: 'Last' })], screenshots: [] }),
+  ]);
+  const info = page.locator('nav.sidebar [data-sev="info"]');
+  await info.uncheck();
+  // At the bottom of the page, the last section shown is marked.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const marked = page.locator('nav.sidebar a[aria-current="true"]');
+  await expect(marked).toHaveAttribute('href', '#page-1-4');
+  // Showing the last page adds content below the window only: nothing scrolls and no section enters or leaves the
+  // band, but the page is no longer at its bottom, so the section in the band is marked.
+  await info.check();
+  const expected = await page.evaluate(() => {
+    const spy = Array.from(document.querySelectorAll<HTMLElement>('#summary, details.section'));
+    const hit = spy.find(el => { const r = el.getBoundingClientRect(); return r.bottom > 96 && r.top < window.innerHeight * 0.45; });
+    return hit ? '#' + hit.id : null;
+  });
+  expect(expected).toMatch(/^#page-1-[123]$/);
+  await expect(marked).toHaveAttribute('href', expected!);
 });
 
 test('the detail screenshot scrolls to its box', async ({ page }) => {

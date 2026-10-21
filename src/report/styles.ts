@@ -45,6 +45,20 @@ const stacked = (scope: string, scripted: string) => `
   ${scripted} tr.problem.selected { background:var(--sel); box-shadow:inset 3px 0 0 var(--brand); }
   ${scripted} tr.problem > td, ${scripted} tr.problem.selected > td { background:none; box-shadow:none; }`;
 
+/**
+ * The sidebar as a drawer opened by the Filters button, over a scrim: on narrow screens, and while the detail panel
+ * takes the sidebar's place below 1280px. `scope` is the root's classes (`.js`, `.js.panel-open`).
+ */
+const drawer = (scope: string) => `
+  ${scope} .brand { width:auto; padding:0 0 0 16px; background:none; }
+  ${scope} .bar { border-bottom:1px solid var(--divider); } ${scope} .bar-main { padding:0 16px 0 4px; border-bottom:0; gap:8px; }
+  ${scope} .drawer-btn { display:inline-flex; }
+  ${scope} .sidebar { position:fixed; z-index:30; top:var(--nav); bottom:0; left:0; width:min(320px, 86vw); height:auto; overflow-y:auto; padding:8px 24px 48px; box-shadow:var(--shadow); transform:translateX(-100%); visibility:hidden; transition:transform .25s ease, visibility .25s; }
+  /* Visible at once on opening, so focus can move into it; hidden only after the slide-out. */
+  ${scope}.drawer-open .sidebar { transform:none; visibility:visible; transition:transform .25s ease, visibility 0s; }
+  ${scope} .scrim { display:block; position:fixed; z-index:25; inset:var(--nav) 0 0 0; background:var(--scrim); }
+  ${scope} .scrim[hidden] { display:none !important; }`;
+
 export const STYLES = `
 :root { color-scheme:light dark;${LIGHT}
   --error:var(--red); --error-soft:var(--red-soft); --warning:var(--yellow); --warning-soft:var(--yellow-soft); --info:var(--brand); --info-soft:var(--brand-soft);
@@ -185,8 +199,8 @@ summary > h2, summary > h3 { min-width:0; }
 .page, .section, tr.problem, #summary { scroll-margin-top:calc(var(--nav) + 16px); }
 .label { overflow-wrap:anywhere; font-weight:500; }
 .sel { margin-top:4px; }
-.sel summary { color:var(--text-3); font-size:12px; cursor:pointer; }
-.sel summary:hover { color:var(--text-2); }
+.sel summary { color:var(--text-2); font-size:12px; cursor:pointer; }
+.sel summary:hover { color:var(--text-1); }
 .sel code { display:block; margin-top:4px; padding:0; background:none; color:var(--text-2); font-size:12px; white-space:normal; word-break:break-all; }
 .seen, .fix { color:var(--text-2); font-size:13px; }
 .fix { margin-top:4px; }
@@ -210,8 +224,10 @@ figcaption { margin-top:6px; color:var(--text-2); font-size:12px; overflow-wrap:
 .js tr.problem.selected > td:first-child { box-shadow:inset 3px 0 0 var(--brand); }
 /* The selected row already stands out; a ring marks focus on any other row. */
 tr.problem:focus { outline:0; } tr.problem:not(.selected):focus-visible { outline:2px solid var(--brand); outline-offset:-2px; }
+/* A section reached from a link takes focus only to keep the reader's place. */
+[data-focus-target]:focus { outline:0; }
 
-/* Detail panel: beside the content from 1280px, over it below, full width below 960px. Script only. */
+/* Detail panel: beside the content from 960px (in the sidebar's place below 1280px), full width below 960px. Script only. */
 .panel { position:sticky; top:var(--nav); height:calc(100vh - var(--nav)); overflow-y:auto; overscroll-behavior:contain; border-left:1px solid var(--divider); background:var(--bg); }
 :root:not(.js) .panel { display:none !important; }
 .js.panel-open .layout { grid-template-columns:var(--side) minmax(0, 1fr) 480px; }
@@ -253,18 +269,18 @@ tr.problem:focus { outline:0; } tr.problem:not(.selected):focus-visible { outlin
 .keys dt { margin:0; } .keys dd { margin:0; color:var(--text-2); }
 
 /* Beside the panel, the table keeps what identifies a problem; the panel shows where it was seen and the fix. */
-@media (min-width: 1280px) {
+@media (min-width: 960px) {
   .js.panel-open .section .scroll > table { min-width:0; }
   .js.panel-open .section th:nth-child(4), .js.panel-open .section td.seen, .js.panel-open .section .fix { display:none; }
 }
 /* Until the column is wide enough for four columns, the rows stack, as on phones. */
-@media (min-width: 1280px) and (max-width: 1439px) {
+@media (min-width: 960px) and (max-width: 1439px) {
 ${stacked('.js.panel-open .section', '.js.panel-open .section')}
 }
-@media (max-width: 1279px) {
-  .js.panel-open .layout { grid-template-columns:var(--side) minmax(0, 1fr); }
-  .panel-open .content { padding-left:32px; padding-right:32px; }
-  .panel { position:fixed; z-index:15; top:var(--nav); right:0; bottom:0; width:480px; height:auto; box-shadow:var(--shadow); }
+/* Below 1280px the panel takes the sidebar's place, and the sidebar becomes the drawer. */
+@media (min-width: 960px) and (max-width: 1279px) {
+  .js.panel-open .layout { grid-template-columns:minmax(0, 1fr) 480px; }
+${drawer('.js.panel-open')}
 }
 
 /* Narrow screens: the sidebar becomes a drawer (only with the script; without it, it stays above the content). */
@@ -274,14 +290,9 @@ ${stacked('.js.panel-open .section', '.js.panel-open .section')}
   .layout { display:block; }
   .sidebar { position:static; height:auto; overflow:visible; padding:8px 16px 16px; }
   .content { padding:24px 16px 96px; }
-  .js .drawer-btn { display:inline-flex; }
   .search input:placeholder-shown + .hint { display:none; }
-  .js .sidebar { position:fixed; z-index:30; top:var(--nav); bottom:0; left:0; width:min(320px, 86vw); height:auto; overflow-y:auto; padding:8px 24px 48px; box-shadow:var(--shadow); transform:translateX(-100%); visibility:hidden; transition:transform .25s ease, visibility .25s; }
-  /* Visible at once on opening, so focus can move into it; hidden only after the slide-out. */
-  .js.drawer-open .sidebar { transform:none; visibility:visible; transition:transform .25s ease, visibility 0s; }
-  .js .scrim { display:block; position:fixed; z-index:25; inset:var(--nav) 0 0 0; background:var(--scrim); }
-  .js .scrim[hidden] { display:none !important; }
-  .panel { width:100%; border-left:0; }
+${drawer('.js')}
+  .panel { position:fixed; z-index:15; top:var(--nav); right:0; bottom:0; width:100%; height:auto; border-left:0; box-shadow:var(--shadow); }
   .panel-open .content { padding-left:16px; padding-right:16px; }
 }
 @media (max-width: 767px) {

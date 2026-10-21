@@ -166,7 +166,7 @@ function panel(model: ReportModel): string {
     }
   }
   return `<aside class="panel" aria-label="Problem detail" hidden>
-<div class="panel-bar"><span class="panel-title">Problem</span>`
+<div class="panel-bar"><span class="panel-title">Problem</span><span class="sr" data-announce aria-live="polite"></span>`
     + `<button type="button" class="icon-btn" data-step="-1" aria-label="Previous problem" title="Previous problem (k)">${ARROW_UP}</button>`
     + `<button type="button" class="icon-btn" data-step="1" aria-label="Next problem" title="Next problem (j)">${ARROW_DOWN}</button>`
     + `<button type="button" class="icon-btn" data-close aria-label="Close" title="Close (Esc)">${CROSS}</button></div>

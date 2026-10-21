@@ -28,6 +28,7 @@ export const SCRIPT = String.raw`(function () {
   var checks = all('[data-sev]');
   var search = document.querySelector('[data-search]');
   var sidebar = document.querySelector('nav.sidebar');
+  var spyUpdate = null; // the scrollspy's check, once it is set up
 
   /* ---------- Search: free text plus rule: locale: project: sev: is:accepted / is:new ---------- */
 
@@ -116,6 +117,8 @@ export const SCRIPT = String.raw`(function () {
     syncSidebar();
     var status = document.querySelector('[data-status]');
     if (status) status.textContent = 'Showing ' + shown + ' of ' + rows.length + ' problems';
+    // Sections shown or hidden below the window move no intersection: the mark is checked here too.
+    if (spyUpdate) spyUpdate();
   }
 
   /** Sidebar entries follow the filters: hidden with their section, counting what is shown. */
@@ -150,10 +153,18 @@ export const SCRIPT = String.raw`(function () {
   }
   function revealHash(hash) {
     var target;
-    try { target = document.getElementById(decodeURIComponent(hash.slice(1))); } catch (e) { return; }
-    if (!target) return;
+    try { target = document.getElementById(decodeURIComponent(hash.slice(1))); } catch (e) { return null; }
+    if (!target) return null;
     reveal(target);
-    if (target.tagName === 'TR' && target.classList.contains('problem')) openDetail(target);
+    if (target.tagName === 'TR' && target.classList.contains('problem')) openDetail(target, false);
+    return target;
+  }
+  /** Focus follows a link whose drawer or panel closed: to the section's summary, else the target itself. */
+  function focusTarget(target) {
+    var first = target.firstElementChild;
+    var to = first && first.tagName === 'SUMMARY' ? first : target;
+    if (to.tabIndex < 0 && !to.hasAttribute('tabindex')) { to.setAttribute('tabindex', '-1'); to.setAttribute('data-focus-target', ''); }
+    to.focus({ preventScroll: true });
   }
 
   /** Full width, the panel covers the content: what the reader does there next needs it closed. */
@@ -229,8 +240,12 @@ export const SCRIPT = String.raw`(function () {
 
   var drawerButton = document.querySelector('[data-drawer]');
   var scrim = document.querySelector('[data-scrim]');
-  var wide = window.matchMedia ? window.matchMedia('(min-width: 960px)') : null;
+  var narrow = window.matchMedia ? window.matchMedia('(max-width: 959px)') : null;
+  var mid = window.matchMedia ? window.matchMedia('(max-width: 1279px)') : null;
   function drawerOpen() { return root.classList.contains('drawer-open'); }
+  /** The sidebar is a drawer on narrow screens, and below 1280px while the panel takes its place. */
+  function drawerMode() { return !!narrow && (narrow.matches || (mid.matches && panelOpen())); }
+  function settleDrawer() { if (drawerOpen() && !drawerMode()) setDrawer(false, false); }
   function setDrawer(open, refocus) {
     if (!drawerButton) return;
     root.classList.toggle('drawer-open', open);
@@ -243,26 +258,26 @@ export const SCRIPT = String.raw`(function () {
   }
   if (drawerButton) drawerButton.addEventListener('click', function () { setDrawer(!drawerOpen(), false); });
   if (scrim) scrim.addEventListener('click', function () { setDrawer(false, true); });
-  if (wide) {
-    var onWide = function () { if (wide.matches && drawerOpen()) setDrawer(false, false); };
-    if (wide.addEventListener) wide.addEventListener('change', onWide); else if (wide.addListener) wide.addListener(onWide);
-  }
+  [narrow, mid].forEach(function (query) {
+    if (!query) return;
+    if (query.addEventListener) query.addEventListener('change', settleDrawer); else if (query.addListener) query.addListener(settleDrawer);
+  });
 
   /* ---------- Problem detail: one article at a time in the right-hand panel ---------- */
 
   var panel = document.querySelector('aside.panel');
   var problemRows = all('tr.problem');
   var selected = null, shown = null;
-  var narrow = window.matchMedia ? window.matchMedia('(max-width: 959px)') : null;
+  var announcer = panel ? panel.querySelector('[data-announce]') : null;
   // Rows are focusable only with the script: without it they have nothing to open.
   problemRows.forEach(function (row) { row.tabIndex = 0; });
 
   function panelOpen() { return !!panel && !panel.hidden; }
   function choose(row) {
     if (selected === row) return;
-    if (selected) { selected.classList.remove('selected'); selected.removeAttribute('aria-selected'); }
+    if (selected) { selected.classList.remove('selected'); selected.removeAttribute('aria-current'); }
     selected = row;
-    if (row) { row.classList.add('selected'); row.setAttribute('aria-selected', 'true'); }
+    if (row) { row.classList.add('selected'); row.setAttribute('aria-current', 'true'); }
   }
   /** The hash follows the open problem without a history entry or a scroll jump. */
   function setHash(hash) {
@@ -279,7 +294,14 @@ export const SCRIPT = String.raw`(function () {
       if (img && !img.complete) img.addEventListener('load', function () { if (!article.hidden) place(); });
     });
   }
-  function openDetail(row) {
+  /** Where focus goes in the panel: the first Copy button, its main action. */
+  function focusPanel() {
+    var to = shown && (shown.querySelector('[data-copy]') || panel.querySelector('[data-close]'));
+    if (to) to.focus({ preventScroll: true });
+  }
+  function inPanel(el) { return !!panel && !!el && panel.contains(el) && !isHidden(el); }
+  /** focus: opened from the keyboard, so focus moves into the panel. */
+  function openDetail(row, focus) {
     var article = row ? document.getElementById('d-' + row.id) : null;
     if (!panel || !article) return;
     choose(row);
@@ -292,20 +314,28 @@ export const SCRIPT = String.raw`(function () {
     panel.scrollTop = 0;
     cropTo(article);
     setHash('#' + row.id);
+    // Opening changes the layout (the rows stack, the sidebar may give way): the row stays in view.
+    if (!wasOpen && !(narrow && narrow.matches)) row.scrollIntoView({ block: 'nearest' });
+    if (focus) focusPanel();
     // Full width, the panel covers the row: focus moves into it.
-    if (!wasOpen && narrow && narrow.matches) { var close = panel.querySelector('[data-close]'); if (close) close.focus(); }
+    else if (!wasOpen && narrow && narrow.matches) { var close = panel.querySelector('[data-close]'); if (close) close.focus(); }
   }
   function closeDetail(refocus) {
     if (!panelOpen()) return;
     panel.hidden = true;
     root.classList.remove('panel-open');
+    settleDrawer();
     // Only the problem's own hash goes: one the reader navigated to since stays.
     if (shown && location.hash === '#' + shown.id.slice(2)) setHash('');
     if (refocus && selected) selected.focus({ preventScroll: true });
   }
 
-  /** The next (1) or previous (-1) problem shown, in document order; folded and filtered rows are skipped. */
-  function step(dir) {
+  /**
+   * The next (1) or previous (-1) problem shown, in document order; folded and filtered rows are skipped.
+   * button: the panel's step button that was pressed, which keeps focus.
+   */
+  function step(dir, button) {
+    var fromPanel = inPanel(document.activeElement);
     var list = problemRows.filter(function (r) { return r.getClientRects().length > 0; });
     if (!list.length) return;
     var next = null, i;
@@ -319,8 +349,11 @@ export const SCRIPT = String.raw`(function () {
       next = next || list[0];
     }
     choose(next);
-    if (panelOpen()) openDetail(next);
-    if (!panelOpen() || !narrow || !narrow.matches) next.focus({ preventScroll: true });
+    if (panelOpen()) openDetail(next, false);
+    if (button) button.focus({ preventScroll: true });
+    // Focus in the panel stays there; on a Copy button of the article just hidden, it moves to the new one.
+    else if (panelOpen() && fromPanel) { if (!inPanel(document.activeElement)) focusPanel(); }
+    else if (!panelOpen() || !narrow || !narrow.matches) next.focus({ preventScroll: true });
     next.scrollIntoView({ block: 'nearest' });
   }
 
@@ -330,7 +363,7 @@ export const SCRIPT = String.raw`(function () {
     if (!row || e.target.closest('a, button, summary, details.sel')) return;
     var picked = window.getSelection ? window.getSelection() : null;
     if (picked && !picked.isCollapsed && row.contains(picked.anchorNode)) return; // selecting text, not opening
-    openDetail(row);
+    openDetail(row, false);
   });
 
   function copy(button) {
@@ -344,8 +377,12 @@ export const SCRIPT = String.raw`(function () {
     pick();
     var done = function (ok) {
       button.textContent = ok ? 'Copied' : 'Selected';
+      if (announcer) announcer.textContent = button.textContent;
       clearTimeout(button.copyTimer);
-      button.copyTimer = setTimeout(function () { button.textContent = 'Copy'; }, 1500);
+      button.copyTimer = setTimeout(function () {
+        button.textContent = 'Copy';
+        if (announcer) announcer.textContent = '';
+      }, 1500);
     };
     var fallback = function () {
       var ok = false;
@@ -362,7 +399,7 @@ export const SCRIPT = String.raw`(function () {
     if (!b) return;
     if (b.hasAttribute('data-copy')) copy(b);
     else if (b.hasAttribute('data-close')) closeDetail(true);
-    else if (b.hasAttribute('data-step')) step(Number(b.getAttribute('data-step')));
+    else if (b.hasAttribute('data-step')) step(Number(b.getAttribute('data-step')), b);
   });
 
   /* ---------- Keyboard: j/k move, Enter opens, Esc closes, / searches, ? helps ---------- */
@@ -375,14 +412,17 @@ export const SCRIPT = String.raw`(function () {
     if (keysButton) keysButton.setAttribute('aria-expanded', String(open));
   }
   if (keysButton) keysButton.addEventListener('click', function () { setKeys(keysBox.hidden); });
+  /** Below 768px the help and its button are not displayed: ? does nothing there, and Esc is not taken by it. */
+  function keysShown() { return !!keysBox && !keysBox.hidden && keysBox.getClientRects().length > 0; }
+  function keysAvailable() { return !!keysBox && !!keysButton && keysButton.getClientRects().length > 0; }
   function typing(el) {
     return !!el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
   }
 
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
-      // The topmost first: the help, then the drawer (above the panel on narrow screens), then the panel.
-      if (keysBox && !keysBox.hidden) setKeys(false);
+      // The topmost first: the help, then the drawer (above the panel below 1280px), then the panel.
+      if (keysShown()) setKeys(false);
       else if (drawerOpen()) setDrawer(false, true);
       else if (panelOpen()) closeDetail(true);
       return;
@@ -394,12 +434,12 @@ export const SCRIPT = String.raw`(function () {
     } else if (e.key === 'Enter') {
       var row = e.target.tagName === 'TR' && e.target.classList.contains('problem') ? e.target
         : e.target === document.body ? selected : null;
-      if (row) { e.preventDefault(); openDetail(row); }
+      if (row) { e.preventDefault(); openDetail(row, true); }
     } else if (e.key === '/' && search) {
       e.preventDefault();
       search.focus();
       search.select();
-    } else if (e.key === '?' && keysBox) {
+    } else if (e.key === '?' && keysAvailable()) {
       e.preventDefault();
       setKeys(keysBox.hidden);
     }
@@ -409,10 +449,17 @@ export const SCRIPT = String.raw`(function () {
     if (keysBox && !keysBox.hidden && !keysBox.contains(e.target) && !(keysButton && keysButton.contains(e.target))) setKeys(false);
     var link = e.target.closest ? e.target.closest('a[href^="#"]') : null;
     if (!link) return;
-    if (drawerOpen() && sidebar && sidebar.contains(link)) setDrawer(false, false);
+    // Focus is lost when the link's drawer or full-width panel closes: it moves to what the link shows.
+    var fromDrawer = drawerOpen() && !!sidebar && sidebar.contains(link);
+    var fromPanel = !!panel && panel.contains(link) && !!narrow && narrow.matches;
+    if (fromDrawer) setDrawer(false, false);
     // A full-width panel would cover the section the link shows.
     uncover();
-    revealHash(link.getAttribute('href'));
+    var target = revealHash(link.getAttribute('href'));
+    // After the link's own navigation, which would take focus off an element that is not its target.
+    if (target && (fromDrawer || fromPanel) && !(target.tagName === 'TR' && target.classList.contains('problem'))) {
+      setTimeout(function () { focusTarget(target); }, 0);
+    }
   });
   window.addEventListener('hashchange', function () { revealHash(location.hash); });
 
@@ -439,7 +486,7 @@ export const SCRIPT = String.raw`(function () {
       var doc = document.documentElement;
       return doc.scrollHeight > window.innerHeight && window.innerHeight + window.pageYOffset >= doc.scrollHeight - 4;
     };
-    var update = function () {
+    var update = spyUpdate = function () {
       var i;
       // Short sections at the end never reach the band: at the bottom of the page, the last one shown wins.
       if (atBottom()) {

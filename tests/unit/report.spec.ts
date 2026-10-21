@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { renderReport } from '../../src/report/html';
-import { SCRIPT } from '../../src/report/script';
+import ts from 'typescript';
+import { HEAD_SCRIPT, SCRIPT } from '../../src/report/script';
 import { STYLES } from '../../src/report/styles';
 import type { CheckResult } from '../../src/types';
 import { makeCheck, makeIssue, makeRun } from './fixtures';
@@ -263,6 +264,51 @@ test('styles and script come from their modules', () => {
   // Plain ES2017 DOM code that can sit inside a <script> element.
   for (const banned of ['</script', '?.', '??', 'innerHTML', 'http:', 'https:']) expect(SCRIPT).not.toContain(banned);
   for (const banned of ['http:', 'https:', '@import']) expect(STYLES).not.toContain(banned);
+});
+
+/**
+ * The scripts must run as written in ES2017 browsers. TypeScript, targeting ES2017, rewrites only syntax newer than
+ * that (object spread, `?.`, `??`, `**=`, async iteration, class fields...) and copies everything else token for token.
+ * So the scripts are ES2017 exactly when the transpiled tokens equal the source tokens: no `__assign` or other helper,
+ * no `_a` temporary, no rewritten expression. Comments and whitespace are trivia and are skipped; semicolons are
+ * skipped too, as the printer may add one where the source relies on automatic insertion.
+ */
+function tokens(code: string): string[] {
+  const scanner = ts.createScanner(ts.ScriptTarget.ESNext, true, ts.LanguageVariant.Standard, code);
+  const out: string[] = [];
+  for (let kind = scanner.scan(); kind !== ts.SyntaxKind.EndOfFileToken; kind = scanner.scan()) {
+    if (kind !== ts.SyntaxKind.SemicolonToken) out.push(scanner.getTokenText());
+  }
+  return out;
+}
+
+for (const [name, code] of [['SCRIPT', SCRIPT], ['HEAD_SCRIPT', HEAD_SCRIPT]] as const) {
+  test(`${name} is ES2017: transpiling it to ES2017 changes nothing`, () => {
+    const out = ts.transpileModule(code, { reportDiagnostics: true, compilerOptions: { target: ts.ScriptTarget.ES2017, module: ts.ModuleKind.None } });
+    expect(out.diagnostics ?? []).toEqual([]);
+    expect(out.outputText).not.toMatch(/\b__\w+|\b_[a-z]\b/);
+    expect(tokens(out.outputText)).toEqual(tokens(code));
+  });
+}
+
+test('the check above catches newer syntax', () => {
+  const lowered = (code: string) => {
+    const out = ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2017, module: ts.ModuleKind.None } }).outputText;
+    return tokens(out).join(' ') !== tokens(code).join(' ');
+  };
+  expect(lowered('var a = { b: 1 }; var c = { ...a };')).toBe(true);
+  expect(lowered('var a = null; var b = a?.c;')).toBe(true);
+  expect(lowered('var a = null; var b = a ?? 1;')).toBe(true);
+  expect(lowered('try { f(); } catch { g(); }')).toBe(true);
+  expect(lowered('var a = { b: 1 }; var c = Object.assign({}, a);')).toBe(false);
+});
+
+test('the panel announces copying, and the row selector summary is readable', () => {
+  const html = renderReport(makeRun([makeCheck()]));
+  expect(html).toMatch(/<aside class="panel"[^>]*>[\s\S]*<span class="sr" data-announce aria-live="polite"><\/span>/);
+  // 12px text needs the secondary colour (about 5:1), not the tertiary one (about 3:1).
+  expect(STYLES).toMatch(/\.sel summary \{ color:var\(--text-2\)/);
+  expect(SCRIPT).not.toContain('aria-selected');
 });
 
 test('each problem has a hidden detail article', () => {
