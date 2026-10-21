@@ -458,10 +458,18 @@ export const SCRIPT = String.raw`(function () {
     var target = revealHash(link.getAttribute('href'));
     // After the link's own navigation, which would take focus off an element that is not its target.
     if (target && (fromDrawer || fromPanel) && !(target.tagName === 'TR' && target.classList.contains('problem'))) {
+      pendingFocus = target;
       setTimeout(function () { focusTarget(target); }, 0);
     }
   });
-  window.addEventListener('hashchange', function () { revealHash(location.hash); });
+  /** Where focus goes once the hash a drawer or panel link set has arrived. */
+  var pendingFocus = null;
+  window.addEventListener('hashchange', function () {
+    var target = revealHash(location.hash);
+    // Firefox drops focus while it moves to the new hash, after the click's timeout: focus again.
+    if (pendingFocus && pendingFocus === target) focusTarget(target);
+    pendingFocus = null;
+  });
 
   /* ---------- Scrollspy: the sidebar marks the overview or section in view ---------- */
 
