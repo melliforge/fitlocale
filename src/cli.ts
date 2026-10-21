@@ -6,6 +6,7 @@ import { pseudoMessages, type Messages } from './pseudo';
 import { renderReport } from './report/html';
 import { renderSummary } from './summary';
 import type { RunResults } from './types';
+import { DEFAULT_CLOUD_URL, prFromRef, uploadReport } from './upload';
 
 export interface CliIO { stdout: (s: string) => void; stderr: (s: string) => void }
 
@@ -14,12 +15,13 @@ const USAGE = `Usage:
   fitlocale report <results.json> [--out <dir>]                   Re-render index.html from results.json
   fitlocale baseline <results.json>... [--out <file>]             Accept the issues found (default fitlocale-baseline.json)
   fitlocale summary <results.json> [--max-rows <n>]               Print a Markdown summary (for CI job summaries)
+  fitlocale upload <report-dir> [--endpoint <url>] [--pr <n>]     Send the report to fitlocale cloud (GitHub Actions; never fails)
   fitlocale --help
 `;
 
 const defaultIO: CliIO = { stdout: s => process.stdout.write(s), stderr: s => process.stderr.write(s) };
 
-const COMMANDS: Record<string, true> = { pseudo: true, report: true, summary: true };
+const COMMANDS: Record<string, true> = { pseudo: true, report: true, summary: true, upload: true };
 
 /** Read a JSON file whose top level must be an object. */
 function readJsonObject(path: string): Record<string, unknown> {
@@ -81,7 +83,10 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
     const { values, positionals } = parseArgs({
       args: argv,
       allowPositionals: true,
-      options: { out: { type: 'string' }, expansion: { type: 'string' }, 'max-rows': { type: 'string' }, help: { type: 'boolean' } },
+      options: {
+        out: { type: 'string' }, expansion: { type: 'string' }, 'max-rows': { type: 'string' }, help: { type: 'boolean' },
+        endpoint: { type: 'string' }, pr: { type: 'string' },
+      },
     });
     const [command, input, ...extra] = positionals;
     if (values.help || command === 'help') {
@@ -109,6 +114,22 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
       const maxRows = values['max-rows'] === undefined ? 50 : Number(values['max-rows']);
       if (!Number.isInteger(maxRows) || maxRows < 1) throw new Error('--max-rows must be a whole number ≥ 1');
       io.stdout(renderSummary(readResults(input), { maxRows, resultsPath: input }));
+      return 0;
+    }
+    if (command === 'upload' && input) {
+      // Never fails the job: every problem below is one line on stdout and exit 0.
+      const log = (line: string) => io.stdout(line + '\n');
+      if (typeof fetch !== 'function') {
+        log('fitlocale upload needs Node 18 or newer');
+        return 0;
+      }
+      const pr = values.pr?.trim() ? Number(values.pr) : NaN;
+      await uploadReport({
+        dir: input,
+        endpoint: values.endpoint || process.env.FITLOCALE_CLOUD_URL || DEFAULT_CLOUD_URL,
+        prNumber: Number.isInteger(pr) && pr > 0 ? pr : prFromRef(process.env.GITHUB_REF),
+        env: process.env, fetch, log,
+      });
       return 0;
     }
     if (command === 'report' && input) {
