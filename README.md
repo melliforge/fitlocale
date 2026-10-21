@@ -6,9 +6,9 @@
 
 Catch layout bugs caused by translation before your users do. These are German labels cut off inside buttons, text spilling out of its box, translation keys showing on screen, the language silently switching back, and right-to-left (Arabic, Hebrew) layouts that never mirrored. fitlocale plugs into the Playwright tests you already have. It needs no approved screenshots and no translations yet, and it uses no AI guesses: every issue comes from a measured rule.
 
-![fitlocale report: a summary of the problems by rule and locale, then each page with its problems and a screenshot with each one boxed](https://melliforge.github.io/localization-layout-tester/report.png)
+![fitlocale report: filters and pages in the sidebar, a list of problems with one selected, and a panel with that problem's selector, CSS source and where it was seen](https://melliforge.github.io/localization-layout-tester/report.png)
 
-*The top of a report: the problems counted by rule and by locale, then the first page with its problems and a screenshot that has each one boxed in red. Click a thumbnail to enlarge it.*
+*A report with one problem open: its row is selected in the list, and the panel beside it gives the selector with a Copy button, the CSS line to change (`left: 16px` → `inset-inline-start: 16px`), where it was seen and its screenshots. Press j and k to move between problems.*
 
 ## Install
 

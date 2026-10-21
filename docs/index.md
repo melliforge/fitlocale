@@ -23,6 +23,6 @@ features:
     details: Each report comes from a deterministic rule on the rendered page, with the element, a boxed screenshot and a suggested fix. No AI guesses.
 ---
 
-![A fitlocale report: a summary of the problems by rule and locale, then each page with its problems and a screenshot with each one boxed](/report.png)
+![A fitlocale report: filters and pages in the sidebar, a list of problems with one selected, and a panel with that problem's selector, CSS source and where it was seen](/report.png)
 
-*The top of a report: the problems counted by rule and by locale, then the first page with its problems and a screenshot that has each one boxed in red. Click a thumbnail to enlarge it.*
+*A report with one problem open: its row is selected in the list, and the panel beside it gives the selector with a Copy button, the CSS line to change (`left: 16px` → `inset-inline-start: 16px`), where it was seen and its screenshots. Press j and k to move between problems.*
