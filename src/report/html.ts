@@ -58,7 +58,7 @@ function row(problem: Problem): string {
 
 /** A box's place on its screenshot, in percentages, so it follows the image at any size. */
 const boxStyle = (issue: Problem['issue'], s: Shot['screenshot']) =>
-  `left:${pct(issue.box.x, s.size.width)};top:${pct(issue.box.y, s.size.height)};width:${pct(issue.box.width, s.size.width)};height:${pct(issue.box.height, s.size.height)}`;
+  `left:${pct(issue.box.x + (s.origin?.x ?? 0), s.size.width)};top:${pct(issue.box.y + (s.origin?.y ?? 0), s.size.height)};width:${pct(issue.box.width, s.size.width)};height:${pct(issue.box.height, s.size.height)}`;
 
 /** Known dimensions reserve the image's height before a lazy image loads. */
 function imageSize(s: Shot['screenshot']): string {

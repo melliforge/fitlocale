@@ -618,6 +618,17 @@ test.describe('crops', () => {
     expect([r, g < 10, b < 10]).toEqual([255, true, true]);
   });
 
+  // Chromium starts a right-to-left page's full screenshot at its leftmost overflow.
+  test('in a right-to-left page wider than the window, a crop shows its own element', async ({ page, localeCheck }) => {
+    await page.setContent(`<html dir=rtl lang=ar><body style="margin:0"><div style="width:2500px;height:50px"></div>
+      <button id=s style="width:120px;height:40px;overflow:hidden;white-space:nowrap;background:#f00;color:#f00">Save changes</button></body></html>`);
+    const result = await localeCheck();
+    const issue = result.issues.find(i => i.crop && i.selector === '#s')!;
+    expect(issue).toBeTruthy();
+    const [r, g, b] = await pixel(page, issue.crop!, 24 + 4, 24 + 4);
+    expect([r, g < 10, b < 10]).toEqual([255, true, true]);
+  });
+
   test('crops stop at 20 per check', async ({ page, localeCheck }) => {
     const buttons = Array.from({ length: 30 }, (_, i) =>
       `<button id=b${i} style="display:block;width:120px;overflow:hidden;white-space:nowrap">Save changes</button>`).join('');

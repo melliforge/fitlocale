@@ -76,7 +76,11 @@ export interface Issue extends RawIssue {
   crop?: string;
 }
 
-export interface Screenshot { mode: Mode; viewport: Viewport; path: string; size: { width: number; height: number } }
+export interface Screenshot {
+  mode: Mode; viewport: Viewport; path: string; size: { width: number; height: number };
+  /** Where the document's (0, 0) is on the image, when not at its corner: Chromium starts a right-to-left page at its leftmost overflow. */
+  origin?: { x: number; y: number };
+}
 
 export interface CheckResult {
   testTitle: string;

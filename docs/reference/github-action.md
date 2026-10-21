@@ -36,4 +36,4 @@ permissions: { contents: read, id-token: write }
   with: { upload: true }
 ```
 
-Screenshots and crops are uploaded; use the [`mask` option](/reference/options#mask) for customer data. Pull requests from forks are not uploaded. Like the rest of the Action, the upload never fails the job: a missing plan or permission, or a service that doesn't answer, is one line in the log. See [`fitlocale upload`](/reference/cli#fitlocale-upload).
+Screenshots, crops and `results.json` are uploaded. The [`mask` option](/reference/options#mask) paints over customer data in the images, and [`ignore`](/reference/options#ignore) keeps an element's text out of `results.json`. Pull requests from forks are not uploaded. Like the rest of the Action, the upload never fails the job: a missing plan or permission, or a service that doesn't answer, is one line in the log. See [`fitlocale upload`](/reference/cli#fitlocale-upload).

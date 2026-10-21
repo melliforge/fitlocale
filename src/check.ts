@@ -13,7 +13,7 @@ import { subtractSource } from './rules/noise';
 import { nameIssues, resolveSelectors } from './selectors';
 import { findUntranslated, sourceMatcher, type SourceMatcher } from './rules/untranslated';
 import {
-  FIXES, LOCALE_NOT_REFLECTED_MESSAGE, MESSAGES, SEVERITY, type Box, type CheckResult, type Issue, type Mode, type RawIssue, type Screenshot, type Viewport,
+  FIXES, LOCALE_NOT_REFLECTED_MESSAGE, MESSAGES, SEVERITY, type CheckResult, type Issue, type Mode, type RawIssue, type Screenshot, type Viewport,
 } from './types';
 import type { FitlocaleBrowserApi } from './browser/api';
 
@@ -117,21 +117,19 @@ export async function maskLocators(page: Page, mask: string[]): Promise<Locator[
   return locators;
 }
 
-/** Crops per check, so a page with hundreds of issues does not take hundreds of screenshots. */
-export const CROPS_PER_CHECK = 20;
-/** CSS pixels of context around an issue's box in its crop. */
-export const CROP_PADDING = 24;
-
-/** The issue's box grown by the padding and clamped to the document, at least 1×1. */
-function cropClip(box: Box, doc: { width: number; height: number }): Box {
-  const x = Math.max(0, Math.floor(box.x - CROP_PADDING));
-  const y = Math.max(0, Math.floor(box.y - CROP_PADDING));
-  const right = Math.min(doc.width, Math.ceil(box.x + box.width + CROP_PADDING));
-  const bottom = Math.min(doc.height, Math.ceil(box.y + box.height + CROP_PADDING));
-  return {
-    x: Math.min(x, Math.max(0, doc.width - 1)), y: Math.min(y, Math.max(0, doc.height - 1)),
-    width: Math.max(1, right - x), height: Math.max(1, bottom - y),
-  };
+/**
+ * Where the document's (0, 0) lands on a full-page screenshot, when not at its corner. Chromium captures a right-to-left
+ * page from its leftmost overflow, which lies left of (0, 0); Firefox and WebKit start at (0, 0).
+ */
+async function screenshotOrigin(page: Page, projectBrowser: string | undefined): Promise<{ x: number; y: number } | null> {
+  // A persistent context has no browser object: fall back to the project's browserName.
+  const browser = page.context().browser()?.browserType().name() ?? projectBrowser ?? 'chromium';
+  if (browser !== 'chromium') return null;
+  const overflow = await page.evaluate(() => {
+    const root = document.documentElement;
+    return getComputedStyle(root).direction === 'rtl' ? root.scrollWidth - root.clientWidth : 0;
+  });
+  return overflow > 0 ? { x: overflow, y: 0 } : null;
 }
 
 const CONTEXT_DESTROYED = /Execution context was destroyed/;
@@ -188,28 +186,16 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
   const shot = new Set<string>();
   // Validated up front, so a mistyped selector fails the first check rather than the first one with an issue.
   const mask = options.screenshots ? await maskLocators(page, options.mask) : [];
-  let crops = 0;
-  /** A full-page screenshot of this mode and viewport (once), and a crop around each of `found`, while the page still shows them. */
+  /** A full-page screenshot of this mode and viewport, once, when it found issues. Crops are cut from it after the baseline. */
   const shoot = async (mode: Mode, viewport: Viewport, found: Issue[]) => {
-    if (!options.screenshots || !found.length) return;
-    const size = await page.evaluate(() => (window as unknown as Api).__fitlocale.documentSize());
     const id = `${mode}-${viewport.width}x${viewport.height}`;
-    if (!shot.has(id)) {
-      shot.add(id);
-      const path = testInfo.outputPath(`fitlocale-${checkIndex}-${mode}-${viewport.width}x${viewport.height}.png`);
-      await page.screenshot({ fullPage: true, path, mask });
-      screenshots.push({ mode, viewport, path, size });
-    }
-    for (const issue of found) {
-      if (crops >= CROPS_PER_CHECK) break;
-      const path = testInfo.outputPath(`fitlocale-${checkIndex}-crop-${crops++}.png`);
-      try {
-        await page.screenshot({ fullPage: true, clip: cropClip(issue.box, size), path, mask });
-        issue.crop = path;
-      } catch {
-        // A crop is a convenience: an engine refusing this clip leaves the issue without one.
-      }
-    }
+    if (!options.screenshots || !found.length || shot.has(id)) return;
+    shot.add(id);
+    const path = testInfo.outputPath(`fitlocale-${checkIndex}-${mode}-${viewport.width}x${viewport.height}.png`);
+    const size = await page.evaluate(() => (window as unknown as Api).__fitlocale.documentSize());
+    await page.screenshot({ fullPage: true, path, mask });
+    const origin = await screenshotOrigin(page, testInfo.project.use.browserName);
+    screenshots.push({ mode, viewport, path, size, ...(origin ? { origin } : {}) });
   };
 
   // Checked first: a pseudo locale such as en-XA shares its language with the source.
