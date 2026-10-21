@@ -1,0 +1,231 @@
+import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { renderReport } from '../../src/report/html';
+import type { CheckResult, Issue, Screenshot } from '../../src/types';
+import { makeCheck, makeIssue, makeRun } from '../unit/fixtures';
+
+const errors: string[] = [];
+test.beforeEach(({ page }) => {
+  errors.length = 0;
+  page.on('pageerror', e => errors.push(e.message));
+});
+test.afterEach(() => {
+  expect(errors).toEqual([]);
+});
+
+const shot = (size = { width: 1280, height: 800 }): Screenshot => ({
+  mode: 'pseudo-long', viewport: { width: 1280, height: 800 }, path: 'data:image/png;base64,iVBORw0KGgo=', size,
+});
+const check = (project: string, issues: Issue[]): CheckResult => makeCheck({ project, issues, screenshots: [shot()] });
+const open = (page: Page, checks: CheckResult[]) => page.setContent(renderReport(makeRun(checks)));
+const rows = (page: Page) => page.locator('tr.problem');
+const filter = (page: Page, name: string) => page.locator(`select[data-filter="${name}"]`);
+
+/** Three problems: two rules, locales de and ar, projects chromium and webkit. */
+const THREE = [
+  check('chromium', [
+    makeIssue({ rule: 'overflow/clipped', locale: 'de', text: 'One' }),
+    makeIssue({ rule: 'overflow/clipped', locale: 'ar', text: 'Three' }),
+  ]),
+  check('webkit', [makeIssue({ rule: 'overflow/ellipsis', locale: 'de', text: 'Two' })]),
+];
+
+test('filters by rule, locale and project', async ({ page }) => {
+  await open(page, THREE);
+  await expect(rows(page)).toHaveCount(3);
+
+  await filter(page, 'rule').selectOption('overflow/ellipsis');
+  await expect(rows(page).filter({ visible: true })).toHaveCount(1);
+  await expect(page.locator('tr.problem[data-rule="overflow/clipped"]').first()).toBeHidden();
+  await expect(page.locator('[data-status]')).toHaveText('Showing 1 of 3 problems');
+
+  await filter(page, 'rule').selectOption('');
+  await filter(page, 'locale').selectOption('de');
+  await expect(page.locator('#page-1-1')).toBeVisible();
+  await expect(page.locator('#page-1-2')).toBeHidden(); // the ar section
+  await expect(page.locator('[data-status]')).toHaveText('Showing 2 of 3 problems');
+
+  await filter(page, 'project').selectOption('webkit');
+  await expect(rows(page).filter({ visible: true })).toHaveCount(1);
+  await expect(page.locator('tr.problem[data-rule="overflow/ellipsis"]')).toBeVisible();
+  await expect(page.locator('figure[data-project="chromium"]').first()).toBeHidden();
+  await expect(page.locator('figure[data-project="webkit"]')).toBeVisible();
+  await expect(page.locator('.box:visible')).toHaveCount(1);
+});
+
+test('a page with no visible problem is hidden', async ({ page }) => {
+  await open(page, [
+    makeCheck({ project: 'chromium', url: 'http://app.test/a', issues: [makeIssue({ url: 'http://app.test/a', text: 'A' })], screenshots: [shot()] }),
+    makeCheck({ project: 'webkit', url: 'http://app.test/b', issues: [makeIssue({ url: 'http://app.test/b', rule: 'overflow/ellipsis', text: 'B' })], screenshots: [shot()] }),
+  ]);
+  await filter(page, 'rule').selectOption('overflow/ellipsis');
+  await expect(page.locator('#page-1')).toBeHidden();
+  await expect(page.locator('#page-2')).toBeVisible();
+});
+
+test('severity and accepted toggles still hide rows', async ({ page }) => {
+  await open(page, [check('chromium', [
+    makeIssue({ severity: 'error', text: 'E' }),
+    makeIssue({ severity: 'warning', text: 'W' }),
+    makeIssue({ severity: 'warning', text: 'A', baselined: true }),
+  ])]);
+  await expect(page.locator('tr.problem:visible')).toHaveCount(3);
+
+  await page.locator('[data-sev="error"]').uncheck();
+  await expect(page.locator('tr.problem.error')).toBeHidden();
+  await expect(page.locator('.box.error')).toBeHidden();
+  await expect(page.locator('tr.problem:visible')).toHaveCount(2);
+
+  await page.locator('[data-sev="accepted"]').uncheck();
+  await expect(page.locator('tr.problem.accepted')).toBeHidden();
+  await expect(page.locator('tr.problem:visible')).toHaveCount(1);
+  await expect(page.locator('[data-status]')).toHaveText('Showing 1 of 3 problems');
+
+  await page.locator('[data-sev="error"]').check();
+  await expect(page.locator('tr.problem:visible')).toHaveCount(2);
+});
+
+test('a summary rule button or matrix cell sets the filters', async ({ page }) => {
+  await open(page, THREE);
+
+  await page.locator('[data-pick-rule="overflow/ellipsis"]').click();
+  await expect(filter(page, 'rule')).toHaveValue('overflow/ellipsis');
+  await expect(rows(page).filter({ visible: true })).toHaveCount(1);
+
+  await page.locator('[data-clear]').click();
+  await page.locator('[data-pick-locale="ar"][data-pick-project="chromium"]').click();
+  await expect(filter(page, 'locale')).toHaveValue('ar');
+  await expect(filter(page, 'project')).toHaveValue('chromium');
+  await expect(rows(page).filter({ visible: true })).toHaveCount(1);
+  await expect(page.locator('[data-status]')).toHaveText('Showing 1 of 3 problems');
+});
+
+test('clear resets every filter', async ({ page }) => {
+  await open(page, [check('chromium', [makeIssue({ severity: 'info', text: 'I' }), makeIssue({ severity: 'warning', text: 'W', baselined: true })]), ...THREE]);
+  await filter(page, 'rule').selectOption('overflow/ellipsis');
+  await filter(page, 'locale').selectOption('de');
+  await filter(page, 'project').selectOption('webkit');
+  await page.locator('[data-sev="info"]').uncheck();
+  await page.locator('[data-sev="accepted"]').uncheck();
+  await expect(rows(page).filter({ visible: true })).toHaveCount(1);
+
+  await page.locator('[data-clear]').click();
+  for (const name of ['rule', 'locale', 'project']) await expect(filter(page, name)).toHaveValue('');
+  await expect(page.locator('[data-sev="info"]')).toBeChecked();
+  await expect(page.locator('[data-sev="accepted"]')).toBeChecked();
+  await expect(rows(page).filter({ visible: true })).toHaveCount(5);
+  await expect(page.locator('[data-status]')).toHaveText('Showing 5 of 5 problems');
+});
+
+test('a link to a folded section opens it', async ({ page }) => {
+  await open(page, THREE);
+  await page.locator('[data-fold="close"]').click();
+  await expect(page.locator('#page-1')).not.toHaveAttribute('open', '');
+  await expect(page.locator('#page-1-1')).not.toHaveAttribute('open', '');
+
+  await page.locator('#summary a[href="#page-1-1"]').first().click();
+  await expect(page.locator('#page-1')).toHaveAttribute('open', '');
+  await expect(page.locator('#page-1-1')).toHaveAttribute('open', '');
+  await expect(page.locator('#page-1-1')).toBeInViewport();
+
+  await page.locator('[data-fold="open"]').click();
+  await expect(page.locator('#page-1-2')).toHaveAttribute('open', '');
+});
+
+test('opening the report on a link to a folded section opens it', async ({ page }) => {
+  const html = renderReport(makeRun(THREE)).replace(/<details class="(page|section)" open/g, '<details class="$1"');
+  await page.route('http://report.test/', route => route.fulfill({ contentType: 'text/html', body: html }));
+  await page.goto('http://report.test/#page-1-2');
+  await expect(page.locator('#page-1')).toHaveAttribute('open', '');
+  await expect(page.locator('#page-1-2')).toHaveAttribute('open', '');
+  await expect(page.locator('#page-1-1')).not.toHaveAttribute('open', '');
+});
+
+/** A PNG of the given size, drawn by the browser. */
+const png = (page: Page, width: number, height: number) => page.evaluate(([w, h]) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#ccc';
+  ctx.fillRect(0, 0, w, h);
+  return canvas.toDataURL('image/png');
+}, [width, height]);
+
+async function openTall(page: Page) {
+  const path = await png(page, 1000, 4000);
+  const tall = makeCheck({
+    issues: [makeIssue({ box: { x: 100, y: 3000, width: 200, height: 100 } })],
+    screenshots: [{ ...shot({ width: 1000, height: 4000 }), path }],
+  });
+  await page.setContent(renderReport(makeRun([tall])));
+}
+
+test('a thumbnail enlarges on click and shrinks again', async ({ page }) => {
+  await openTall(page);
+  const figure = page.locator('figure.shot-wrap');
+  const button = page.locator('button.shot');
+  const width = async () => (await figure.boundingBox())!.width;
+  const container = (await page.locator('.shots').boundingBox())!.width;
+
+  expect(await width()).toBe(240);
+  await expect(button).toHaveAttribute('aria-expanded', 'false');
+
+  await button.click();
+  expect(await width()).toBeCloseTo(container, 0);
+  await expect(button).toHaveAttribute('aria-expanded', 'true');
+
+  await button.click();
+  expect(await width()).toBe(240);
+  await expect(button).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('boxes stay on their element in a cropped thumbnail', async ({ page }) => {
+  await openTall(page);
+  const frame = page.locator('.frame');
+  const box = page.locator('.box');
+  const offset = async () => {
+    const f = (await frame.boundingBox())!;
+    const b = (await box.boundingBox())!;
+    return { top: b.y - f.y, height: f.height };
+  };
+
+  await page.locator('button.shot').click(); // enlarged
+  const big = await offset();
+  expect(Math.abs(big.top - big.height * 0.75)).toBeLessThanOrEqual(1);
+
+  await page.locator('button.shot').click(); // thumbnail: the button crops the frame at 360px
+  const small = await offset();
+  expect(small.height).toBeGreaterThan(360);
+  expect(small.top).toBeGreaterThan(360); // below the visible crop
+  expect(Math.abs(small.top - small.height * 0.75)).toBeLessThanOrEqual(1);
+});
+
+test('filters match values with spaces and quotes', async ({ page }) => {
+  await open(page, [
+    check('Mobile "Safari"', [makeIssue({ locale: 'x<y', text: 'Odd' })]),
+    check('chromium', [makeIssue({ locale: 'de', text: 'Plain' })]),
+  ]);
+  await filter(page, 'project').selectOption('Mobile "Safari"');
+  await expect(rows(page).filter({ visible: true })).toHaveCount(1);
+  await expect(page.locator('figure[data-project="chromium"]')).toBeHidden();
+
+  await page.locator('[data-clear]').click();
+  await filter(page, 'locale').selectOption('x<y');
+  await expect(rows(page).filter({ visible: true })).toHaveCount(1);
+  await expect(page.locator('tr.problem[data-locale="x<y"]')).toBeVisible();
+  await expect(page.locator('[data-status]')).toHaveText('Showing 1 of 2 problems');
+
+  await page.locator('[data-clear]').click();
+  await page.locator(`[data-pick-locale="x<y"][data-pick-project='Mobile "Safari"']`).click();
+  await expect(filter(page, 'project')).toHaveValue('Mobile "Safari"');
+  await expect(filter(page, 'locale')).toHaveValue('x<y');
+});
+
+test('the controls stay at the top while scrolling', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 400 });
+  await open(page, THREE);
+  await page.evaluate(() => { document.querySelector('main')!.style.minHeight = '5000px'; window.scrollTo(0, 1500); });
+  const bar = await page.locator('.bar').boundingBox();
+  expect(bar!.y).toBe(0);
+  expect(bar!.height).toBeLessThan(200);
+});

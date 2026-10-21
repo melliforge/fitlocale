@@ -127,9 +127,9 @@ function controls(model: ReportModel, accepted: number): string {
   const filters = filter('rule', 'Rule', model.rules.map(r => r.rule))
     + filter('locale', 'Locale', model.locales.filter(Boolean))
     + filter('project', 'Project', model.projects);
-  return `<div class="controls"><div class="toggles">${toggles}</div>
+  return `<div class="bar"><div class="controls"><div class="toggles">${toggles}</div>
 <div class="filters">${filters}<button type="button" data-fold="open">Expand all</button><button type="button" data-fold="close">Collapse all</button><button type="button" data-clear>Clear filters</button></div></div>
-<p class="status" data-status></p>`;
+<p class="status" data-status></p></div>`;
 }
 
 /** A self-contained, offline HTML report. Screenshot paths are used as given (relative to the report). */
@@ -153,12 +153,15 @@ h1 { font-size:22px; margin:0 0 4px; } h2 { font-size:17px; margin:10px 0; word-
 code { font:12.5px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 a { color:inherit; text-decoration-color:var(--line); text-underline-offset:3px; }
 .meta { color:var(--muted); margin:0 0 12px; }
-.controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px 32px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+.bar { position:sticky; top:0; z-index:1; background:var(--bg); padding-top:8px; border-bottom:1px solid var(--line); }
+.controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px 32px; padding-bottom:8px; }
+[hidden] { display:none !important; }
+.page, .section, tr.problem { scroll-margin-top:96px; }
 .toggles, .filters { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; } .filters label { color:var(--muted); }
 button, select { font:inherit; font-size:13px; color:inherit; }
 button { background:none; border:1px solid var(--line); border-radius:6px; padding:2px 10px; cursor:pointer; }
 select { background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:2px 4px; max-width:16em; }
-.status { color:var(--muted); font-size:13px; margin:8px 0 0; } .status:empty { display:none; }
+.status { color:var(--muted); font-size:13px; margin:0 0 8px; } .status:empty { display:none; }
 #summary { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:16px 48px; margin:24px 0 32px; } .rules-block { grid-column:1 / -1; }
 .kicker { font-size:12px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin:0 0 4px; word-break:normal; }
 .pick { border:0; border-radius:0; padding:0; text-decoration:underline dotted var(--muted); text-underline-offset:3px; } .pick:hover { text-decoration-style:solid; }
@@ -182,7 +185,6 @@ thead th { color:var(--muted); font-size:12px; font-weight:500; } tbody th { fon
 .frame { position:relative; display:block; } .frame img { display:block; width:100%; height:auto; }
 figcaption { color:var(--muted); font-size:12px; margin-top:4px; overflow-wrap:anywhere; }
 .box { display:block; position:absolute; border:2px solid; box-sizing:border-box; box-shadow:0 0 0 1px #000, inset 0 0 0 1px #fff; } /* rings keep any colour visible on any background */ .box.error { border-color:var(--error); } .box.warning { border-color:var(--warning); } .box.info { border-color:var(--info); }
-.hide-error tr.problem.error, .hide-error .box.error, .hide-warning tr.problem.warning, .hide-warning .box.warning, .hide-info tr.problem.info, .hide-info .box.info, .hide-accepted tr.problem.accepted, .hide-accepted .box.accepted { display:none; }
 .box.accepted { border-style:dashed; } tr.accepted td { opacity:.65; } .tag { font-size:12px; border:1px solid var(--line); border-radius:4px; padding:0 4px; color:var(--muted); }
 .empty { font-size:16px; }
 </style></head>
@@ -192,9 +194,87 @@ figcaption { color:var(--muted); font-size:12px; margin-top:4px; overflow-wrap:a
 ${body}
 </main>
 <script>
-document.querySelectorAll('[data-sev]').forEach(function (box) {
-  box.addEventListener('change', function () { document.body.classList.toggle('hide-' + box.dataset.sev, !box.checked); });
-});
+(function () {
+  var all = function (selector) { return Array.prototype.slice.call(document.querySelectorAll(selector)); };
+  var select = function (name) { return document.querySelector('select[data-filter="' + name + '"]'); };
+  var value = function (name) { var s = select(name); return s ? s.value : ''; };
+  var setValue = function (name, v) { var s = select(name); if (s) s.value = v; };
+  var checks = all('[data-sev]');
+
+  function visibleRow(row) {
+    for (var i = 0; i < checks.length; i++) {
+      if (!checks[i].checked && row.classList.contains(checks[i].getAttribute('data-sev'))) return false;
+    }
+    var rule = value('rule'), locale = value('locale'), project = value('project');
+    if (rule && row.getAttribute('data-rule') !== rule) return false;
+    if (locale && row.getAttribute('data-locale') !== locale) return false;
+    return !project || JSON.parse(row.getAttribute('data-projects')).indexOf(project) >= 0;
+  }
+
+  function apply() {
+    var rows = all('tr.problem'), shown = 0, project = value('project');
+    rows.forEach(function (row) { row.hidden = !visibleRow(row); if (!row.hidden) shown++; });
+    all('.box').forEach(function (box) {
+      var row = document.getElementById(box.getAttribute('data-problem'));
+      box.hidden = !!row && row.hidden;
+    });
+    all('figure.shot-wrap').forEach(function (fig) {
+      var inProject = !project || fig.getAttribute('data-project') === project;
+      fig.hidden = !(inProject && fig.querySelector('.box:not([hidden])'));
+    });
+    all('details.section, details.page').forEach(function (el) { el.hidden = !el.querySelector('tr.problem:not([hidden])'); });
+    var status = document.querySelector('[data-status]');
+    if (status) status.textContent = 'Showing ' + shown + ' of ' + rows.length + ' problems';
+  }
+
+  function reveal(target) {
+    for (var el = target; el; el = el.parentElement) if (el.tagName === 'DETAILS') el.open = true;
+    target.scrollIntoView();
+  }
+  function revealHash(hash) {
+    var target;
+    try { target = document.getElementById(decodeURIComponent(hash.slice(1))); } catch (e) { return; }
+    if (target) reveal(target);
+  }
+
+  checks.forEach(function (box) { box.addEventListener('change', apply); });
+  all('[data-filter]').forEach(function (s) { s.addEventListener('change', apply); });
+  all('[data-pick-rule]').forEach(function (b) {
+    b.addEventListener('click', function () { setValue('rule', b.getAttribute('data-pick-rule')); apply(); });
+  });
+  all('[data-pick-locale]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      setValue('locale', b.getAttribute('data-pick-locale'));
+      setValue('project', b.getAttribute('data-pick-project'));
+      apply();
+    });
+  });
+  all('[data-clear]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      checks.forEach(function (box) { box.checked = true; });
+      all('[data-filter]').forEach(function (s) { s.value = ''; });
+      apply();
+    });
+  });
+  all('[data-fold]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      all('details.page, details.section').forEach(function (d) { d.open = b.getAttribute('data-fold') === 'open'; });
+    });
+  });
+  all('.shot').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var big = b.closest('.shot-wrap').classList.toggle('big');
+      b.setAttribute('aria-expanded', String(big));
+    });
+  });
+  document.addEventListener('click', function (e) {
+    var link = e.target.closest ? e.target.closest('a[href^="#"]') : null;
+    if (link) revealHash(link.getAttribute('href'));
+  });
+
+  apply(); // a reload can restore the controls' state
+  if (location.hash) revealHash(location.hash);
+})();
 </script>
 </body></html>
 `;
