@@ -5,6 +5,14 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+### Changed
+
+- The report opens on a summary by rule and by locale × project. It shows each problem once across browsers and viewports, with a readable element label, and offers filters by rule, locale and project, foldable sections, and thumbnails that enlarge. On Excalidraw, the report went from 53,421 px to 6,435 px tall (at a 1280×800 window).
+
+### Added
+
+- `name` on issues in `results.json`: the element's accessible name, when it has one.
+
 ## [0.4.2] - 2026-10-20
 
 ### Changed

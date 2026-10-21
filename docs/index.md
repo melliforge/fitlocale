@@ -23,6 +23,6 @@ features:
     details: Each report comes from a deterministic rule on the rendered page, with the element, a boxed screenshot and a suggested fix. No AI guesses.
 ---
 
-![A fitlocale report: each problem boxed on a screenshot of the page, with the rule, the element and a fix](/report.png)
+![A fitlocale report: a summary of the problems by rule and locale, then each page with its problems and a screenshot with each one boxed](/report.png)
 
-*The pseudo-long section of a report: every text made about 40% longer, and what no longer fits boxed in red. Leaked keys and placeholders, also visible here, are listed in the report's source section.*
+*The top of a report: the problems counted by rule and by locale, then the first page with its problems and a screenshot that has each one boxed in red. Click a thumbnail to enlarge it.*
