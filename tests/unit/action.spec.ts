@@ -30,3 +30,26 @@ test('the CLI fallback follows the Action major version, not the latest release'
   expect(action).toContain('ACTION_REF: ${{ github.action_ref }}');
   expect(action).toContain('npx --yes "fitlocale@${MAJOR}"');
 });
+
+test('the upload step runs only with upload: true and never fails the job', () => {
+  const action = readFileSync('action.yml', 'utf8');
+  expect(action).toMatch(/\n {2}upload:\n {4}description: .+\n {4}default: 'false'/);
+  expect(action).toMatch(/\n {2}upload-url:\n {4}description: .+\n {4}default: ''/);
+  const step = action.slice(action.indexOf('- name: Upload to fitlocale cloud'));
+  expect(step.length).toBeLessThan(action.length);
+  const body = step.slice(0, step.indexOf('\n    - ', 1) === -1 ? undefined : step.indexOf('\n    - ', 1));
+  expect(body).toContain("if: inputs.upload == 'true'");
+  expect(body).toContain('continue-on-error: true');
+  expect(body).toContain('PR_NUMBER: ${{ github.event.pull_request.number }}');
+  expect(body).toContain('UPLOAD_URL: ${{ inputs.upload-url }}');
+  expect(body).toContain('fl upload "$REPORT_DIR" --pr "$PR_NUMBER"');
+  expect(body).toMatch(/if \[ -n "\$UPLOAD_URL" \]; then[\s\S]*--endpoint "\$UPLOAD_URL"/);
+  // Composite steps share no shell functions: the step carries its own copy of the CLI lookup.
+  expect(body).toContain('npx --yes "fitlocale@${MAJOR}"');
+});
+
+test('the docs show the permission the upload needs', () => {
+  const docs = readFileSync('docs/reference/github-action.md', 'utf8');
+  expect(docs).toContain('id-token: write');
+  expect(docs).toContain('upload: true');
+});

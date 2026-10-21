@@ -20,6 +20,12 @@ inputs:
   fitlocale-command:
     description: "Command that runs the fitlocale CLI. Default: the project's node_modules/.bin/fitlocale, else npx fitlocale at this Action's major version (fitlocale@0 for @v0)."
     default: ''
+  upload:
+    description: "Send the report to fitlocale cloud, for a pull request comment and a hosted report. Needs a fitlocale plan and `permissions: id-token: write`."
+    default: 'false'
+  upload-url:
+    description: 'fitlocale cloud address. Default: https://cloud.fitlocale.dev.'
+    default: ''
 
 runs:
   using: 'composite'
@@ -61,3 +67,30 @@ runs:
         path: ${{ inputs.report-dir }}
         if-no-files-found: ignore
         retention-days: 14
+
+    - name: Upload to fitlocale cloud
+      if: inputs.upload == 'true'
+      # The upload prints a notice and exits 0 on every problem; this covers an older CLI without the command.
+      continue-on-error: true
+      shell: bash
+      env:
+        REPORT_DIR: ${{ inputs.report-dir }}
+        FITLOCALE_COMMAND: ${{ inputs.fitlocale-command }}
+        ACTION_REF: ${{ github.action_ref }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        UPLOAD_URL: ${{ inputs.upload-url }}
+      run: |
+        # Without a local install, use the CLI of this Action's major version: @v0 → fitlocale@0, a branch → latest.
+        MAJOR=$(printf '%s' "$ACTION_REF" | sed -nE 's/^v([0-9]+).*/\1/p')
+        [ -n "$MAJOR" ] || MAJOR=latest
+        fl() {
+          # $FITLOCALE_COMMAND is unquoted on purpose: it may be a command with arguments.
+          if [ -n "$FITLOCALE_COMMAND" ]; then $FITLOCALE_COMMAND "$@"
+          elif [ -x node_modules/.bin/fitlocale ]; then node_modules/.bin/fitlocale "$@"
+          else npx --yes "fitlocale@${MAJOR}" "$@"; fi
+        }
+        if [ -n "$UPLOAD_URL" ]; then
+          fl upload "$REPORT_DIR" --pr "$PR_NUMBER" --endpoint "$UPLOAD_URL"
+        else
+          fl upload "$REPORT_DIR" --pr "$PR_NUMBER"
+        fi
