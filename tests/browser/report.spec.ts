@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { renderReport } from '../../src/report/html';
@@ -1009,4 +1010,30 @@ test('matrix cells for no locale or no project are plain counts, and a project c
   await expect(filter(page, 'project')).toHaveValue('chromium');
   // The cells without a button have nothing to click: their count is plain text.
   await expect(page.locator('#summary .matrix td.num:not(:has(button)):not(:has(.zero))')).toHaveCount(2);
+});
+
+test('a results.json written by 0.4.2 opens, filters and shows a problem', async ({ page }) => {
+  const results = JSON.parse(readFileSync('tests/fixtures/results-0.4.2.json', 'utf8'));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setContent(renderReport(results));
+  await expect(rows(page)).toHaveCount(36);
+  await expect(page.locator('[data-status]')).toHaveText('Showing 36 of 36 problems');
+  // The matrix cell for German in the demo project filters to it.
+  const cell = page.locator('#summary .matrix button[data-pick-locale="de"]');
+  await expect(cell).toHaveAttribute('aria-label', /^de in demo: \d+ problems?$/);
+  await cell.click();
+  await expect(filter(page, 'locale')).toHaveValue('de');
+  const shown = await rows(page).filter({ visible: true }).count();
+  expect(shown).toBeGreaterThan(0);
+  expect(shown).toBeLessThan(36);
+  // A problem opens its detail, with its full selector.
+  await rows(page).filter({ visible: true }).first().locator('td').last().click();
+  await expect(page.locator('article.detail:visible')).toHaveCount(1);
+  await expect(page.locator('article.detail:visible .d-sels code').first()).not.toBeEmpty();
+  // A rule with a CSS source shows it, and the fix.
+  await page.locator('[data-clear]').click();
+  await page.locator('tr.problem[data-rule="rtl/not-mirrored"]').first().locator('td').last().click();
+  const open = page.locator('article.detail:visible');
+  await expect(open).toContainText('inset-inline-start: 16px');
+  await expect(open).toContainText('Fix:');
 });
