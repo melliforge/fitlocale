@@ -22,6 +22,15 @@ export default defineConfig([
     clean: true,
   },
   {
+    // The report renderer on its own, in one file with no Node built-ins: fitlocale cloud renders it in a Worker.
+    ...shared,
+    platform: 'neutral',
+    entry: { report: 'src/report/html.ts' },
+    format: ['esm', 'cjs'],
+    dts: true,
+    clean: false,
+  },
+  {
     ...shared,
     entry: { cli: 'src/bin.ts' },
     format: ['esm'],
