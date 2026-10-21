@@ -276,3 +276,164 @@ test.describe('without JavaScript', () => {
     expect(style.overflow).toBe('visible');
   });
 });
+
+/** Serves the report from an origin, so reloads and localStorage work. */
+async function serve(page: Page, checks: CheckResult[]) {
+  const html = renderReport(makeRun(checks));
+  await page.route('http://report.test/', route => route.fulfill({ contentType: 'text/html', body: html }));
+  await page.goto('http://report.test/');
+}
+const background = (page: Page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+const DARK_BG = 'rgb(27, 27, 31)', LIGHT_BG = 'rgb(255, 255, 255)';
+
+test('the theme toggle switches light and dark and remembers it', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await serve(page, THREE);
+  const html = page.locator('html');
+  const toggle = page.locator('[data-theme-toggle]');
+  await expect(html).not.toHaveAttribute('data-theme', /./);
+  expect(await background(page)).toBe(LIGHT_BG);
+
+  // auto → light → dark
+  await toggle.click();
+  await expect(html).toHaveAttribute('data-theme', 'light');
+  await toggle.click();
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+  expect(await background(page)).toBe(DARK_BG);
+
+  await page.reload();
+  await expect(html).toHaveAttribute('data-theme', 'dark');
+  expect(await background(page)).toBe(DARK_BG);
+
+  // Back to auto: the system preference decides again.
+  await page.locator('[data-theme-toggle]').click();
+  await expect(html).not.toHaveAttribute('data-theme', /./);
+  await page.emulateMedia({ colorScheme: 'dark' });
+  expect(await background(page)).toBe(DARK_BG);
+  await page.reload();
+  await expect(html).not.toHaveAttribute('data-theme', /./);
+
+  // A light choice wins over a dark system.
+  await page.locator('[data-theme-toggle]').click();
+  await expect(html).toHaveAttribute('data-theme', 'light');
+  expect(await background(page)).toBe(LIGHT_BG);
+});
+
+test('the report works when localStorage throws', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'localStorage', { get() { throw new Error('denied'); } });
+  });
+  await serve(page, THREE);
+  await expect(rows(page)).toHaveCount(3);
+  await expect(page.locator('[data-status]')).toHaveText('Showing 3 of 3 problems');
+  await page.locator('[data-theme-toggle]').click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+});
+
+test('search filters by free text and tokens', async ({ page }) => {
+  await serve(page, [
+    check('chromium', [
+      makeIssue({ rule: 'leak/raw-key', locale: 'de', text: 'checkout.title' }),
+      makeIssue({ rule: 'leak/raw-key', locale: 'fr', text: 'cart.empty' }),
+      makeIssue({ rule: 'overflow/clipped', locale: 'de', text: 'Speichern', severity: 'warning' }),
+    ]),
+    check('webkit', [makeIssue({ rule: 'overflow/clipped', locale: 'ar', text: 'Old', baselined: true })]),
+  ]);
+  const search = page.locator('[data-search]');
+  const visible = () => rows(page).filter({ visible: true });
+  const status = page.locator('[data-status]');
+  await expect(status).toHaveText('Showing 4 of 4 problems');
+
+  await search.fill('rule:leak/raw-key de');
+  await expect(visible()).toHaveCount(1);
+  await expect(visible()).toContainText('checkout.title');
+  await expect(status).toHaveText('Showing 1 of 4 problems');
+
+  await search.fill('SPEICH'); // free text, any case
+  await expect(visible()).toHaveCount(1);
+  await expect(visible()).toContainText('Speichern');
+
+  await search.fill('sev:warning');
+  await expect(visible()).toContainText('Speichern');
+  await search.fill('is:accepted');
+  await expect(visible()).toHaveCount(1);
+  await expect(visible()).toContainText('Old');
+  await search.fill('is:new project:webkit');
+  await expect(visible()).toHaveCount(0);
+  await expect(status).toHaveText('Showing 0 of 4 problems');
+  await search.fill('locale:ar');
+  await expect(visible()).toHaveCount(1);
+
+  // Tokens and the selects combine (AND).
+  await search.fill('rule:leak');
+  await expect(visible()).toHaveCount(2);
+  await filter(page, 'locale').selectOption('fr');
+  await expect(visible()).toHaveCount(1);
+  await expect(visible()).toContainText('cart.empty');
+
+  // Clear empties the search too; the query never reaches the URL.
+  expect(page.url()).toBe('http://report.test/');
+  await page.locator('[data-clear]').click();
+  await expect(search).toHaveValue('');
+  await expect(status).toHaveText('Showing 4 of 4 problems');
+});
+
+test('the sidebar highlights the section in view', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await open(page, [
+    ...THREE,
+    check('chromium', [makeIssue({ rule: 'overflow/clipped', locale: 'fr', text: 'Four' }), makeIssue({ rule: 'overflow/clipped', locale: 'ja', text: 'Five' })]),
+  ]);
+  await page.evaluate(() => { document.querySelector('main')!.style.minHeight = '5000px'; });
+  const link = (id: string) => page.locator(`nav.sidebar a[href="#${id}"]`);
+  await expect(link('summary')).toHaveAttribute('aria-current', 'true');
+
+  await page.locator('#page-1-2').evaluate(el => el.scrollIntoView());
+  await expect(link('page-1-2')).toHaveAttribute('aria-current', 'true');
+  await expect(link('page-1-1')).not.toHaveAttribute('aria-current', 'true');
+  await expect(link('summary')).not.toHaveAttribute('aria-current', 'true');
+});
+
+test('the sidebar hides sections that the filters hide', async ({ page }) => {
+  await open(page, THREE);
+  await filter(page, 'locale').selectOption('de');
+  await expect(page.locator('nav.sidebar a[href="#page-1-2"]')).toBeHidden();
+  await expect(page.locator('nav.sidebar a[href="#page-1-1"]')).toBeVisible();
+});
+
+test.describe('at 390px', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('the sidebar is a drawer opened by the Filters button', async ({ page }) => {
+    await open(page, THREE);
+    const sidebar = page.locator('nav.sidebar');
+    const button = page.getByRole('button', { name: 'Filters', exact: true });
+    await expect(sidebar).toBeHidden();
+    await expect(button).toHaveAttribute('aria-expanded', 'false');
+
+    await button.click();
+    await expect(sidebar).toBeVisible();
+    await expect(button).toHaveAttribute('aria-expanded', 'true');
+    await filter(page, 'locale').selectOption('ar');
+    await expect(rows(page).filter({ visible: true })).toHaveCount(1);
+
+    await page.keyboard.press('Escape');
+    await expect(sidebar).toBeHidden();
+    await expect(button).toHaveAttribute('aria-expanded', 'false');
+
+    // A link in the drawer closes it and shows its section.
+    await button.click();
+    await page.locator('nav.sidebar a[href="#page-1-2"]').click();
+    await expect(sidebar).toBeHidden();
+    await expect(page.locator('#page-1-2')).toBeInViewport();
+  });
+
+  test('no horizontal page scroll', async ({ page }) => {
+    const long = 'x'.repeat(300);
+    await open(page, [...THREE, check('a-project-with-a-rather-long-name', [makeIssue({ text: long, locale: long, selector: `#${long}` })])]);
+    const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(await overflow()).toBeLessThanOrEqual(0);
+    await page.getByRole('button', { name: 'Filters', exact: true }).click();
+    expect(await overflow()).toBeLessThanOrEqual(0);
+  });
+});

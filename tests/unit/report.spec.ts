@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { renderReport } from '../../src/report/html';
+import { SCRIPT } from '../../src/report/script';
+import { STYLES } from '../../src/report/styles';
 import type { CheckResult } from '../../src/types';
 import { makeCheck, makeIssue, makeRun } from './fixtures';
 
@@ -201,4 +203,50 @@ test('a large run renders quickly', () => {
   const html = renderReport(makeRun(checks));
   expect(Date.now() - start).toBeLessThan(3000);
   expect(html.match(/<tr class="problem/g)).toHaveLength(2560);
+});
+
+test('the report uses the docs theme tokens', () => {
+  const html = renderReport(makeRun([makeCheck()]));
+  for (const token of ['#3451b2', '#f6f6f7', '#1b1b1f']) expect(html).toContain(token);
+});
+
+test('the sidebar lists pages and sections with counts', async ({ page }) => {
+  await page.setContent(renderReport(makeRun([
+    makeCheck({ url: 'http://app.test/a', issues: [makeIssue({ url: 'http://app.test/a' }), makeIssue({ url: 'http://app.test/a', text: 'Other' }), makeIssue({ url: 'http://app.test/a', locale: 'de' })] }),
+    makeCheck({ url: 'http://app.test/b', issues: [makeIssue({ url: 'http://app.test/b' })] }),
+  ])));
+  const nav = page.locator('nav.sidebar');
+  await expect(nav.locator('a[href="#summary"]')).toHaveText('Overview');
+  await expect(nav.locator('a[href="#page-1"]')).toContainText('/a');
+  await expect(nav.locator('a[href="#page-1"]')).toContainText('3');
+  await expect(nav.locator('a[href="#page-1-1"]')).toContainText('en · pseudo-long');
+  await expect(nav.locator('a[href="#page-1-1"]')).toContainText('2');
+  await expect(nav.locator('a[href="#page-1-2"]')).toContainText('de · pseudo-long');
+  await expect(nav.locator('a[href="#page-2-1"]')).toContainText('1');
+  // The filters live in the sidebar too.
+  await expect(nav.locator('[data-sev="error"]')).toHaveCount(1);
+  await expect(nav.locator('select[data-filter="locale"]')).toHaveCount(1);
+});
+
+test('the overview shows stat cards', async ({ page }) => {
+  const run = makeRun([makeCheck({ issues: [
+    makeIssue({ severity: 'error', text: 'E1' }), makeIssue({ severity: 'error', text: 'E2', baselined: true }),
+    makeIssue({ severity: 'warning', text: 'W' }), makeIssue({ severity: 'info', text: 'I1' }), makeIssue({ severity: 'info', text: 'I2' }), makeIssue({ severity: 'info', text: 'I3' }),
+  ] })]);
+  await page.setContent(renderReport(run));
+  const stat = (name: string) => page.locator(`#summary .stat[data-stat="${name}"] .n`);
+  await expect(stat('error')).toHaveText('2');
+  await expect(stat('warning')).toHaveText('1');
+  await expect(stat('info')).toHaveText('3');
+  await expect(stat('accepted')).toHaveText('1');
+  await expect(page.locator('.stat')).toHaveCount(4);
+});
+
+test('styles and script come from their modules', () => {
+  const html = renderReport(makeRun([makeCheck()]));
+  expect(html).toContain(STYLES);
+  expect(html).toContain(SCRIPT);
+  // Plain ES2017 DOM code that can sit inside a <script> element.
+  for (const banned of ['</script', '?.', '??', 'innerHTML', 'http:', 'https:']) expect(SCRIPT).not.toContain(banned);
+  for (const banned of ['http:', 'https:', '@import']) expect(STYLES).not.toContain(banned);
 });
