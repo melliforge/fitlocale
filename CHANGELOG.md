@@ -5,6 +5,8 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-10-21
+
 ### Changed
 
 - The report opens on a summary by rule and by locale × project. It shows each problem once across browsers and viewports, with a readable element label, and offers filters by rule, locale and project, foldable sections, and thumbnails that enlarge. On Excalidraw, the report went from 53,421 px to 6,435 px tall (at a 1280×800 window).
@@ -162,7 +164,8 @@ First public release.
 - CLI: `fitlocale pseudo` writes pseudo-locale message files, and `fitlocale report` re-renders a report.
 - CommonJS and ESM builds with TypeScript types.
 
-[Unreleased]: https://github.com/melliforge/localization-layout-tester/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/melliforge/localization-layout-tester/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/melliforge/localization-layout-tester/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/melliforge/localization-layout-tester/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/melliforge/localization-layout-tester/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/melliforge/localization-layout-tester/compare/v0.3.0...v0.4.0
