@@ -14,7 +14,7 @@ Each section becomes the notes of the matching GitHub Release.
 
 ### Added
 
-- `name` on issues in `results.json`: the element's accessible name, when it has one.
+- `name` on issues in `results.json`: the element's accessible name, when it has one. It is read in the order aria-labelledby, aria-label, the `<label>` of an input, alt, title, placeholder.
 
 ## [0.4.2] - 2026-10-20
 

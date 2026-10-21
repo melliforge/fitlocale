@@ -379,13 +379,33 @@ export function elementAt(key: string): Element | null {
 
 const collapse = (text: string | null | undefined) => (text ?? '').replace(/\s+/g, ' ').trim();
 
-/** The first of aria-label, aria-labelledby, alt, title and placeholder that says something, whitespace-collapsed and clipped. */
+/** The text under `node`, left out where it is `skip` (a labelled control inside its own label). */
+function textWithout(node: Node, skip: Element): string {
+  let text = '';
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child === skip) continue;
+    if (child.nodeType === Node.TEXT_NODE) text += child.nodeValue;
+    else if (child.nodeType === Node.ELEMENT_NODE) text += textWithout(child, skip);
+  }
+  return text;
+}
+
+/** The text of the <label>s of an input, select or textarea (`for` or wrapping), in document order. */
+function labelText(el: Element): string {
+  const labels = (el as Partial<HTMLInputElement>).labels;
+  return labels ? collapse(Array.from(labels, label => collapse(textWithout(label, el))).filter(Boolean).join(' ')) : '';
+}
+
+/**
+ * The first of aria-labelledby, aria-label, its <label>s, alt, title and placeholder that says something,
+ * whitespace-collapsed and clipped. An id that aria-labelledby names but the page lacks is skipped.
+ */
 export function accessibleName(el: Element): string {
   const labelledby = collapse(el.getAttribute('aria-labelledby')).split(' ')
     .map(id => (id ? collapse((el.getRootNode() as Document | ShadowRoot).getElementById?.(id)?.textContent) : ''))
     .filter(Boolean).join(' ');
   const takesAlt = el.localName === 'img' || el.localName === 'area' || (el.localName === 'input' && el.getAttribute('type')?.toLowerCase() === 'image');
-  const name = collapse(el.getAttribute('aria-label')) || labelledby || (takesAlt ? collapse(el.getAttribute('alt')) : '')
+  const name = labelledby || collapse(el.getAttribute('aria-label')) || labelText(el) || (takesAlt ? collapse(el.getAttribute('alt')) : '')
     || collapse(el.getAttribute('title')) || collapse(el.getAttribute('placeholder'));
   return clip(name);
 }
