@@ -46,7 +46,8 @@ function parse(url: string): URL | undefined {
 function pageLabels(urls: string[]): Map<string, string> {
   const parsed = urls.map(parse);
   const origins = new Set(parsed.filter((u): u is URL => !!u).map(u => u.origin));
-  const shared = origins.size <= 1 && parsed.every(Boolean);
+  // An opaque origin (about:, data:, file: …) is the string "null": it names no site, so the URL stays whole.
+  const shared = origins.size <= 1 && !origins.has('null') && parsed.every(Boolean);
   return new Map(urls.map((url, i) => {
     const u = parsed[i];
     return [url, shared && u ? `${u.pathname}${u.search}${u.hash}` : url];

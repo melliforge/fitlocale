@@ -120,7 +120,8 @@ function filter(name: string, label: string, values: string[]): string {
   return `<label>${label} <select data-filter="${name}"><option value="">All</option>${options}</select></label>`;
 }
 
-function controls(model: ReportModel, accepted: number): string {
+function controls(model: ReportModel): string {
+  const accepted = model.pages.reduce((n, p) => n + p.sections.reduce((m, s) => m + s.problems.filter(x => x.accepted).length, 0), 0);
   const toggles = SEVERITIES.map(s =>
     `<label class="${s}"><input type="checkbox" checked data-sev="${s}"> ${model.bySeverity[s] ?? 0} ${s}</label>`).join('')
     + (accepted ? `<label><input type="checkbox" checked data-sev="accepted"> ${accepted} accepted in the baseline</label>` : '');
@@ -139,7 +140,7 @@ export function renderReport(results: RunResults): string {
   const accepted = (results.checks ?? []).reduce((n, c) => n + (c.issues ?? []).filter(i => i.baselined).length, 0);
   const counts = accepted ? ` · ${total - accepted} new · ${accepted} accepted` : '';
   const body = model.problems
-    ? `${controls(model, accepted)}\n${summary(model)}${model.pages.map(page).join('')}`
+    ? `${controls(model)}\n${summary(model)}${model.pages.map(page).join('')}`
     : '<p class="empty">No localization layout issues found.</p>';
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -181,7 +182,9 @@ thead th { color:var(--muted); font-size:12px; font-weight:500; } tbody th { fon
 .seen, .fix { color:var(--muted); font-size:13px; } .fix { margin-top:2px; }
 .shots { display:flex; flex-wrap:wrap; align-items:flex-start; gap:16px; margin:14px 0 8px; }
 .shot-wrap { width:240px; margin:0; } .shot-wrap.big { width:100%; }
-.shot { display:block; width:100%; max-height:360px; overflow:hidden; padding:0; border:1px solid var(--line); border-radius:4px; background:none; cursor:zoom-in; } .big .shot { max-height:none; cursor:zoom-out; }
+.shot { display:block; width:100%; padding:0; border:1px solid var(--line); border-radius:4px; background:none; }
+/* Cropping and zoom need the script; without it the whole screenshot stays reachable. */
+.js .shot { max-height:360px; overflow:hidden; cursor:zoom-in; } .js .big .shot { max-height:none; cursor:zoom-out; }
 .frame { position:relative; display:block; } .frame img { display:block; width:100%; height:auto; }
 figcaption { color:var(--muted); font-size:12px; margin-top:4px; overflow-wrap:anywhere; }
 .box { display:block; position:absolute; border:2px solid; box-sizing:border-box; box-shadow:0 0 0 1px #000, inset 0 0 0 1px #fff; } /* rings keep any colour visible on any background */ .box.error { border-color:var(--error); } .box.warning { border-color:var(--warning); } .box.info { border-color:var(--info); }
@@ -195,6 +198,7 @@ ${body}
 </main>
 <script>
 (function () {
+  document.documentElement.classList.add('js');
   var all = function (selector) { return Array.prototype.slice.call(document.querySelectorAll(selector)); };
   var select = function (name) { return document.querySelector('select[data-filter="' + name + '"]'); };
   var value = function (name) { var s = select(name); return s ? s.value : ''; };
@@ -227,7 +231,21 @@ ${body}
     if (status) status.textContent = 'Showing ' + shown + ' of ' + rows.length + ' problems';
   }
 
+  function isHidden(el) {
+    for (; el; el = el.parentElement) if (el.hidden) return true;
+    return false;
+  }
+
   function reveal(target) {
+    if (isHidden(target)) {
+      // A filter hides the target: drop the select filters, then the toggles only if they still hide it.
+      all('[data-filter]').forEach(function (s) { s.value = ''; });
+      apply();
+      if (isHidden(target)) {
+        checks.forEach(function (box) { box.checked = true; });
+        apply();
+      }
+    }
     for (var el = target; el; el = el.parentElement) if (el.tagName === 'DETAILS') el.open = true;
     target.scrollIntoView();
   }

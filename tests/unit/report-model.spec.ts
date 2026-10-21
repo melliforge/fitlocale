@@ -56,6 +56,15 @@ test('the same issue id in two projects is two occurrences', () => {
   expect(model.projects).toEqual(['chromium', 'webkit']);
 });
 
+test('opaque origins keep the whole URL as the label', () => {
+  const label = (urls: string[]) => buildModel(makeRun(urls.map(url => makeCheck({ url, issues: [makeIssue({ url })] })))).pages.map(p => p.label);
+  expect(label(['about:blank'])).toEqual(['about:blank']);
+  expect(label(['data:text/html,<p>hi</p>'])).toEqual(['data:text/html,<p>hi</p>']);
+  expect(label(['about:blank', 'about:blank#x'])).toEqual(['about:blank', 'about:blank#x']);
+  expect(label(['about:blank', 'http://app.test/a'])).toEqual(['about:blank', 'http://app.test/a']);
+  expect(label(['http://app.test/a', 'http://app.test/b'])).toEqual(['/a', '/b']);
+});
+
 test('pages in first-seen order; a shared origin is dropped from labels', () => {
   const a = makeCheck({ url: 'http://app.test/a', issues: [makeIssue()] });
   const b = makeCheck({ url: 'http://app.test/b?lng=de', issues: [makeIssue()] });

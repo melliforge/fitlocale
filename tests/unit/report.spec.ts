@@ -82,6 +82,18 @@ test('accepted issues are marked and can be hidden', () => {
   expect(html).toContain('data-sev="accepted"');
 });
 
+test('the accepted toggle counts problems, like the severity toggles; the header counts issues', () => {
+  // One accepted problem seen on two elements, plus one new problem.
+  const run = makeRun([makeCheck({
+    issues: [makeIssue({ baselined: true, selector: '#a' }), makeIssue({ baselined: true, selector: '#b' }), makeIssue({ text: 'Other' })],
+  })]);
+  run.summary = { error: 3, warning: 0, info: 0 };
+  const html = renderReport(run);
+  expect(html).toContain('2 problem(s) · 3 issue(s) · 1 new · 2 accepted');
+  expect(html).toContain('data-sev="accepted"> 1 accepted in the baseline');
+  expect(html).toContain('data-sev="error"> 2 error');
+});
+
 test('without accepted issues the report has no accepted toggle', () => {
   const html = renderReport(makeRun([makeCheck()]));
   expect(html).not.toContain('data-sev="accepted"');

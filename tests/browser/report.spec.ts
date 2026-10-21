@@ -132,6 +132,30 @@ test('a link to a folded section opens it', async ({ page }) => {
   await expect(page.locator('#page-1-2')).toHaveAttribute('open', '');
 });
 
+test('a link to a section hidden by a filter clears the filters and shows it', async ({ page }) => {
+  await open(page, THREE);
+  await page.locator('[data-fold="close"]').click();
+  await filter(page, 'rule').selectOption('overflow/ellipsis');
+  await expect(page.locator('#page-1-2')).toBeHidden(); // the ar section has no ellipsis problem
+  await expect(page.locator('[data-sev="error"]')).toBeChecked();
+
+  await page.locator('#summary a[href="#page-1-2"]').first().click();
+  await expect(filter(page, 'rule')).toHaveValue('');
+  await expect(page.locator('#page-1-2')).toBeVisible();
+  await expect(page.locator('#page-1-2')).toHaveAttribute('open', '');
+  await expect(page.locator('#page-1-2')).toBeInViewport();
+  await expect(page.locator('[data-status]')).toHaveText('Showing 3 of 3 problems');
+});
+
+test('a link to a section hidden by a severity toggle too, when they still hide it', async ({ page }) => {
+  await open(page, THREE);
+  await filter(page, 'rule').selectOption('overflow/ellipsis');
+  await page.locator('[data-sev="error"]').uncheck();
+  await page.locator('#summary a[href="#page-1-2"]').first().click();
+  await expect(page.locator('#page-1-2')).toBeVisible(); // still hidden after the filters: the toggles reset too
+  await expect(page.locator('[data-sev="error"]')).toBeChecked();
+});
+
 test('opening the report on a link to a folded section opens it', async ({ page }) => {
   const html = renderReport(makeRun(THREE)).replace(/<details class="(page|section)" open/g, '<details class="$1"');
   await page.route('http://report.test/', route => route.fulfill({ contentType: 'text/html', body: html }));
@@ -140,6 +164,8 @@ test('opening the report on a link to a folded section opens it', async ({ page 
   await expect(page.locator('#page-1-2')).toHaveAttribute('open', '');
   await expect(page.locator('#page-1-1')).not.toHaveAttribute('open', '');
 });
+
+const tallPng = 'data:image/png;base64,iVBORw0KGgo=';
 
 /** A PNG of the given size, drawn by the browser. */
 const png = (page: Page, width: number, height: number) => page.evaluate(([w, h]) => {
@@ -228,4 +254,25 @@ test('the controls stay at the top while scrolling', async ({ page }) => {
   const bar = await page.locator('.bar').boundingBox();
   expect(bar!.y).toBe(0);
   expect(bar!.height).toBeLessThan(200);
+});
+
+test('thumbnails are cropped only when the script runs', async ({ page }) => {
+  await openTall(page);
+  expect(await page.evaluate(() => document.documentElement.classList.contains('js'))).toBe(true);
+  expect(await page.locator('button.shot').evaluate(el => getComputedStyle(el).maxHeight)).toBe('360px');
+});
+
+test.describe('without JavaScript', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('thumbnails are not cropped, so every box can be reached', async ({ page }) => {
+    await page.setContent(renderReport(makeRun([makeCheck({
+      issues: [makeIssue({ box: { x: 100, y: 3000, width: 200, height: 100 } })],
+      screenshots: [{ ...shot({ width: 1000, height: 4000 }), path: tallPng }],
+    })])));
+    const style = await page.locator('button.shot').evaluate(el => { const s = getComputedStyle(el); return { maxHeight: s.maxHeight, cursor: s.cursor, overflow: s.overflow }; });
+    expect(style.maxHeight).toBe('none');
+    expect(style.cursor).not.toBe('zoom-in');
+    expect(style.overflow).toBe('visible');
+  });
 });
