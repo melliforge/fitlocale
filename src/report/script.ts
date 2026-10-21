@@ -283,6 +283,49 @@ export const SCRIPT = String.raw`(function () {
   function setHash(hash) {
     try { history.replaceState(history.state, '', location.href.split('#')[0] + hash); } catch (e) { /* about:blank, sandboxed frames */ }
   }
+  /** Screenshots in a problem's detail, and the rest are counted. */
+  var MAX_SHOTS = 6;
+  /**
+   * The detail's screenshots are copies of its section's figures, made the first time the problem opens: the page
+   * does not carry every screenshot twice. A copy keeps the image and caption, and only this problem's boxes.
+   */
+  function buildShots(article) {
+    var block = article.querySelector('[data-shots]');
+    var section = document.getElementById(article.getAttribute('data-section'));
+    if (!block || !section || block.getAttribute('data-built') !== null) return;
+    block.setAttribute('data-built', '');
+    var id = article.id.slice(2);
+    var holder = block.querySelector('.dshots');
+    var figures = all('figure.shot-wrap', section).filter(function (fig) {
+      return all('.box', fig).some(function (box) { return box.getAttribute('data-problem') === id; });
+    });
+    figures.slice(0, MAX_SHOTS).forEach(function (fig) {
+      var copy = fig.cloneNode(true);
+      var frame = copy.querySelector('.frame');
+      var crop = document.createElement('div');
+      crop.className = 'crop';
+      frame.className = 'dframe';
+      crop.appendChild(frame);
+      copy.replaceChild(crop, copy.querySelector('button.shot'));
+      copy.className = 'dshot';
+      copy.hidden = false;
+      copy.removeAttribute('data-project');
+      all('.box', frame).forEach(function (box) {
+        if (box.getAttribute('data-problem') !== id) { frame.removeChild(box); return; }
+        box.className = box.className.replace(/^box\b/, 'dbox');
+        box.removeAttribute('data-problem');
+        box.hidden = false;
+      });
+      holder.appendChild(copy);
+    });
+    if (figures.length > MAX_SHOTS) {
+      var more = document.createElement('p');
+      more.className = 'more';
+      more.textContent = '+' + (figures.length - MAX_SHOTS) + ' more in the section';
+      block.appendChild(more);
+    }
+    block.hidden = false;
+  }
   /** Each screenshot in the detail scrolls to its first box. */
   function cropTo(article) {
     all('.crop', article).forEach(function (crop) {
@@ -312,6 +355,7 @@ export const SCRIPT = String.raw`(function () {
     panel.hidden = false;
     root.classList.add('panel-open');
     panel.scrollTop = 0;
+    buildShots(article);
     cropTo(article);
     setHash('#' + row.id);
     // Opening changes the layout (the rows stack, the sidebar may give way): the row stays in view.

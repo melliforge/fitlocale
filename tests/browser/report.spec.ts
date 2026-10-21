@@ -780,6 +780,61 @@ test('the detail screenshot scrolls to its box', async ({ page }) => {
   expect(b.y + b.height).toBeLessThanOrEqual(c.y + c.height + 1);
 });
 
+/** Eight checks, each with one screenshot showing two problems; p1 is the first. */
+const shotChecks = () => Array.from({ length: 8 }, (_, i) => makeCheck({
+  testTitle: `test ${i}`,
+  issues: [makeIssue(), makeIssue({ text: 'Other', box: { x: 0, y: 0, width: 10, height: 10 } })],
+  screenshots: [{ ...shot({ width: 1000, height: 2000 }), path: `data:image/png;base64,AAA${i}` }],
+}));
+
+test('opening a problem builds its screenshots from the section figures', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, shotChecks());
+  // Nothing is built before a problem opens.
+  await expect(page.locator('.dshot')).toHaveCount(0);
+  await expect(detail(page, 'p1').locator('[data-shots]')).toBeHidden();
+
+  await page.locator('#p1 td').last().click();
+  const shots = detail(page, 'p1').locator('.dshot');
+  // At most 6, with a note for the rest.
+  await expect(shots).toHaveCount(6);
+  await expect(detail(page, 'p1').locator('.d-block .more')).toHaveText('+2 more in the section');
+  await expect(detail(page, 'p1').locator('[data-shots]')).toBeVisible();
+  await expect(shots.first().locator('img')).toHaveAttribute('src', /AAA0$/);
+  await expect(shots.last().locator('img')).toHaveAttribute('src', /AAA5$/);
+  await expect(shots.first().locator('figcaption')).toContainText('test 0');
+  // Only this problem's boxes, at the place they have in the section.
+  await expect(detail(page, 'p1').locator('.dbox')).toHaveCount(6);
+  expect(await detail(page, 'p1').locator('.dbox').first().getAttribute('style')).toContain('left:10%;top:10%;width:5%;height:1%');
+  // Copies, not the thumbnails: no thumbnail button, no section classes, and the section keeps its own.
+  await expect(detail(page, 'p1').locator('button.shot, .shot-wrap, .box')).toHaveCount(0);
+  await expect(page.locator('details.section figure.shot-wrap')).toHaveCount(8);
+  await expect(page.locator('details.section .box')).toHaveCount(16);
+
+  // Opening it again, or another problem and back, does not stack a second set.
+  await page.locator('#p2 td').last().click();
+  await expect(detail(page, 'p2').locator('.dshot')).toHaveCount(6);
+  await expect(detail(page, 'p2').locator('.dbox')).toHaveCount(6);
+  expect(await detail(page, 'p2').locator('.dbox').first().getAttribute('style')).toContain('left:0%;top:0%');
+  await page.locator('#p1 td').last().click();
+  await expect(detail(page, 'p1').locator('.dshot')).toHaveCount(6);
+  await expect(detail(page, 'p1').locator('.d-block .more')).toHaveCount(1);
+});
+
+test('detail screenshots show even when a filter hides the section figure', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, [
+    check('chromium', [makeIssue({ text: 'One' })]),
+    check('webkit', [makeIssue({ text: 'One' })]),
+  ]);
+  await filter(page, 'project').selectOption('webkit');
+  await expect(page.locator('figure.shot-wrap[data-project="chromium"]')).toBeHidden();
+  await page.locator('#p1 td').last().click();
+  // Both projects' screenshots of the problem, none of them hidden or enlarged.
+  await expect(detail(page, 'p1').locator('.dshot:visible')).toHaveCount(2);
+  await expect(detail(page, 'p1').locator('.dbox:visible')).toHaveCount(2);
+});
+
 test.describe('the panel without JavaScript', () => {
   test.use({ javaScriptEnabled: false });
 
