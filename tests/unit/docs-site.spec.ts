@@ -91,3 +91,9 @@ test('every page names its canonical URL, the same as og:url', () => {
   expect(url).toBeTruthy();
   expect(config).toContain(`['link', { rel: 'canonical', href: ${url} }]`);
 });
+
+test('the legal pages name the seller: no placeholder is left', () => {
+  for (const page of ['docs/legal/terms.md', 'docs/legal/privacy.md', 'docs/legal/refunds.md']) {
+    expect(readFileSync(page, 'utf8'), page).not.toMatch(/\[(SELLER LEGAL NAME|COUNTRY|PRIVACY EMAIL)\]/);
+  }
+});
