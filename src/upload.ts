@@ -137,7 +137,7 @@ export async function uploadReport(opts: UploadOptions): Promise<UploadOutcome> 
         ghRunId: env.GITHUB_RUN_ID, ghRunAttempt: env.GITHUB_RUN_ATTEMPT, files,
       }),
     }, 'POST /v1/runs');
-    if (created.status === 402) return skip('no-plan');
+    if (created.status === 402) return skip('no-plan', serviceMessage(created.json?.message) ?? NOTICES['no-plan']);
     if (created.status === 404 && created.json?.error === 'not_installed') return skip('not-installed');
     if (created.status === 413) return skip('too-large', `over the upload limit (${String(created.json?.limit ?? 'unknown')})`);
     const runId = created.json?.runId, secret = created.json?.uploadSecret;
@@ -167,6 +167,14 @@ export async function uploadReport(opts: UploadOptions): Promise<UploadOutcome> 
     const detail = err instanceof ServiceError ? err.message : `unexpected: ${(err as Error).message}`;
     return skip('service', `the fitlocale service did not answer (${detail})`);
   }
+}
+
+/** The service's own sentence for a refusal, made safe for a log line: one line, no control characters, at most 300 characters. */
+function serviceMessage(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const line = value.replace(/[\r\n\t]+/g, ' ').replace(/[\u0000-\u001f\u007f-\u009f]/g, '').trim();
+  if (!line) return null;
+  return line.length > 300 ? `${line.slice(0, 299)}…` : line;
 }
 
 function describe(what: string, res: { status: number; json: Record<string, unknown> | null }): string {

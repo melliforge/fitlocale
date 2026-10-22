@@ -38,4 +38,6 @@ permissions: { contents: read, id-token: write }
   with: { upload: true }
 ```
 
+Installing the [fitlocale GitHub App](https://github.com/apps/fitlocale-cloud/installations/new) starts a 14-day trial. After that, the upload needs a plan: see [Pricing](/pricing).
+
 Screenshots, crops and `results.json` are uploaded. The [`mask` option](/reference/options#mask) paints over customer data in the images, and [`ignore`](/reference/options#ignore) keeps an element's text out of `results.json`. Pull requests from forks are not uploaded. Like the rest of the Action, the upload never fails the job: a missing plan or permission, or a service that doesn't answer, is one line in the log. See [`fitlocale upload`](/reference/cli#fitlocale-upload).

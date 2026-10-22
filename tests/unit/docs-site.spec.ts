@@ -91,3 +91,10 @@ test('every page names its canonical URL, the same as og:url', () => {
   expect(url).toBeTruthy();
   expect(config).toContain(`['link', { rel: 'canonical', href: ${url} }]`);
 });
+
+test('pricing and the legal pages live on cloud.fitlocale.dev, where Paddle checks them', () => {
+  expect(existsSync('docs/legal')).toBe(false);
+  const config = readFileSync('docs/.vitepress/config.ts', 'utf8');
+  for (const page of ['pricing', 'terms', 'privacy', 'refunds']) expect(config).toContain(`https://cloud.fitlocale.dev/${page}`);
+  expect(readFileSync('docs/pricing.md', 'utf8')).toContain('https://cloud.fitlocale.dev/pricing');
+});

@@ -147,6 +147,27 @@ for (const [status, error, reason, notice] of [
   });
 }
 
+test('a 402 with a message prints that message', async () => {
+  const message = "acme's Team plan covers 3 repositories with uploads in the last 30 days. Upgrade to Business at https://cloud.test/account/77";
+  const { outcome, lines } = await upload({ ...OK, 'POST /v1/runs': { status: 402, body: { error: 'repo_limit', limit: 3, message, accountUrl: 'https://cloud.test/account/77' } } });
+  expect(outcome).toEqual({ status: 'skipped', reason: 'no-plan' });
+  expect(lines).toEqual([`fitlocale upload: ${message}`]);
+});
+
+test('a 402 without a usable message prints the old notice', async () => {
+  for (const body of [{ error: 'no_plan' }, { error: 'no_plan', message: 42 }, { error: 'no_plan', message: '  ' }]) {
+    const { lines } = await upload({ ...OK, 'POST /v1/runs': { status: 402, body } });
+    expect(lines, JSON.stringify(body)).toEqual(['fitlocale upload: no active fitlocale plan for this repository; the local report is unchanged']);
+  }
+});
+
+test('a message with control characters is cleaned and cut', async () => {
+  const { lines } = await upload({ ...OK, 'POST /v1/runs': { status: 402, body: { error: 'no_plan', message: 'a\u001b[31mb\nc' } } });
+  expect(lines).toEqual(['fitlocale upload: a[31mb c']);
+  const long = await upload({ ...OK, 'POST /v1/runs': { status: 402, body: { error: 'no_plan', message: 'x'.repeat(400) } } });
+  expect(long.lines[0]).toBe(`fitlocale upload: ${'x'.repeat(299)}…`);
+});
+
 test('a 500, HTML instead of JSON, or a timeout is a service notice', async () => {
   for (const reply of [{ status: 500, body: { error: 'boom' } }, { status: 201, raw: '<html>Bad gateway</html>' }] as const) {
     const { outcome, lines } = await upload({ ...OK, 'POST /v1/runs': reply });

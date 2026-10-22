@@ -5,6 +5,10 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+### Changed
+
+- `fitlocale upload` prints why fitlocale cloud refused an upload, and where to choose a plan: an ended trial, or a plan's repository limit.
+
 ## [0.5.0] - 2026-10-22
 
 ### Added
