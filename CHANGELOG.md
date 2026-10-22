@@ -11,7 +11,7 @@ Each section becomes the notes of the matching GitHub Release.
 - `crop` on issues in `results.json`: a small image around the issue (24 px around its box), cut from its screenshot and copied into the report's `screenshots/` folder. At most 20 per check, new issues first, then errors before warnings. Page-wide issues get none.
 - `fitlocale/report`: the HTML report renderer as its own entry point (`renderReport`, `escapeHtml`), in one file that uses nothing from Node.
 - `fitlocale upload <report-dir>`: sends a report to fitlocale cloud from GitHub Actions, signing in with the job's OIDC token. It never fails the job: without a token, plan or answer it prints one line and exits 0.
-- The Action's `upload` and `upload-url` inputs run `fitlocale upload` after the summary. The fitlocale cloud service itself is not live yet.
+- The Action's `upload` and `upload-url` inputs run `fitlocale upload` after the summary. fitlocale cloud answers at https://cloud.fitlocale.dev, the default address.
 
 ### Changed
 
