@@ -5,9 +5,21 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+### Added
+
+- `mask` option: selectors whose boxes are painted over in every fitlocale screenshot and crop, for customer data. It covers pixels only, since issue text stays in `results.json`. A selector that is not valid CSS fails the check with an error naming it.
+- `crop` on issues in `results.json`: a small image around the issue (24 px around its box), cut from its screenshot and copied into the report's `screenshots/` folder. At most 20 per check, new issues first, then errors before warnings. Page-wide issues get none.
+- `fitlocale/report`: the HTML report renderer as its own entry point (`renderReport`, `escapeHtml`), in one file that uses nothing from Node.
+- `fitlocale upload <report-dir>`: sends a report to fitlocale cloud from GitHub Actions, signing in with the job's OIDC token. It never fails the job: without a token, plan or answer it prints one line and exits 0.
+- The Action's `upload` and `upload-url` inputs run `fitlocale upload` after the summary. fitlocale cloud answers at https://cloud.fitlocale.dev, the default address.
+
 ### Changed
 
 - The repository is now `melliforge/fitlocale` (it was `melliforge/localization-layout-tester`), and the docs moved to https://melliforge.github.io/fitlocale/. Workflows that still say `uses: melliforge/localization-layout-tester@v0` keep working through GitHub's redirect; switch them to `melliforge/fitlocale@v0`.
+
+### Fixed
+
+- In Chromium, on a right-to-left page wider than the window, the report drew each issue's box in the wrong place on the screenshot, since Chromium's full-page screenshot starts at the page's leftmost overflow. Screenshots now record that offset as `origin`.
 
 ## [0.4.3] - 2026-10-21
 

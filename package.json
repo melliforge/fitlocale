@@ -71,6 +71,16 @@
         "default": "./dist/reporter.cjs"
       }
     },
+    "./report": {
+      "import": {
+        "types": "./dist/report.d.ts",
+        "default": "./dist/report.js"
+      },
+      "require": {
+        "types": "./dist/report.d.cts",
+        "default": "./dist/report.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "bin": {

@@ -238,6 +238,8 @@ jobs:
 
 The step never fails the job. Your test step already did, if there were new issues. In a matrix or with shards, give each job its own `artifact-name` (for example `fitlocale-report-${{ matrix.shardIndex }}`): an artifact name can be used once per workflow run.
 
+With a fitlocale cloud plan, `with: { upload: true }` also posts one pull request comment with a crop of each new issue, and links a hosted report. It needs `permissions: id-token: write` and no secret. Screenshots, crops and `results.json` are uploaded: `mask` paints over customer data in the images, and `ignore` keeps an element's text out of the results. See the [Action reference](https://melliforge.github.io/fitlocale/reference/github-action#upload).
+
 ## CLI
 
 ```bash

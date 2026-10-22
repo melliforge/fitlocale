@@ -39,3 +39,16 @@ npx fitlocale summary fitlocale-report/results.json --max-rows 50 >> "$GITHUB_ST
 ```
 
 Prints a Markdown summary of the new issues: counts, a note when there is no baseline yet, and a table of at most `--max-rows` issues (default 50), errors first.
+
+## `fitlocale upload`
+
+```bash
+npx fitlocale upload fitlocale-report --pr "$PR_NUMBER"
+```
+
+Sends a finished report to fitlocale cloud, which comments on the pull request and hosts the report. It runs in GitHub Actions; the [Action's `upload` input](/reference/github-action#upload) calls it for you.
+
+- **What it sends:** `results.json` and the screenshots and crops it points at, and nothing outside the report directory. With them goes the pull request's head commit, read from the Actions event, so the comment names the commit you pushed rather than GitHub's temporary merge commit. The [`mask` option](/reference/options#mask) paints over customer data in the images. `results.json` still holds each issue's text, selector and URL, so use [`ignore`](/reference/options#ignore) for elements whose text must not leave CI.
+- **How it signs in:** with the job's GitHub OIDC token, so the repository needs no secret. The job needs `permissions: id-token: write`. Pull requests from forks get no token, and are not uploaded.
+- **It never fails the job:** if there is no token or plan, or the service doesn't answer within 30 seconds, it prints one `fitlocale upload:` line and exits 0. It needs Node 18 or newer, and on older Node it says so and exits 0.
+- **Options:** `--pr <n>` is the pull request number. When it's empty, the number is read from `GITHUB_REF`. `--endpoint <url>` (or `FITLOCALE_CLOUD_URL`) changes the service address, which defaults to `https://cloud.fitlocale.dev`.

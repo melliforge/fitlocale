@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../src/playwright';
 import { FIXES, type CheckResult } from '../../src/types';
@@ -537,5 +537,126 @@ test.describe('a web font that never loads', () => {
     const t0 = Date.now();
     await localeCheck(); // two viewports, two text changes each: four waits of up to 3 s before
     expect(Date.now() - t0).toBeLessThan(7000);
+  });
+});
+
+/** The colour at (x, y) of a PNG file, read through the page. */
+const pixel = async (page: Page, path: string, x: number, y: number) => page.evaluate(async ([src, x, y]) => {
+  const img = new Image();
+  img.src = src;
+  await img.decode();
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(img, 0, 0);
+  return [...ctx.getImageData(x, y, 1, 1).data].slice(0, 3);
+}, [`data:image/png;base64,${readFileSync(path).toString('base64')}`, x, y] as const);
+
+test.describe('mask', () => {
+  const SECRET = `<div id=secret style="position:absolute;left:0;top:200px;width:200px;height:100px;background:#fff;color:#000">card 4242</div>`;
+  test.describe('on a secret', () => {
+    test.use({ fitlocale: { viewports: 'current', failOn: 'never', mask: ['#secret'] } });
+
+    test('masked elements are painted over in screenshots', async ({ page, localeCheck }) => {
+      await page.setContent(CLIPPED + SECRET);
+      const result = await localeCheck();
+      expect(result.screenshots.length).toBeGreaterThan(0);
+      const [r, g, b] = await pixel(page, result.screenshots[0].path, 100, 250);
+      expect(Math.abs(r - 255)).toBeLessThanOrEqual(2);
+      expect(g).toBeLessThanOrEqual(2);
+      expect(Math.abs(b - 255)).toBeLessThanOrEqual(2);
+    });
+  });
+
+  test.describe('with an invalid selector', () => {
+    test.use({ fitlocale: { viewports: 'current', failOn: 'never', mask: ['#'] } });
+
+    test('an invalid mask selector is a clear error', async ({ page, localeCheck }) => {
+      await page.setContent(CLIPPED);
+      await expect(localeCheck()).rejects.toThrow(/^fitlocale: mask selector "#"/);
+    });
+  });
+
+  test.describe('matching nothing', () => {
+    test.use({ fitlocale: { viewports: 'current', failOn: 'never', mask: ['#nothing'] } });
+
+    test('a mask that matches nothing changes nothing', async ({ page, localeCheck }) => {
+      await page.setContent(CLIPPED);
+      const result = await localeCheck();
+      expect(list(result)).toEqual(['overflow/clipped #s pseudo-long']);
+      expect(result.screenshots.length).toBeGreaterThan(0);
+      expect(existsSync(result.screenshots[0].path)).toBe(true);
+    });
+  });
+});
+
+test.describe('crops', () => {
+  /** Width of a PNG file, from its IHDR chunk. */
+  const pngWidth = (path: string) => readFileSync(path).readUInt32BE(16);
+  const docWidth = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth);
+
+  test('each issue gets a crop around its box', async ({ page, localeCheck }) => {
+    await page.setContent(`<div style="padding-left:100px">${CLIPPED}</div>`);
+    const result = await localeCheck();
+    const issue = result.issues.find(i => i.rule === 'overflow/clipped')!;
+    expect(issue.crop).toBeTruthy();
+    expect(existsSync(issue.crop!)).toBe(true);
+    const doc = await docWidth(page);
+    const expected = Math.min(doc, issue.box.x + issue.box.width + 24) - Math.max(0, issue.box.x - 24);
+    expect(expected).toBe(issue.box.width + 48); // far enough from the edge: the padding is whole
+    expect(Math.abs(pngWidth(issue.crop!) - expected)).toBeLessThanOrEqual(1);
+  });
+
+  test('a crop below the fold shows its own element', async ({ page, localeCheck }) => {
+    await page.setContent(`<div style="height:1500px"></div>
+      <button id=s style="width:120px;height:40px;overflow:hidden;white-space:nowrap;background:#f00;color:#f00">Save changes</button>`);
+    const result = await localeCheck();
+    const issue = result.issues.find(i => i.rule === 'overflow/clipped')!;
+    expect(issue.box.y).toBeGreaterThan(1500);
+    const [r, g, b] = await pixel(page, issue.crop!, 24 + 4, 24 + 4);
+    expect([r, g < 10, b < 10]).toEqual([255, true, true]);
+  });
+
+  // Chromium starts a right-to-left page's full screenshot at its leftmost overflow.
+  test('in a right-to-left page wider than the window, a crop shows its own element', async ({ page, localeCheck }) => {
+    await page.setContent(`<html dir=rtl lang=ar><body style="margin:0"><div style="width:2500px;height:50px"></div>
+      <button id=s style="width:120px;height:40px;overflow:hidden;white-space:nowrap;background:#f00;color:#f00">Save changes</button></body></html>`);
+    const result = await localeCheck();
+    const issue = result.issues.find(i => i.crop && i.selector === '#s')!;
+    expect(issue).toBeTruthy();
+    const [r, g, b] = await pixel(page, issue.crop!, 24 + 4, 24 + 4);
+    expect([r, g < 10, b < 10]).toEqual([255, true, true]);
+  });
+
+  test('crops stop at 20 per check', async ({ page, localeCheck }) => {
+    const buttons = Array.from({ length: 30 }, (_, i) =>
+      `<button id=b${i} style="display:block;width:120px;overflow:hidden;white-space:nowrap">Save changes</button>`).join('');
+    await page.setContent(buttons);
+    const result = await localeCheck();
+    const clipped = result.issues.filter(i => i.rule === 'overflow/clipped');
+    expect(clipped).toHaveLength(30);
+    expect(result.issues.filter(i => i.crop)).toHaveLength(20);
+    expect(result.issues.slice(0, 20).every(i => i.crop)).toBe(true);
+  });
+
+  test('a box partly off the page is clamped', async ({ page, localeCheck }) => {
+    await page.setContent(`<button id=s style="position:absolute;left:-50px;top:0;width:120px;overflow:hidden;white-space:nowrap">Save changes</button>`);
+    const result = await localeCheck();
+    const issue = result.issues.find(i => i.rule === 'overflow/clipped')!;
+    expect(issue.crop).toBeTruthy();
+    expect(pngWidth(issue.crop!)).toBeLessThanOrEqual(await docWidth(page));
+    expect(pngWidth(issue.crop!)).toBeGreaterThanOrEqual(1);
+  });
+
+  test.describe('without screenshots', () => {
+    test.use({ fitlocale: { viewports: 'current', failOn: 'never', screenshots: false } });
+
+    test('no crops without screenshots', async ({ page, localeCheck }) => {
+      await page.setContent(CLIPPED);
+      const result = await localeCheck();
+      expect(result.issues.length).toBeGreaterThan(0);
+      expect(result.issues.filter(i => i.crop)).toEqual([]);
+    });
   });
 });

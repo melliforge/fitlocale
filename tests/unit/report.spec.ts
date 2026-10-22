@@ -47,6 +47,15 @@ test('overlay boxes use percentages', () => {
   expect(html).toContain('left:10%;top:10%;width:5%;height:1%');
 });
 
+// Chromium starts a right-to-left page's full screenshot at its leftmost overflow, not at the page's origin.
+test('overlay boxes follow the screenshot origin', () => {
+  const check = makeCheck({
+    issues: [makeIssue({ mode: 'pseudo-rtl', rule: 'rtl/not-mirrored', severity: 'warning', box: { x: 50, y: 200, width: 50, height: 20 } })],
+    screenshots: [{ mode: 'pseudo-rtl', viewport: { width: 1280, height: 800 }, path: 'screenshots/a.png', size: { width: 1000, height: 2000 }, origin: { x: 50, y: 0 } }],
+  });
+  expect(renderReport(makeRun([check]))).toContain('left:10%;top:10%;width:5%;height:1%');
+});
+
 test('empty run', () => {
   expect(renderReport(makeRun([]))).toContain('No localization layout issues found.');
 });

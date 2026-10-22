@@ -3,6 +3,7 @@ import type { TestInfo } from '@playwright/test';
 import { resolve } from 'node:path';
 import { applyBaseline, failureSummary, markFailing } from './baseline';
 import { configDirOf, probeLocale, runLocaleCheck } from './check';
+import { cropIssues } from './crops';
 import { resolveOptions, type FitlocaleOptions } from './options';
 import type { CheckResult } from './types';
 
@@ -78,6 +79,7 @@ export const test = base.extend<FitlocaleFixtures>({
         }
       }
       markFailing(result.issues, counts, options.failOn);
+      cropIssues(result, name => testInfo.outputPath(name));
       await testInfo.attach('fitlocale:result', { body: JSON.stringify(result), contentType: 'application/json' });
       for (const shot of result.screenshots) {
         await testInfo.attach('fitlocale:screenshot', { path: shot.path, contentType: 'image/png' });

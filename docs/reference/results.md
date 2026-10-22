@@ -22,7 +22,8 @@ interface CheckResult {
   checkIndex: number;                      // nth localeCheck() in the test
   url: string;
   issues: Issue[];
-  screenshots: Array<{ mode: string; viewport: { width: number; height: number }; path: string; size: { width: number; height: number } }>;
+  screenshots: Array<{ mode: string; viewport: { width: number; height: number }; path: string; size: { width: number; height: number };
+    origin?: { x: number; y: number } }>;     // where the page's (0, 0) is on the image, when not at its corner (Chromium, right-to-left pages wider than the window)
   baseline?: { status: 'missing' | 'applied'; path: string };
 }
 
@@ -49,6 +50,7 @@ interface Issue {
     property: string; value: string; replacement: string;
     original?: { url: string; line: number; column: number }; // through source maps
   };
+  crop?: string;                           // a small screenshot around the issue (at most 20 per check), relative to results.json
 }
 ```
 

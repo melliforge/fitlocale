@@ -1,5 +1,5 @@
 import { dirname, relative, resolve } from 'node:path';
-import type { Frame, FullConfig, Page, TestInfo } from '@playwright/test';
+import type { Frame, FullConfig, Locator, Page, TestInfo } from '@playwright/test';
 import { ensureInjected } from './inject';
 import type { FitlocaleOptions } from './options';
 import { flattenKeys, flattenValues } from './pseudo';
@@ -102,6 +102,36 @@ const settle = (page: Page, waitForFonts: boolean) =>
     return ready;
   }, [FONT_TIMEOUT_MS, waitForFonts, FRAME_TIMEOUT_MS] as const);
 
+/** Locators for the `mask` option; an invalid selector is reported once, by name. */
+export async function maskLocators(page: Page, mask: string[]): Promise<Locator[]> {
+  const locators: Locator[] = [];
+  for (const selector of mask) {
+    const locator = page.locator(selector);
+    try {
+      await locator.count();
+    } catch (err) {
+      throw new Error(`fitlocale: mask selector "${selector}" is not a valid selector: ${(err as Error).message.split('\n')[0]}`, { cause: err });
+    }
+    locators.push(locator);
+  }
+  return locators;
+}
+
+/**
+ * Where the document's (0, 0) lands on a full-page screenshot, when not at its corner. Chromium captures a right-to-left
+ * page from its leftmost overflow, which lies left of (0, 0); Firefox and WebKit start at (0, 0).
+ */
+async function screenshotOrigin(page: Page, projectBrowser: string | undefined): Promise<{ x: number; y: number } | null> {
+  // A persistent context has no browser object: fall back to the project's browserName.
+  const browser = page.context().browser()?.browserType().name() ?? projectBrowser ?? 'chromium';
+  if (browser !== 'chromium') return null;
+  const overflow = await page.evaluate(() => {
+    const root = document.documentElement;
+    return getComputedStyle(root).direction === 'rtl' ? root.scrollWidth - root.clientWidth : 0;
+  });
+  return overflow > 0 ? { x: overflow, y: 0 } : null;
+}
+
 const CONTEXT_DESTROYED = /Execution context was destroyed/;
 
 /** Run a check; a navigation part-way through gets one clear error instead of whatever call it broke. */
@@ -154,14 +184,18 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
     }));
 
   const shot = new Set<string>();
-  const shoot = async (mode: Mode, viewport: Viewport) => {
+  // Validated up front, so a mistyped selector fails the first check rather than the first one with an issue.
+  const mask = options.screenshots ? await maskLocators(page, options.mask) : [];
+  /** A full-page screenshot of this mode and viewport, once, when it found issues. Crops are cut from it after the baseline. */
+  const shoot = async (mode: Mode, viewport: Viewport, found: Issue[]) => {
     const id = `${mode}-${viewport.width}x${viewport.height}`;
-    if (!options.screenshots || shot.has(id)) return;
+    if (!options.screenshots || !found.length || shot.has(id)) return;
     shot.add(id);
     const path = testInfo.outputPath(`fitlocale-${checkIndex}-${mode}-${viewport.width}x${viewport.height}.png`);
     const size = await page.evaluate(() => (window as unknown as Api).__fitlocale.documentSize());
-    await page.screenshot({ fullPage: true, path });
-    screenshots.push({ mode, viewport, path, size });
+    await page.screenshot({ fullPage: true, path, mask });
+    const origin = await screenshotOrigin(page, testInfo.project.use.browserName);
+    screenshots.push({ mode, viewport, path, size, ...(origin ? { origin } : {}) });
   };
 
   // Checked first: a pseudo locale such as en-XA shares its language with the source.
@@ -263,7 +297,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
           const dt = await getDevtools();
           if (dt) sourceIssues.push(...enrich(await findFontFallback(page, dt, options.ignore), 'source', viewport));
         }
-        if (sourceIssues.length) await shoot('source', viewport);
+        await shoot('source', viewport, sourceIssues);
         issues.push(...sourceIssues);
       }
 
@@ -283,7 +317,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
             await page.evaluate(([r, ig]) => (window as unknown as Api).__fitlocale.replaceText(r, ig), [replacements, options.ignore] as const) > 0);
           found = enrich(raw, 'source', viewport);
         }
-        if (found.length) await shoot('source', viewport);
+        await shoot('source', viewport, found);
         issues.push(...found);
       }
 
@@ -293,8 +327,9 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
         // The text is already long: compare the page as it is with an approximation of its source text.
         const found = await overflowAgainst(async () =>
           await page.evaluate(ig => (window as unknown as Api).__fitlocale.unpseudoText(ig), options.ignore) > 0);
-        if (found.length) await shoot('source', viewport);
-        issues.push(...enrich(found, 'source', viewport));
+        const enriched = enrich(found, 'source', viewport);
+        await shoot('source', viewport, enriched);
+        issues.push(...enriched);
       }
 
       if (isSource && options.modes.includes('pseudo-long')) {
@@ -306,8 +341,9 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
             await page.evaluate(ig => (window as unknown as Api).__fitlocale.findOverflow(ig), options.ignore),
             sourceOverflow,
           );
-          if (found.length) await shoot('pseudo-long', viewport);
-          issues.push(...enrich(found, 'pseudo-long', viewport));
+          const enriched = enrich(found, 'pseudo-long', viewport);
+          await shoot('pseudo-long', viewport, enriched);
+          issues.push(...enriched);
         } finally {
           await page.evaluate(() => (window as unknown as Api).__fitlocale.restoreText());
         }
@@ -336,8 +372,8 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
             // Canvases do not depend on the viewport: list them once per check.
             ...(index === 0 ? await page.evaluate(ig => (window as unknown as Api).__fitlocale.findCanvases(ig), options.ignore) : []),
           ];
-          if (found.length) await shoot('pseudo-rtl', viewport);
           rtlIssues = enrich(found, 'pseudo-rtl', viewport);
+          await shoot('pseudo-rtl', viewport, rtlIssues);
           issues.push(...rtlIssues);
         } finally {
           await page.evaluate(() => (window as unknown as Api).__fitlocale.setDir(null));

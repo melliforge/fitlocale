@@ -5,6 +5,14 @@ import type { Reporter, TestCase, TestResult } from '@playwright/test/reporter';
 import { renderReport } from './report/html';
 import type { CheckResult, RunResults, Severity } from './types';
 
+/** Copies a screenshot into the report under a name from its path; null when the file is gone. */
+function copyShot(path: string, shotsDir: string): string | null {
+  if (!existsSync(path)) return null;
+  const name = `${createHash('sha1').update(path).digest('hex').slice(0, 12)}.png`;
+  copyFileSync(path, join(shotsDir, name));
+  return `screenshots/${name}`;
+}
+
 export interface FitlocaleReporterOptions { outputDir?: string }
 
 /** Gathers `fitlocale:result` attachments into `<outputDir>/results.json` and an offline `index.html`. */
@@ -50,15 +58,20 @@ export default class FitlocaleReporter implements Reporter {
       for (const issue of check.issues) summary[issue.severity]++;
       // With preserveOutput: 'failures-only', Playwright deletes a passing test's output, screenshots included.
       check.screenshots = check.screenshots.filter(shot => {
-        if (!existsSync(shot.path)) {
+        const copied = copyShot(shot.path, shotsDir);
+        if (copied === null) {
           missingShots++;
           return false;
         }
-        const name = `${createHash('sha1').update(shot.path).digest('hex').slice(0, 12)}.png`;
-        copyFileSync(shot.path, join(shotsDir, name));
-        shot.path = `screenshots/${name}`;
+        shot.path = copied;
         return true;
       });
+      for (const issue of check.issues) {
+        if (issue.crop === undefined) continue;
+        const copied = copyShot(issue.crop, shotsDir);
+        if (copied === null) delete issue.crop;
+        else issue.crop = copied;
+      }
     }
     const results: RunResults = { version: 1, createdAt: new Date().toISOString(), checks, summary };
     writeFileSync(join(this.outputDir, 'results.json'), JSON.stringify(results, null, 2));
