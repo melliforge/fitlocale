@@ -15,6 +15,8 @@ Run your Playwright tests as usual, then add the fitlocale step with `if: always
 
 It writes a table of new issues to the job summary and uploads the report directory as an artifact. It never fails the job: your test step already did, if there were new issues.
 
+On GitLab CI or another CI system, run the tests and save the report directory yourself: see [GitLab CI and other CI systems](/reference/other-ci).
+
 | Input | Default | Meaning |
 |---|---|---|
 | `report-dir` | `fitlocale-report` | The reporter's `outputDir` |

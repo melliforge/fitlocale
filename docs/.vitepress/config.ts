@@ -57,6 +57,7 @@ export default defineConfig({
           { text: 'Options', link: '/reference/options' },
           { text: 'CLI', link: '/reference/cli' },
           { text: 'GitHub Action', link: '/reference/github-action' },
+          { text: 'GitLab and other CI', link: '/reference/other-ci' },
           { text: 'Results format', link: '/reference/results' },
         ],
       },
