@@ -5,6 +5,8 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-22
+
 ### Added
 
 - `mask` option: selectors whose boxes are painted over in every fitlocale screenshot and crop, for customer data. It covers pixels only, since issue text stays in `results.json`. A selector that is not valid CSS fails the check with an error naming it.
@@ -180,7 +182,8 @@ First public release.
 - CLI: `fitlocale pseudo` writes pseudo-locale message files, and `fitlocale report` re-renders a report.
 - CommonJS and ESM builds with TypeScript types.
 
-[Unreleased]: https://github.com/melliforge/fitlocale/compare/v0.4.3...HEAD
+[Unreleased]: https://github.com/melliforge/fitlocale/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/melliforge/fitlocale/compare/v0.4.3...v0.5.0
 [0.4.3]: https://github.com/melliforge/fitlocale/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/melliforge/fitlocale/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/melliforge/fitlocale/compare/v0.4.0...v0.4.1
