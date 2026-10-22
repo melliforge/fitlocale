@@ -67,7 +67,7 @@ export default defineConfig({
     socialLinks: [{ icon: 'github', link: REPO }],
     editLink: { pattern: `${REPO}/edit/main/docs/:path`, text: 'Edit this page on GitHub' },
     footer: {
-      message: 'Released under the MIT License. fitlocale cloud: <a href="/fitlocale/pricing">Pricing</a> · <a href="/fitlocale/legal/terms">Terms</a> · <a href="/fitlocale/legal/privacy">Privacy</a> · <a href="/fitlocale/legal/refunds">Refunds</a>',
+      message: 'Released under the MIT License. fitlocale cloud: <a href="https://cloud.fitlocale.dev/pricing">Pricing</a> · <a href="https://cloud.fitlocale.dev/terms">Terms</a> · <a href="https://cloud.fitlocale.dev/privacy">Privacy</a> · <a href="https://cloud.fitlocale.dev/refunds">Refunds</a>',
     },
   },
 });
