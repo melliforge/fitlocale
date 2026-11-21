@@ -55,7 +55,7 @@ npx fitlocale fitmap fitlocale-report/results.json --out fitlocale-fit.json
 Builds the fit map from test runs made with [`fitMap: true`](/reference/options#fitmap). It merges the `fit` records of every `results.json` given (shards, projects, several runs): for each message key, each distinct box it was shown in, at each viewport, with that box's room and text styles, and the fonts the pages loaded. Commit the file, and record it again when the UI changes. [`fitlocale fit`](#fitlocale-fit) checks translations against it.
 
 - `--out <file>`: where to write it; default `fitlocale-fit.json`.
-- `--source-locale <code>`: the source locale the map was recorded in; default `en`.
+- `--source-locale <code>`: the source locale the map was recorded in; by default the one the results recorded, else `en`.
 - No `fit` records in the results is an error (exit 2) that says how to turn them on.
 
 ## `fitlocale fit`

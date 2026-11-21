@@ -290,6 +290,52 @@ test.describe('gallery', () => {
   test('empty without gallery checks', () => {
     expect(buildModel(makeRun([makeCheck()])).gallery).toEqual([]);
   });
+
+  test("each project's block puts its own source locale first", () => {
+    const en = { project: 'app-en', sourceLocale: 'en' }, fr = { project: 'app-fr', sourceLocale: 'fr' };
+    const model = buildModel(makeRun([
+      check('http://app/a', [g('source', 'en'), g('pseudo-long', 'en')], en), check('http://app/a', [g('source', 'fr')], en),
+      check('http://app/a', [g('source', 'fr'), g('pseudo-long', 'fr')], fr), check('http://app/a', [g('source', 'en')], fr),
+    ]));
+    expect(model.gallery.map(p => columns(p.rows[0]))).toEqual([['en', 'en · pseudo-long', 'fr'], ['fr', 'fr · pseudo-long', 'en']]);
+  });
+
+  test('the declared source comes first even without pseudo modes', () => {
+    const src = { sourceLocale: 'en' };
+    const model = buildModel(makeRun([
+      check('http://app/a', [g('source', 'de')], { ...src, testTitle: 'de 1' }), check('http://app/a', [g('source', 'de')], { ...src, testTitle: 'de 2' }),
+      check('http://app/a', [g('source', 'de')], { ...src, testTitle: 'de 3' }), check('http://app/a', [g('source', 'en')], { ...src, testTitle: 'en' }),
+    ]));
+    expect(columns(model.gallery[0].rows[0])).toEqual(['en', 'de']);
+  });
+
+  test('a pseudo locale sharing the source language is not the source', () => {
+    const src = { sourceLocale: 'en' };
+    const model = buildModel(makeRun([
+      check('http://app/a', [g('source', 'en-XA'), g('pseudo-rtl', 'en-XA')], src), check('http://app/a', [g('source', 'en')], src), check('http://app/a', [g('source', 'de')], src),
+    ]));
+    expect(columns(model.gallery[0].rows[0])).toEqual(['en', 'de', 'en-XA', 'en-XA · pseudo-rtl']);
+  });
+
+  test('a source page under a regional sourceLocale still comes first', () => {
+    const src = { sourceLocale: 'en-US' };
+    const model = buildModel(makeRun([check('http://app/a', [g('source', 'ar')], src), check('http://app/a', [g('source', 'en'), g('pseudo-long', 'en')], src)]));
+    expect(columns(model.gallery[0].rows[0])).toEqual(['en', 'en · pseudo-long', 'ar']);
+  });
+
+  test('a source page comes first without pseudo-long, under a regional sourceLocale', () => {
+    const src = { sourceLocale: 'en-US' };
+    const model = buildModel(makeRun([check('http://app/a', [g('source', 'ar')], src), check('http://app/a', [g('source', 'en'), g('pseudo-rtl', 'en')], { ...src, sourcePage: true })]));
+    expect(columns(model.gallery[0].rows[0])).toEqual(['en', 'en · pseudo-rtl', 'ar']);
+  });
+
+  test('results without sourceLocale keep the run-wide guess', () => {
+    const en = check('http://app/a', [g('source', 'en', small), g('pseudo-rtl', 'en'), g('source', 'en'), g('pseudo-long', 'en')]);
+    const de = check('http://app/a', [g('source', 'de'), g('source', 'de', small)]);
+    const ar = check('http://app/a', [g('source', 'ar')]);
+    const rows = buildModel(makeRun([de, en, ar])).gallery[0].rows;
+    expect(rows.map(columns)).toEqual([['en', 'en · pseudo-long', 'en · pseudo-rtl', 'ar', 'de'], ['en', 'de']]);
+  });
 });
 
 test.describe('gallery: several states of one URL', () => {

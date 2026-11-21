@@ -117,6 +117,10 @@ export interface CheckResult {
   project?: string;
   testFile: string;
   checkIndex: number;
+  /** The `sourceLocale` option this check ran with. Absent in results written before 0.8.1. */
+  sourceLocale?: string;
+  /** The page was in the source language (the pseudo modes run on such pages), also when no pseudo mode ran. Absent before 0.8.1. */
+  sourcePage?: true;
   /** Which check this is (project, title path, check index), hashed: baseline entries record it as `check`. */
   scope?: string;
   url: string;

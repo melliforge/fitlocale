@@ -20,6 +20,8 @@ interface CheckResult {
   testFile: string;                        // relative to the working directory
   project?: string;                        // Playwright project name
   checkIndex: number;                      // nth localeCheck() in the test
+  sourceLocale?: string;                   // the sourceLocale option this check ran with (absent before 0.8.1)
+  sourcePage?: true;                       // the page was in the source language, also when no pseudo mode ran
   scope?: string;                          // which check this is (project, title path, check index), hashed: baseline entries record it as `check`
   url: string;
   issues: Issue[];

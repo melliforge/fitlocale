@@ -660,3 +660,38 @@ test.describe('crops', () => {
     });
   });
 });
+
+test.describe('sourceLocale on the result', () => {
+  test.describe('by default', () => {
+    test.use({ fitlocale: { viewports: 'current', failOn: 'never', baseline: false } });
+    test('a check records its sourceLocale (default en)', async ({ page, localeCheck }) => {
+      await page.setContent('<!doctype html><html lang=en><p>Hello there</p>');
+      expect((await localeCheck()).sourceLocale).toBe('en');
+    });
+  });
+  test.describe('configured', () => {
+    test.use({ fitlocale: { viewports: 'current', sourceLocale: 'fr', failOn: 'never', baseline: false } });
+    test('a check records a configured sourceLocale', async ({ page, localeCheck }) => {
+      await page.setContent('<!doctype html><html lang=fr><p>Bonjour à tous</p>');
+      expect((await localeCheck()).sourceLocale).toBe('fr');
+    });
+  });
+  test.describe('source pages', () => {
+    test.use({ fitlocale: { viewports: 'current', sourceLocale: 'en-US', modes: [], failOn: 'never', baseline: false, setLocale: async (p, l) => { await p.evaluate(x => { document.documentElement.lang = x; }, l); } } });
+    test('a page in the source language is marked as a source page, even without pseudo modes', async ({ page, localeCheck, useLocale }) => {
+      await page.setContent('<!doctype html><html lang=en><p>Hello there</p>');
+      await useLocale('en');
+      expect((await localeCheck()).sourcePage).toBe(true);
+    });
+    test('a translated page is not a source page', async ({ page, localeCheck, useLocale }) => {
+      await page.setContent('<!doctype html><html lang=de><p>Hallo zusammen</p>');
+      await useLocale('de');
+      expect((await localeCheck()).sourcePage).toBeUndefined();
+    });
+    test('a pseudo locale page is not a source page', async ({ page, localeCheck, useLocale }) => {
+      await page.setContent('<!doctype html><html lang=en-XA><p>⟦Hélló théré ~~~⟧</p>');
+      await useLocale('en-XA');
+      expect((await localeCheck()).sourcePage).toBeUndefined();
+    });
+  });
+});
