@@ -676,4 +676,22 @@ test.describe('sourceLocale on the result', () => {
       expect((await localeCheck()).sourceLocale).toBe('fr');
     });
   });
+  test.describe('source pages', () => {
+    test.use({ fitlocale: { viewports: 'current', sourceLocale: 'en-US', modes: [], failOn: 'never', baseline: false, setLocale: async (p, l) => { await p.evaluate(x => { document.documentElement.lang = x; }, l); } } });
+    test('a page in the source language is marked as a source page, even without pseudo modes', async ({ page, localeCheck, useLocale }) => {
+      await page.setContent('<!doctype html><html lang=en><p>Hello there</p>');
+      await useLocale('en');
+      expect((await localeCheck()).sourcePage).toBe(true);
+    });
+    test('a translated page is not a source page', async ({ page, localeCheck, useLocale }) => {
+      await page.setContent('<!doctype html><html lang=de><p>Hallo zusammen</p>');
+      await useLocale('de');
+      expect((await localeCheck()).sourcePage).toBeUndefined();
+    });
+    test('a pseudo locale page is not a source page', async ({ page, localeCheck, useLocale }) => {
+      await page.setContent('<!doctype html><html lang=en-XA><p>⟦Hélló théré ~~~⟧</p>');
+      await useLocale('en-XA');
+      expect((await localeCheck()).sourcePage).toBeUndefined();
+    });
+  });
 });

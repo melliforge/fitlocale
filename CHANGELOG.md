@@ -12,7 +12,7 @@ Each section becomes the notes of the matching GitHub Release.
 
 ### Added
 
-- `CheckResult.sourceLocale` in results.json: the `sourceLocale` option each check ran with.
+- `CheckResult.sourceLocale` and `CheckResult.sourcePage` in results.json: the `sourceLocale` option each check ran with, and whether its page was in the source language.
 
 ## [0.8.0] - 2026-11-21
 

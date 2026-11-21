@@ -192,7 +192,7 @@ function buildGallery(checks: CheckResult[], labels: Map<string, string>, proble
   }
   source ??= [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
 
-  type Block = { page: GalleryPage; rows: Map<string, { row: GalleryRow; w: number; h: number; keys: Set<string> }>; declared?: string; pseudoLong: Set<string> };
+  type Block = { page: GalleryPage; rows: Map<string, { row: GalleryRow; w: number; h: number; keys: Set<string> }>; declared?: string; pseudoLong: Set<string>; sourcePages: Set<string> };
   const pages = new Map<string, Block>();
   for (const c of withGallery) {
     // Keyed by check position too: a test that checks a page, opens a dialog and checks again (same URL) shows both
@@ -201,7 +201,7 @@ function buildGallery(checks: CheckResult[], labels: Map<string, string>, proble
     let entry = pages.get(pageKey);
     if (!entry) {
       const label = `${labels.get(c.url) ?? c.url}${c.checkIndex ? ` · check ${c.checkIndex + 1}` : ''}`;
-      entry = { page: { id: `gallery-${pages.size + 1}`, url: c.url, label, ...(c.project ? { project: c.project } : {}), rows: [] }, rows: new Map(), pseudoLong: new Set() };
+      entry = { page: { id: `gallery-${pages.size + 1}`, url: c.url, label, ...(c.project ? { project: c.project } : {}), rows: [] }, rows: new Map(), pseudoLong: new Set(), sourcePages: new Set() };
       pages.set(pageKey, entry);
     }
     entry.declared ??= c.sourceLocale;
@@ -214,6 +214,7 @@ function buildGallery(checks: CheckResult[], labels: Map<string, string>, proble
       }
       const locale = localeOf(c, s);
       if (s.mode === 'pseudo-long') entry.pseudoLong.add(locale.toLowerCase());
+      if (c.sourcePage) entry.sourcePages.add(locale.toLowerCase());
       const key = JSON.stringify([locale, s.mode]);
       if (row.keys.has(key)) continue; // the same page checked twice: the first one stays
       row.keys.add(key);
@@ -224,14 +225,15 @@ function buildGallery(checks: CheckResult[], labels: Map<string, string>, proble
       });
     }
   }
-  return [...pages.values()].map(({ page, rows, declared, pseudoLong }) => {
-    // Each block's own source comes first: the locales that got pseudo-long (which runs only on source pages) and the
-    // check's sourceLocale, compared exactly so that a pseudo locale such as en-XA is never taken for en.
+  return [...pages.values()].map(({ page, rows, declared, pseudoLong, sourcePages }) => {
+    // Each block's own source comes first: the locales of checks marked as source pages, those that got pseudo-long
+    // (which runs only on source pages) and the check's sourceLocale, compared exactly so that a pseudo locale such as
+    // en-XA is never taken for en.
     const isSource = (locale: string) => {
       const l = locale.toLowerCase();
-      if (pseudoLong.has(l)) return true;
+      if (pseudoLong.has(l) || sourcePages.has(l)) return true;
       if (declared !== undefined) return l === declared.toLowerCase();
-      return !pseudoLong.size && locale === source;
+      return !pseudoLong.size && !sourcePages.size && locale === source;
     };
     const order = (a: GalleryCell, b: GalleryCell) =>
       Number(!isSource(a.locale)) - Number(!isSource(b.locale)) || compare(a.locale, b.locale) || (MODE_ORDER[a.mode] ?? 3) - (MODE_ORDER[b.mode] ?? 3);

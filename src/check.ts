@@ -419,6 +419,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
     testFile: relative(process.cwd(), testInfo.file),
     checkIndex,
     sourceLocale: options.sourceLocale,
+    ...(isSource ? { sourcePage: true as const } : {}),
     url: page.url(),
     issues,
     screenshots,

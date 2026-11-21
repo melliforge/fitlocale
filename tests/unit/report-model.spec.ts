@@ -323,6 +323,12 @@ test.describe('gallery', () => {
     expect(columns(model.gallery[0].rows[0])).toEqual(['en', 'en · pseudo-long', 'ar']);
   });
 
+  test('a source page comes first without pseudo-long, under a regional sourceLocale', () => {
+    const src = { sourceLocale: 'en-US' };
+    const model = buildModel(makeRun([check('http://app/a', [g('source', 'ar')], src), check('http://app/a', [g('source', 'en'), g('pseudo-rtl', 'en')], { ...src, sourcePage: true })]));
+    expect(columns(model.gallery[0].rows[0])).toEqual(['en', 'en · pseudo-rtl', 'ar']);
+  });
+
   test('results without sourceLocale keep the run-wide guess', () => {
     const en = check('http://app/a', [g('source', 'en', small), g('pseudo-rtl', 'en'), g('source', 'en'), g('pseudo-long', 'en')]);
     const de = check('http://app/a', [g('source', 'de'), g('source', 'de', small)]);
