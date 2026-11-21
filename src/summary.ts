@@ -51,8 +51,10 @@ export function renderSummary(results: RunResults, opts: { maxRows: number; resu
     for (const e of fixed.slice(0, opts.maxRows)) lines.push(`| ${code(e.rule)} | ${code(e.selector)} | ${cell(`${e.test}${e.project ? ` [${e.project}]` : ''}`)} | ${cell(e.viewport)} |`);
     if (fixed.length > opts.maxRows) lines.push('', `…and ${fixed.length - opts.maxRows} more.`);
   }
-  if (results.checks.some(c => c.baseline?.legacy)) {
-    lines.push('', `> Fixed issues can't be told apart with this baseline file yet: regenerate it once with \`npx fitlocale baseline ${opts.resultsPath ?? '<path to results.json>'}\` to see them.`);
+  const legacy = results.checks.find(c => c.baseline?.legacy)?.baseline;
+  if (legacy) {
+    const command = `npx fitlocale baseline --prune ${opts.resultsPath ?? '<path to results.json>'} --out ${legacy.path}`;
+    lines.push('', `> Fixed issues can't be told apart with this baseline file yet. Run \`${command}\` once, with the results of every shard: it records which check accepted each entry, and accepts nothing new.`);
   }
   if (rows.length) {
     lines.push('', `| Severity | Rule | Element | Test | Locale | Mode | Viewport |${marked ? ' Fails |' : ''}`, `|---|---|---|---|---|---|---|${marked ? '---|' : ''}`);

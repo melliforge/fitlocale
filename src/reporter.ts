@@ -21,6 +21,8 @@ export default class FitlocaleReporter implements Reporter {
   private readonly outputDir: string;
   /** Checks per test; a retry replaces the earlier attempt's checks. */
   private readonly byTest = new Map<string, CheckResult[]>();
+  /** Issue ids earlier attempts of each test found: a retry that misses one did not fix it. */
+  private readonly foundBefore = new Map<string, Set<string>>();
   private anonymous = 0;
 
   constructor(options: FitlocaleReporterOptions = {}) {
@@ -40,7 +42,14 @@ export default class FitlocaleReporter implements Reporter {
       if (project) check.project = project;
       checks.push(check);
     }
-    this.byTest.set(test.id ?? `anonymous-${this.anonymous++}`, checks);
+    const key = test.id ?? `anonymous-${this.anonymous++}`;
+    const found = this.foundBefore.get(key) ?? new Set<string>();
+    for (const earlier of this.byTest.get(key) ?? []) for (const issue of earlier.issues) if (issue.id) found.add(issue.id);
+    this.foundBefore.set(key, found);
+    for (const check of checks) {
+      if (check.baseline?.fixed && found.size) check.baseline.fixed = check.baseline.fixed.filter(e => !found.has(e.id));
+    }
+    this.byTest.set(key, checks);
   }
 
   async onEnd(): Promise<void> {

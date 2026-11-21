@@ -31,8 +31,9 @@ export interface ReportModel {
   problems: number; occurrences: number;
   /** Problems per severity. */
   bySeverity: Record<string, number>;
-  /** Accepted issues that no longer occur. */
+  /** Accepted issues that no longer occur, and the baseline file they are in. */
   fixed: FixedEntry[];
+  fixedBaselinePath?: string;
 }
 
 const RANK: Record<string, number> = { error: 0, warning: 1, info: 2 };
@@ -150,6 +151,7 @@ export function buildModel(results: RunResults): ReportModel {
     pages, rules: ruleRows(pages), locales, projects, matrix,
     problems: all.length, occurrences: all.reduce((n, p) => n + p.occurrences.length, 0), bySeverity,
     fixed: fixedEntries([results]),
+    fixedBaselinePath: checks.find(c => c.baseline?.fixed?.length)?.baseline?.path,
   };
 }
 

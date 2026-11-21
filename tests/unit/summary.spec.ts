@@ -93,6 +93,10 @@ test('summary hints once for a legacy baseline', () => {
   const legacy = { status: 'applied' as const, path: 'fitlocale-baseline.json', legacy: true as const };
   const md = renderSummary(makeRun([makeCheck({ baseline: legacy }), makeCheck({ baseline: legacy })]), { maxRows: 50, resultsPath: 'r.json' });
   expect(md.match(/Fixed issues can't be told apart/g)).toHaveLength(1);
+  // A command that accepts nothing new and keeps other shards' entries: --prune records the missing check fields.
+  expect(md).toContain('`npx fitlocale baseline --prune r.json --out fitlocale-baseline.json`');
+  expect(md).toContain('every shard');
+  expect(md).not.toMatch(/regenerate/i);
 });
 
 test('fixed entries with markup stay inert in the summary', () => {

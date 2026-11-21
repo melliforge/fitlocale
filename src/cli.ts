@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 import { parseArgs } from 'node:util';
-import { buildBaseline, fixedEntries, formatBaseline, pruneBaseline, type BaselineFile } from './baseline';
+import { buildBaseline, fixedEntries, formatBaseline, pruneBaseline, recordChecks, type BaselineFile } from './baseline';
 import { pseudoMessages, type Messages } from './pseudo';
 import { buildFitMap, formatFitMap } from './fit/map';
 import { predictFit } from './fit/predict';
@@ -121,10 +121,17 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
       if (!existsSync(out)) throw new Error(`no baseline file at ${out} to prune (pass --out with its path)`);
       const current = readJsonObject(out) as unknown as BaselineFile;
       if (!Array.isArray(current.issues)) throw new Error(`${out} is not a fitlocale baseline file (no "issues" list)`);
-      const { file, removed } = pruneBaseline(current, fixedEntries([input, ...extra].map(path => readResults(path))));
+      const runs = [input, ...extra].map(path => readResults(path));
+      const pruned = pruneBaseline(current, fixedEntries(runs));
+      const { file, recorded, without } = recordChecks(pruned.file, runs);
       writeFileCreatingDir(out, formatBaseline(file));
-      io.stdout(`fitlocale: removed ${removed} fixed issue(s) from ${out}; ${file.issues.length} remain\n`);
+      const upgrade = recorded || without
+        ? `; recorded the check of ${recorded} older entry(ies); ${without} still without one (fixed, or its test did not run)` : '';
+      io.stdout(`fitlocale: removed ${pruned.removed} fixed issue(s) from ${out}; ${file.issues.length} remain${upgrade}\n`);
       return 0;
+    }
+    if (command === 'baseline' && values.prune) {
+      throw new Error('baseline --prune needs the results.json of the run(s) to compare with: npx fitlocale baseline --prune <results.json>... --out <baseline file>');
     }
     if (command === 'baseline' && input) {
       const runs = [input, ...extra].map(path => readResults(path));

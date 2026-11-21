@@ -207,3 +207,26 @@ test.describe('baseline --prune', () => {
     expect(out.stderr).toContain(missing);
   });
 });
+
+test.describe('baseline --prune upgrades older files', () => {
+  const legacy = (id: string) => ({ id, rule: 'overflow/clipped', test: 't', selector: `#${id}`, mode: 'pseudo-long', locale: 'en', viewport: '1280x720' });
+
+  test('without results it says what it needs', async () => {
+    const { out, io } = capture();
+    expect(await main(['baseline', '--prune'], io)).toBe(1);
+    expect(out.stderr).toContain('baseline --prune needs the results.json of the run');
+  });
+
+  test('it records the check of older entries it finds, and accepts nothing', async () => {
+    const dir = tmp();
+    const base = join(dir, 'b.json');
+    writeFileSync(base, JSON.stringify({ version: 1, note: 'n', issues: [legacy('a'), legacy('b')] }, null, 2) + '\n');
+    const check = makeCheck({ scope: 'c1', issues: [makeIssue({ id: 'a' }), makeIssue({ id: 'new', selector: '#new' })], baseline: { status: 'applied', path: base, fixed: [], legacy: true } });
+    writeFileSync(join(dir, 'results.json'), JSON.stringify(makeRun([check])));
+    const { out, io } = capture();
+    expect(await main(['baseline', '--prune', join(dir, 'results.json'), '--out', base], io)).toBe(0);
+    expect(out.stdout).toBe(`fitlocale: removed 0 fixed issue(s) from ${base}; 2 remain; recorded the check of 1 older entry(ies); 1 still without one (fixed, or its test did not run)\n`);
+    const issues = JSON.parse(readFileSync(base, 'utf8')).issues as Array<{ id: string; check?: string }>;
+    expect(issues.map(e => [e.id, e.check])).toEqual([['a', 'c1'], ['b', undefined]]);
+  });
+});

@@ -457,6 +457,7 @@ test('report overview shows Fixed since baseline, escaped', () => {
   })]));
   expect(html).toContain('data-stat="fixed"');
   expect(html).toContain('Fixed since baseline');
+  expect(html).toContain('npx fitlocale baseline --prune &lt;results.json&gt; --out b.json');
   expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
   expect(html).not.toContain('<img src=x');
 });

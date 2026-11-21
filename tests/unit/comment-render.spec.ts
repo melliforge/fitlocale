@@ -120,8 +120,10 @@ test('"All clear" when nothing is new but there was a previous comment', () => {
 });
 
 test('comment mentions fixed entries, also in All clear', () => {
-  expect(render(results([issue()]), { fixed: 2 })).toContain('2 accepted issue(s) no longer occur: run `npx fitlocale baseline --prune` to drop them.');
-  const clear = render(results([]), { previous: true, fixed: 1 })!;
+  // A command that runs as printed: the results file and the baseline file are named.
+  expect(render(results([issue()]), { fixed: 2, baselinePath: 'e2e/fitlocale-baseline.json' }))
+    .toContain('2 accepted issue(s) no longer occur: drop them with `npx fitlocale baseline --prune <results.json> --out e2e/fitlocale-baseline.json` (the job summary has the exact command).');
+  const clear = render(results([]), { previous: true, fixed: 1, baselinePath: 'b.json' })!;
   expect(clear).toContain('All clear');
   expect(clear).toContain('1 accepted issue(s) no longer occur');
   expect(render(results([issue()]))).not.toContain('no longer occur');

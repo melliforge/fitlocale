@@ -211,3 +211,14 @@ test.describe('fixed since baseline', () => {
     expect(formatBaseline(pruned)).toBe(formatBaseline({ ...file, issues: [entry('a'), entry('c')] }));
   });
 });
+
+test('a hand-written entry with only id and check can be fixed without breaking the summary', async () => {
+  const { renderSummary } = await import('../../src/summary');
+  const dir = tmp();
+  const file = join(dir, 'b.json');
+  writeFileSync(file, JSON.stringify({ version: 1, issues: [{ id: 'q', check: checkScope(SCOPE) }] }));
+  const result = makeCheck({ issues: [] });
+  applyBaseline(result, SCOPE, file);
+  expect(result.baseline?.fixed).toHaveLength(1);
+  expect(() => renderSummary(makeRun([result]), { maxRows: 50 })).not.toThrow();
+});

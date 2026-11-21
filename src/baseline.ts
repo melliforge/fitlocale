@@ -93,6 +93,22 @@ export function pruneBaseline(file: BaselineFile, fixed: Array<Pick<FixedEntry, 
   return { file: { ...file, issues }, removed: file.issues.length - issues.length };
 }
 
+/**
+ * Upgrade entries written before entries knew their check: an entry whose issue a check in these runs found gets that
+ * check's scope. Nothing is added; entries whose issue was not found (fixed, or its test did not run) stay as they are.
+ */
+export function recordChecks(file: BaselineFile, runs: Array<Pick<RunResults, 'checks'>>): { file: BaselineFile; recorded: number; without: number } {
+  const scopeOf = new Map<string, string>();
+  for (const run of runs) for (const check of run.checks ?? []) for (const issue of check.issues ?? []) if (issue.id && check.scope) scopeOf.set(issue.id, check.scope);
+  let recorded = 0;
+  const issues = file.issues.map(e => {
+    if (e.check || !scopeOf.has(e.id)) return e;
+    recorded++;
+    return { ...e, check: scopeOf.get(e.id)! };
+  });
+  return { file: { ...file, issues }, recorded, without: issues.filter(e => !e.check).length };
+}
+
 /** Deterministic text, so the file diffs cleanly in pull requests. */
 export function formatBaseline(file: BaselineFile): string {
   return JSON.stringify(file, null, 2) + '\n';
@@ -114,7 +130,11 @@ export function applyBaseline(result: CheckResult, scope: IdScope, baselinePath:
   // Accepted in this very check, and not found in it now: fixed. Entries of other checks are not this check's to judge.
   const found = new Set(result.issues.map(i => i.id));
   result.baseline.fixed = entries.filter(e => e.check === result.scope && !found.has(e.id))
-    .map(({ id, rule, test, project, selector, mode, locale, viewport }) => ({ id, rule, test, ...(project ? { project } : {}), selector, mode, locale, viewport }));
+    // Only `id` and `check` are required in the file: the rest is for people, and may be missing from a hand-written entry.
+    .map(e => ({
+      id: e.id, rule: String(e.rule ?? '') as RuleId, test: String(e.test ?? ''), ...(e.project ? { project: String(e.project) } : {}),
+      selector: String(e.selector ?? ''), mode: String(e.mode ?? '') as Mode, locale: String(e.locale ?? ''), viewport: String(e.viewport ?? ''),
+    }));
   if (entries.some(e => !e.check)) result.baseline.legacy = true;
   return { counts: issue => !issue.baselined };
 }

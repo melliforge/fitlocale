@@ -65,7 +65,8 @@ export async function postComment(o: PostOptions): Promise<CommentOutcome> {
     const existing = await gh.findComment(target.repo, target.pr);
     const report = o.reportUrl ? { reportUrl: o.reportUrl, reportLabel: 'the report artifact' } : { reportUrl: target.runUrl, reportLabel: 'the workflow run' };
     const fixed = fixedEntries([{ checks }]).length;
-    const render = (previous: boolean) => renderComment({ checks }, { ...report, sha: target.headSha, previous, fixed });
+    const baselinePath = checks.find(c => c.baseline?.fixed?.length)?.baseline?.path;
+    const render = (previous: boolean) => renderComment({ checks }, { ...report, sha: target.headSha, previous, fixed, baselinePath });
     if (existing !== null) {
       const updated = await gh.updateComment(target.repo, existing, render(true)!);
       if (updated !== 'gone') {

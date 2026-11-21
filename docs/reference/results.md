@@ -29,7 +29,7 @@ interface CheckResult {
     status: 'missing' | 'applied'; path: string;
     fixed?: Array<{ id: string; rule: string; test: string; project?: string; selector: string; mode: string; locale: string; viewport: string }>;
                                            // accepted issues of this check that it did not find this time
-    legacy?: true;                         // the baseline has entries without `check` (written before 0.8): those are never called fixed
+    legacy?: true;                         // the baseline has entries without `check` (written before 0.8): never called fixed; `baseline --prune` records it
   };
   fit?: Array<{                            // with fitMap: true, on source-locale pages: one record per viewport
     viewport: { width: number; height: number };

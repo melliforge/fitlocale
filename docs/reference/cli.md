@@ -36,7 +36,7 @@ Accepts every issue in one or more `results.json` files (one per shard) into the
 npx fitlocale baseline --prune fitlocale-report/results.json --out fitlocale-baseline.json
 ```
 
-`--prune` removes the accepted issues that no longer occur, and changes nothing else: it never accepts a new issue, unlike running the command again. An issue counts as no longer occurring when the check that accepted it ran and did not find it, in any of the results given. Entries of checks that did not run (skipped tests, other shards) are kept. The job summary, the report, the reporter and the pull request comment say when there are some to remove. Baseline files written before fitlocale 0.8 don't record which check accepted each issue: regenerate them once to see fixed issues.
+`--prune` removes the accepted issues that no longer occur, and changes nothing else: it never accepts a new issue, unlike running the command again. An issue counts as no longer occurring when the check that accepted it ran and did not find it, in any of the results given. Entries of checks that did not run (skipped tests, other shards) are kept. The job summary, the report, the reporter and the pull request comment say when there are some to remove. Baseline files written before fitlocale 0.8 don't record which check accepted each issue. Run `--prune` once with the results of every shard: it records the check of every entry whose issue those results found, and still accepts nothing new. Entries whose issue was not found stay as they are, and are never called fixed.
 
 ## `fitlocale summary`
 

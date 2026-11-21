@@ -76,8 +76,9 @@ export interface CommentOptions {
   sha: string;
   /** A comment of ours already exists on the pull request. */
   previous: boolean;
-  /** Accepted issues that no longer occur. */
+  /** Accepted issues that no longer occur, and the baseline file they are in. */
   fixed?: number;
+  baselinePath?: string;
 }
 
 /** The pull request comment, or null when there is nothing to say (nothing new, and no comment to update). */
@@ -97,7 +98,11 @@ export function renderComment(results: Pick<RunResults, 'checks'>, o: CommentOpt
     }
     if (listed.length > MAX_LISTED) lines.push('', `…and ${listed.length - MAX_LISTED} more in the full report.`);
   }
-  if (o.fixed) lines.push('', `${o.fixed} accepted issue(s) no longer occur: run \`npx fitlocale baseline --prune\` to drop them.`);
+  if (o.fixed) {
+    // The path comes from results.json (a fork's, maybe): only a plain path goes into the command.
+    const path = o.baselinePath && /^[\w./-]{1,200}$/.test(o.baselinePath) ? o.baselinePath : 'fitlocale-baseline.json';
+    lines.push('', `${o.fixed} accepted issue(s) no longer occur: drop them with \`npx fitlocale baseline --prune <results.json> --out ${path}\` (the job summary has the exact command).`);
+  }
   const sha = inert(o.sha.slice(0, 7), 7);
   lines.push('', `Full report: [${inert(o.reportLabel, 60)}](${linkUrl(o.reportUrl)})`, '', sha ? `<sub>fitlocale · commit <code>${sha}</code></sub>` : '<sub>fitlocale</sub>');
   return lines.join('\n');
