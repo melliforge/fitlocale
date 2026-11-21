@@ -5,6 +5,8 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-21
+
 ### Added
 
 - **Will it fit?**: check translations without running the app.
@@ -207,7 +209,8 @@ First public release.
 - CLI: `fitlocale pseudo` writes pseudo-locale message files, and `fitlocale report` re-renders a report.
 - CommonJS and ESM builds with TypeScript types.
 
-[Unreleased]: https://github.com/melliforge/fitlocale/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/melliforge/fitlocale/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/melliforge/fitlocale/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/melliforge/fitlocale/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/melliforge/fitlocale/compare/v0.4.3...v0.5.0
 [0.4.3]: https://github.com/melliforge/fitlocale/compare/v0.4.2...v0.4.3
