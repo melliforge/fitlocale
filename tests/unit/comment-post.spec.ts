@@ -79,10 +79,11 @@ test('a comment of ours exists: updated in place, to All clear when nothing is n
   expect(JSON.parse(clear.writes[0].body).body).toContain('All clear');
 });
 
-test('nothing new and no comment: posts nothing', async () => {
-  const { outcome, writes } = await post({ 'GET /repos/o/r/issues/7/comments': { status: 200, body: [] } }, { dirs: [reportDir([])] });
+test('nothing new and no comment: posts nothing, and says so', async () => {
+  const { outcome, writes, lines } = await post({ 'GET /repos/o/r/issues/7/comments': { status: 200, body: [] } }, { dirs: [reportDir([])] });
   expect(outcome).toEqual({ status: 'none' });
   expect(writes).toHaveLength(0);
+  expect(lines).toEqual(['fitlocale comment: no new issues and no earlier comment; nothing posted']);
 });
 
 test('our comment was deleted: creates a new one', async () => {

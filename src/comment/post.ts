@@ -73,7 +73,10 @@ export async function postComment(o: PostOptions): Promise<CommentOutcome> {
     }
     // No comment (or someone deleted ours): post only when there is something new.
     const body = render(false);
-    if (body === null) return { status: 'none' };
+    if (body === null) {
+      log('no new issues and no earlier comment; nothing posted');
+      return { status: 'none' };
+    }
     const created = await gh.createComment(target.repo, target.pr, body);
     log(`comment created: ${created.url}`);
     return { status: 'created', url: created.url };
