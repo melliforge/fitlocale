@@ -1,4 +1,5 @@
-import type { Box, FitFont, FitObservation, RawIssue, TextBlock } from '../types';
+import type { Box, RawIssue, TextBlock } from '../types';
+import type { FitRecording } from './fit';
 import type { FontProbe } from './probes';
 import type { BoxRecord } from '../rules/mirror';
 
@@ -6,7 +7,7 @@ import type { BoxRecord } from '../rules/mirror';
 export interface FitlocaleBrowserApi {
   version: string;
   /** `fitMap`: each element showing one of `messages`, with the room its text has (it lengthens text for a moment and restores it). */
-  recordFit(messages: Array<{ key: string; text: string }>, ignore: string[]): { entries: FitObservation[]; fonts: FitFont[]; ambiguous: number };
+  recordFit(messages: Array<{ key: string; text: string }>, ignore: string[]): FitRecording;
   /**
    * Remember every element's current DOM path as its key, so keys survive layout changes the check makes.
    * `testIdAttribute` (default `data-testid`) is used for readable selectors.

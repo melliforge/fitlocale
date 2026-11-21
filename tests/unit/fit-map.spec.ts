@@ -9,10 +9,11 @@ import { makeCheck, makeRun } from './fixtures';
 const STYLE = { fontFamily: 'Inter', fontSize: '14px', lineHeight: '20px' };
 const obs = (over: Partial<FitObservation> = {}): FitObservation => ({
   key: 'buttons.save', text: 'Save', slots: {}, lines: 1, oneLine: true, wrapWidth: 100, roomX: 100, roomY: null, maxLines: null,
-  style: STYLE, lang: 'en', dir: 'ltr', selector: '#save', ...over,
+  measured: true, s: 0, lang: 'en', dir: 'ltr', selector: '#save', ...over,
 });
+const STYLE2 = { ...STYLE, fontSize: '16px' };
 const record = (entries: FitObservation[], width = 1280): FitRecord => ({
-  viewport: { width, height: width === 1280 ? 800 : 844 }, entries, fonts: [{ family: 'Inter', weight: '400', style: 'normal', src: 'http://app.test/f/inter.woff2' }],
+  viewport: { width, height: width === 1280 ? 800 : 844 }, styles: [STYLE, STYLE2], entries, fonts: [{ family: 'Inter', weight: '400', style: 'normal', src: 'http://app.test/f/inter.woff2' }],
 });
 const run = (...fit: FitRecord[]) => makeRun([makeCheck({ fit })]);
 
@@ -28,7 +29,7 @@ test('keeps one entry per distinct room, with its viewport', () => {
 });
 
 test('shares one style row between entries with the same styles', () => {
-  const map = buildFitMap([run(record([obs(), obs({ key: 'a' }), obs({ key: 'b', style: { ...STYLE, fontSize: '16px' } })]))], 'en');
+  const map = buildFitMap([run(record([obs(), obs({ key: 'a' }), obs({ key: 'b', s: 1 })]))], 'en');
   expect(map.styles).toHaveLength(2);
   expect(map.keys.a[0].s).toBe(map.keys['buttons.save'][0].s);
 });

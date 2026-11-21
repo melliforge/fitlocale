@@ -316,7 +316,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
           ([m, ig]) => (window as unknown as Api).__fitlocale.recordFit(m, ig),
           [sourceEntries(options.sourceMessages, baseDir), options.ignore] as const,
         );
-        fit.push({ viewport, entries: recorded.entries, fonts: recorded.fonts });
+        fit.push({ viewport, styles: recorded.styles, entries: recorded.entries, fonts: recorded.fonts });
       }
 
       // A page that fell back to another locale has no translation to compare: the persistence error says it all.

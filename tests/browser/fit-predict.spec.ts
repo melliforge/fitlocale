@@ -17,7 +17,7 @@ async function mapOf(page: Page, body: string, messages: Record<string, string>,
     await page.setViewportSize({ width, height: 800 });
     await load(page, html(body, head));
     const rec = await page.evaluate(m => window.__fitlocale.recordFit(m, []), Object.entries(messages).map(([key, text]) => ({ key, text })));
-    fit.push({ viewport: { width, height: 800 }, entries: rec.entries, fonts: rec.fonts });
+    fit.push({ viewport: { width, height: 800 }, styles: rec.styles, entries: rec.entries, fonts: rec.fonts });
   }
   return buildFitMap([{ version: 1, createdAt: '', summary: { error: 0, warning: 0, info: 0 }, checks: [{ testTitle: 't', testFile: 'f', checkIndex: 0, url: '', issues: [], screenshots: [], fit }] }], 'en');
 }
@@ -98,4 +98,25 @@ test('markup in a translation is text, not HTML', async ({ page }) => {
   // Measured as the 16 characters it is, not as the word inside a <b> element.
   expect(marked.need!).toBeGreaterThan(word.need! + 20);
   expect(marked.text).toBe('<b>Speichern</b>');
+});
+
+// Review fixes (final review, 2026-11-21).
+test('an entry that was not measured is not-checked, never fits', async ({ page }) => {
+  const map = await mapOf(page, `<p id=p style="width:100px;white-space:nowrap;overflow:hidden">Save <b>now</b></p>`, { now: 'Save now' });
+  expect(map.keys.now[0].nm).toBe(true);
+  const { verdicts } = await predict(map, { now: 'Jetzt speichern, bitte sofort und ganz schnell' });
+  expect(verdicts[0].verdict).toBe('not-checked');
+});
+
+test('a font the measuring page does not have is warned and marked, even with no recorded URL', async ({ page }) => {
+  // A Google Fonts <link> without crossorigin hides its @font-face rules from the recorder: only the family name is known.
+  const map = await mapOf(page, `<button id=b style="font-family:'NoSuchFamilyXyz', sans-serif;width:120px;padding:0;border:0;white-space:nowrap;overflow:hidden">Save</button>`, { save: 'Save' });
+  expect(map.fonts).toEqual([]);
+  const { verdicts, fontWarnings } = await predict(map, { save: 'Speichern' });
+  expect(fontWarnings).toHaveLength(1);
+  expect(fontWarnings[0]).toContain('NoSuchFamilyXyz');
+  expect(verdicts[0].fontMissing).toBe(true);
+  // Generic and installed system families are not warned about.
+  const generic = await mapOf(page, `<button id=b style="font-family:sans-serif;width:120px">Save</button>`, { save: 'Save' });
+  expect((await predict(generic, { save: 'Speichern' })).fontWarnings).toEqual([]);
 });

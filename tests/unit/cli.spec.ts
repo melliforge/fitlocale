@@ -147,8 +147,8 @@ test.describe('baseline and summary', () => {
 
 test('fitmap writes a merged map and says how many keys', async () => {
   const dir = tmp();
-  const obs = { key: 'buttons.save', text: 'Save', slots: {}, lines: 1, oneLine: true, wrapWidth: 100, roomX: 100, roomY: null, maxLines: null, style: { fontSize: '14px' }, lang: 'en', dir: 'ltr', selector: '#s' };
-  const fit = (key: string) => [{ viewport: { width: 1280, height: 800 }, entries: [{ ...obs, key }], fonts: [] }];
+  const obs = { key: 'buttons.save', text: 'Save', slots: {}, lines: 1, oneLine: true, wrapWidth: 100, roomX: 100, roomY: null, maxLines: null, measured: true, s: 0, lang: 'en', dir: 'ltr', selector: '#s' };
+  const fit = (key: string) => [{ viewport: { width: 1280, height: 800 }, styles: [{ fontSize: '14px' }], entries: [{ ...obs, key }], fonts: [] }];
   writeFileSync(join(dir, 'a.json'), JSON.stringify(makeRun([makeCheck({ fit: fit('buttons.save') })])));
   writeFileSync(join(dir, 'b.json'), JSON.stringify(makeRun([makeCheck({ fit: fit('buttons.load') })])));
   const out = join(dir, 'fit', 'fitlocale-fit.json');
@@ -164,7 +164,7 @@ test('fitmap without fit records says how to turn them on', async () => {
   const dir = tmp();
   writeFileSync(join(dir, 'a.json'), JSON.stringify(makeRun([makeCheck()])));
   const { out, io } = capture();
-  expect(await main(['fitmap', join(dir, 'a.json'), '--out', join(dir, 'x.json')], io)).toBe(1);
+  expect(await main(['fitmap', join(dir, 'a.json'), '--out', join(dir, 'x.json')], io)).toBe(2);
   expect(out.stderr).toContain('fitMap: true');
   expect(out.stderr).toContain('sourceMessages');
   expect(existsSync(join(dir, 'x.json'))).toBe(false);

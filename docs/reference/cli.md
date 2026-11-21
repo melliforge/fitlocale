@@ -50,7 +50,7 @@ Builds the fit map from test runs made with [`fitMap: true`](/reference/options#
 
 - `--out <file>`: where to write it; default `fitlocale-fit.json`.
 - `--source-locale <code>`: the source locale the map was recorded in; default `en`.
-- No `fit` records in the results is an error that says how to turn them on.
+- No `fit` records in the results is an error (exit 2) that says how to turn them on.
 
 ## `fitlocale fit`
 
@@ -65,7 +65,7 @@ Checks translations against the [fit map](#fitlocale-fitmap), without building o
 - **English already overflows**: the box is too small for the source text too.
 - **not checked**: no test showed this key, so nothing is known about its box. It is listed, never counted as fitting.
 
-It exits 1 when something won't fit, 0 otherwise or with `--report-only`, and 2 on a setup error (no map, no Playwright). In GitHub Actions it writes a summary to the job summary. It needs `@playwright/test` and its Chromium (`npx playwright install chromium`).
+It exits 1 when something won't fit, 0 otherwise or with `--report-only`, and 2 on a usage or setup error (no map, no Playwright or its Chromium, an unknown option). In GitHub Actions it writes a summary to the job summary. It needs `@playwright/test` and its Chromium (`npx playwright install chromium`).
 
 - `--map <file>`: the fit map; default `fitlocale-fit.json`.
 - `--fonts <dir>`: where the app's font files are, such as its `public/` folder. The map records each font's URL; a file found under this folder by that path, or by its file name, is used first, then a public URL as it is. A font found nowhere is a warning, and the keys measured without it are marked: their verdict may be wrong.

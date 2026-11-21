@@ -109,3 +109,25 @@ test('font warnings are printed and summed up', async () => {
   expect(s.out.stderr).toContain('font "Inter"');
   expect(s.out.stdout).toContain('1 key(s) were judged without their font: results may be wrong');
 });
+
+// Review fixes (final review, 2026-11-21): 1 means "won't fit", so every setup problem must be 2.
+test('a browser that is not installed exits 2 with the install hint, not 1', async () => {
+  const s = setup({ save: 'Los' }, () => { throw new Error("browserType.launch: Executable doesn't exist at /ms-playwright/chromium/chrome"); });
+  expect(await runFit({ files: [join(s.dir, 'de.json')], reportOnly: true }, s.io, s.deps)).toBe(2);
+  expect(s.out.stderr).toContain('npx playwright install chromium');
+});
+
+test('any other predictor failure exits 2 with the reason', async () => {
+  const s = setup({ save: 'Los' }, () => { throw new Error('page crashed'); });
+  expect(await runFit({ files: [join(s.dir, 'de.json')] }, s.io, s.deps)).toBe(2);
+  expect(s.out.stderr).toContain('page crashed');
+});
+
+test('usage errors of fit and fitmap exit 2', async () => {
+  const { main } = await import('../../src/cli');
+  const out = { stdout: '', stderr: '' };
+  const io = { stdout: (x: string) => { out.stdout += x; }, stderr: (x: string) => { out.stderr += x; } };
+  expect(await main(['fit', 'de.json', '--font', 'public'], io)).toBe(2);
+  expect(await main(['fit'], io)).toBe(2);
+  expect(await main(['fitmap'], io)).toBe(2);
+});

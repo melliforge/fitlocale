@@ -4,6 +4,8 @@ import type { FitFont, FitObservation, RunResults } from '../types';
 /** One measured box of a key. Sizes are CSS px rounded to 0.5; `rx`, `ry` and `clamp` are absent when nothing stops the text. */
 export interface FitMapEntry {
   text: string; slots?: Record<string, string>; lines: number; one?: true;
+  /** Not measured (the text was split across child elements): its key is judged `not-checked`, never `fits`. */
+  nm?: true;
   wrap: number; rx?: number; ry?: number; clamp?: number;
   /** Index into `styles`. */
   s: number;
@@ -26,32 +28,33 @@ const byJson = (a: unknown, b: unknown) => { const x = JSON.stringify(a), y = JS
 
 /** Merge every check's fit records: entries repeated across runs, pages and viewports are kept once. */
 export function buildFitMap(runs: RunResults[], sourceLocale: string): FitMap {
-  const observations: Array<{ o: FitObservation; vp: string }> = [];
+  const observations: Array<{ o: FitObservation; style: Record<string, string>; vp: string }> = [];
   const fonts = new Map<string, FitFont>();
   for (const run of runs) {
     for (const check of run.checks ?? []) {
       for (const rec of check.fit ?? []) {
         const vp = `${rec.viewport.width}×${rec.viewport.height}`;
-        for (const o of rec.entries) observations.push({ o, vp });
+        for (const o of rec.entries) observations.push({ o, style: rec.styles?.[o.s] ?? {}, vp });
         for (const f of rec.fonts) fonts.set(`${f.family}|${f.weight}|${f.style}|${f.src}`, f);
       }
     }
   }
   // Styles get their indices in a sorted order, so the same runs make the same file whatever order they came in.
-  const styleJson = [...new Set(observations.map(({ o }) => JSON.stringify(sortKeys(o.style))))].sort();
+  const styleJson = [...new Set(observations.map(({ style }) => JSON.stringify(sortKeys(style))))].sort();
   const styleIndex = new Map(styleJson.map((s, i) => [s, i]));
   const keys: Record<string, FitMapEntry[]> = {};
   const seen = new Set<string>();
-  for (const { o, vp } of observations) {
+  for (const { o, style, vp } of observations) {
     const e: FitMapEntry = {
-      text: o.text, lines: o.lines, wrap: half(o.wrapWidth), s: styleIndex.get(JSON.stringify(sortKeys(o.style)))!, vp, sel: o.selector,
+      text: o.text, lines: o.lines, wrap: half(o.wrapWidth), s: styleIndex.get(JSON.stringify(sortKeys(style)))!, vp, sel: o.selector,
     };
+    if (!o.measured) e.nm = true;
     if (Object.keys(o.slots).length) e.slots = o.slots;
     if (o.oneLine) e.one = true;
     if (o.roomX !== null) e.rx = half(o.roomX);
     if (o.roomY !== null) e.ry = half(o.roomY);
     if (o.maxLines !== null) e.clamp = o.maxLines;
-    const id = JSON.stringify([o.key, e.vp, e.wrap, e.rx, e.ry, e.clamp, e.one, e.s]);
+    const id = JSON.stringify([o.key, e.vp, e.wrap, e.rx, e.ry, e.clamp, e.one, e.nm, e.s]);
     if (seen.has(id)) continue;
     seen.add(id);
     (keys[o.key] ??= []).push(e);

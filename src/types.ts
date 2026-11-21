@@ -99,10 +99,15 @@ export interface FitObservation {
   roomX: number | null; roomY: number | null;
   /** `-webkit-line-clamp`, when set. */
   maxLines: number | null;
-  style: Record<string, string>; lang: string; dir: string; selector: string;
+  /** The room was measured: false when the text is split across child elements, so lengthening it was not safe. */
+  measured: boolean;
+  /** Index into the record's `styles`. */
+  s: number;
+  lang: string; dir: string; selector: string;
 }
 
-export interface FitRecord { viewport: Viewport; entries: FitObservation[]; fonts: FitFont[] }
+/** One check at one viewport. Text styles are stored once per record and referenced by index: pages repeat a few. */
+export interface FitRecord { viewport: Viewport; styles: Array<Record<string, string>>; entries: FitObservation[]; fonts: FitFont[] }
 
 export interface CheckResult {
   testTitle: string;

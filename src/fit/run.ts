@@ -41,7 +41,16 @@ export async function runFit(a: FitArgs, io: IO, deps: FitDeps): Promise<number>
     let keys: string[];
     try { keys = a.changedFrom ? changedKeys(file, a.changedFrom, deps.cwd) : entries.map(([k]) => k); } catch (err) { return fail((err as Error).message); }
     const locale = a.locale ?? basename(file).replace(/\.json$/i, '');
-    const { verdicts, fontWarnings } = await deps.predict({ map, messages: new Map(entries), keys, locale, fontsDir, chromium });
+    let predicted: Awaited<ReturnType<FitDeps['predict']>>;
+    try {
+      predicted = await deps.predict({ map, messages: new Map(entries), keys, locale, fontsDir, chromium });
+    } catch (err) {
+      const message = (err as Error).message ?? String(err);
+      // The usual CI mistake: Playwright is installed, its Chromium is not.
+      if (/Executable doesn't exist|playwright install/i.test(message)) return fail('fitlocale fit needs @playwright/test and its Chromium (npx playwright install chromium)');
+      return fail(`the check failed: ${message.split('\n')[0]}`);
+    }
+    const { verdicts, fontWarnings } = predicted;
 
     const over = verdicts.filter(v => v.verdict === 'overflows');
     overflows += over.length;

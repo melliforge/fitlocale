@@ -66,6 +66,9 @@ const isPublic = (src: string) => {
     return false;
   }
 };
+/** Generic families, and the system-font keywords: always there, never warned about. */
+const GENERIC = new Set(['serif', 'sans-serif', 'monospace', 'cursive', 'fantasy', 'system-ui', 'ui-serif', 'ui-sans-serif', 'ui-monospace',
+  'ui-rounded', 'emoji', 'math', 'fangsong', '-apple-system', 'blinkmacsystemfont', 'inherit', 'initial']);
 const firstFamily = (stack: string) => (stack.split(',')[0] ?? '').replace(/["']/g, '').trim().toLowerCase();
 const fill = (text: string, slots: Record<string, string> = {}) =>
   text.replace(/\{\{\s*(\w+)\s*\}\}|\{(\w+)\}/g, (_, a: string | undefined, b: string | undefined) => slots[a ?? b!] ?? (a ?? b!));
@@ -82,7 +85,10 @@ export async function predictFit(o: PredictOptions): Promise<{ verdicts: FitVerd
       verdicts.set(key, { key, verdict: 'not-checked', text: text ?? '' });
       continue;
     }
-    for (const e of entries) jobs.push({ key, e, style: o.map.styles[e.s] ?? {}, text: fill(text, e.slots) });
+    // A box that was not measured says nothing about room: "fits" must always mean "measured and fits".
+    const measured = entries.filter(e => !e.nm);
+    if (!measured.length) { verdicts.set(key, { key, verdict: 'not-checked', text }); continue; }
+    for (const e of measured) jobs.push({ key, e, style: o.map.styles[e.s] ?? {}, text: fill(text, e.slots) });
   }
 
   // Fonts: public URLs load as they are; fonts from the app's origin come from fontsDir.
@@ -113,15 +119,39 @@ export async function predictFit(o: PredictOptions): Promise<{ verdicts: FitVerd
       const f = faces.find(x => x.font.family === family)!.font;
       fontWarnings.push(`font "${family}" (${f.weight} ${f.style}) from ${f.src} could not be loaded`);
     }
-    const loaded = new Set(faces.map(f => f.font.family.toLowerCase()).filter(f => !failed.map(x => x.toLowerCase()).includes(f)));
-    const recorded = new Set(o.map.fonts.map(f => f.family.toLowerCase()));
+    // Families the boxes ask for that this page cannot render: no face loaded for them, and not installed either
+    // (the recorder cannot see every font: a cross-origin stylesheet, fonts added from script).
+    const used = [...new Set(jobs.map(j => firstFamily(j.style.fontFamily ?? '')).filter(f => f && !GENERIC.has(f)))];
+    const loadedFaces = faces.map(f => f.font.family.toLowerCase()).filter(f => !failed.map(x => x.toLowerCase()).includes(f));
+    const unavailable: string[] = await page.evaluate(({ used, loadedFaces }) => used.filter(family => {
+      if (loadedFaces.includes(family)) return false;
+      const width = (stack: string) => {
+        const s = document.createElement('span');
+        s.style.cssText = `position:absolute;visibility:hidden;font-size:40px;white-space:nowrap;font-family:${stack}`;
+        s.textContent = 'mmmmmmmmmmlliWWwwQ@#0123';
+        document.body.appendChild(s);
+        const w = s.getBoundingClientRect().width;
+        s.remove();
+        return w;
+      };
+      const quoted = `"${family.replace(/"/g, '')}"`;
+      return width(`${quoted}, monospace`) === width('monospace') && width(`${quoted}, serif`) === width('serif');
+    }), { used, loadedFaces });
+    const recordedFamilies = new Set(o.map.fonts.map(f => f.family.toLowerCase()));
+    // Named as the app's CSS writes it.
+    const asWritten = new Map(jobs.map(j => [firstFamily(j.style.fontFamily ?? ''), (j.style.fontFamily ?? '').split(',')[0].replace(/["']/g, '').trim()]));
+    for (const family of unavailable) {
+      if (!recordedFamilies.has(family)) fontWarnings.push(`font "${asWritten.get(family) ?? family}" is used by the app but this page cannot load it: pass --fonts <the app's font files>, or install it`);
+    }
+    const missing = new Set(unavailable);
 
-    const measured = await page.evaluate(({ jobs, dir }) => {
+    const results = await page.evaluate(({ jobs, dir, locale }) => {
       const make = (style: Record<string, string>, text: string, wrap: number | null) => {
         const d = document.createElement('div');
         d.className = 'fitlocale-box';
         for (const [k, v] of Object.entries(style)) (d.style as unknown as Record<string, string>)[k] = v;
         d.dir = dir;
+        d.lang = locale; // hyphenation, line breaking and glyphs follow the translation's language
         if (wrap === null) { d.style.whiteSpace = 'nowrap'; d.style.width = 'max-content'; } else d.style.width = `${wrap}px`;
         d.textContent = text; // never innerHTML: a translation is text, whatever it contains
         document.body.appendChild(d);
@@ -158,12 +188,12 @@ export async function predictFit(o: PredictOptions): Promise<{ verdicts: FitVerd
         if (t.v === 'overflows' && judge(j.e, j.style, j.e.text).v === 'overflows') return { ...t, v: 'already' as const };
         return t;
       });
-    }, { jobs: jobs.map(j => ({ e: j.e, style: j.style, text: j.text })), dir });
+    }, { jobs: jobs.map(j => ({ e: j.e, style: j.style, text: j.text })), dir, locale: o.locale });
 
-    measured.forEach((m, i) => {
+    results.forEach((m, i) => {
       const j = jobs[i];
       const family = firstFamily(j.style.fontFamily ?? '');
-      const fontMissing = recorded.has(family) && !loaded.has(family);
+      const fontMissing = missing.has(family);
       const v: FitVerdict = {
         key: j.key, verdict: m.v, vp: j.e.vp, selector: j.e.sel, text: o.messages.get(j.key)!,
         ...(m.need !== undefined ? { need: m.need, room: m.room, axis: m.axis } : {}), ...(fontMissing ? { fontMissing: true as const } : {}),

@@ -87,3 +87,49 @@ test('fonts list the loaded @font-face rules with absolute URLs', async ({ page 
   expect(fonts[0]).toMatchObject({ family: 'TestFace', weight: '700', style: 'normal' });
   expect(fonts[0].src).toMatch(/^[a-z]+:.*\/f\/test\.woff2$/);
 });
+
+// Review fixes (final review, 2026-11-21).
+test('a message that is only a slot does not hide the others', async ({ page }) => {
+  await load(page, html(`<p id=a>Save</p><p id=b>Billing details</p><p id=c>Profile:</p>`));
+  const rec = await record(page, [{ key: 'save', text: 'Save' }, { key: 'billing', text: 'Billing details' }, { key: 'user', text: '{{name}}' },
+    { key: 'pair', text: '{{a}} {{b}}' }, { key: 'label', text: '{{label}}:' }]);
+  // `{{label}}:` has no letters of its own: like `{{name}}`, it cannot say which element is which.
+  expect(rec.entries.map(e => e.key).sort()).toEqual(['billing', 'save']);
+  expect(rec.ambiguous).toBe(0);
+});
+
+test('an icon beside the label still gets its room', async ({ page }) => {
+  await load(page, html(`<button id=b style="width:120px;padding:0 10px;border:0;white-space:nowrap;overflow:hidden"><svg width=0 height=0></svg>Save</button>`));
+  const [e] = (await record(page, [{ key: 'save', text: 'Save' }])).entries;
+  expect(e.measured).toBe(true);
+  near(e.roomX, 100);
+});
+
+test('text split across child elements is recorded as not measured', async ({ page }) => {
+  await load(page, html(`<p id=p style="width:100px;white-space:nowrap;overflow:hidden">Save <b>now</b></p>`));
+  const [e] = (await record(page, [{ key: 'now', text: 'Save now' }])).entries;
+  expect(e.measured).toBe(false);
+});
+
+test('an ancestor that scrolls vertically does not stop the text vertically', async ({ page }) => {
+  await load(page, html(`<nav style="width:200px;height:60px;overflow-x:hidden;overflow-y:auto"><a id=l>Account settings</a></nav>`));
+  const [e] = (await record(page, [{ key: 'acct', text: 'Account settings' }])).entries;
+  expect(e.roomY).toBeNull();
+});
+
+test('fonts inside @media and @layer are listed', async ({ page }) => {
+  await page.route('http://fit.test/**', r => r.fulfill(r.request().url().endsWith('.woff2') ? { status: 404 } : { contentType: 'text/html', body: '<!doctype html>' }));
+  await page.goto('http://fit.test/');
+  await load(page, html(`<p id=p>Save</p>`, `<style>@media screen{@font-face{font-family:InMedia;src:url(/a.woff2)}} @layer base{@font-face{font-family:InLayer;src:url(/b.woff2)}}</style>`));
+  expect((await record(page, [{ key: 'save', text: 'Save' }])).fonts.map(f => f.family).sort()).toEqual(['InLayer', 'InMedia']);
+});
+
+test('one style table per record: repeated styles are stored once', async ({ page }) => {
+  const ps = Array.from({ length: 20 }, (_, i) => `<p id=p${i}>Line ${i}</p>`).join('');
+  await load(page, html(ps));
+  const rec = await record(page, Array.from({ length: 20 }, (_, i) => ({ key: `k${i}`, text: `Line ${i}` })));
+  expect(rec.entries).toHaveLength(20);
+  expect(rec.styles).toHaveLength(1);
+  expect(rec.entries.every(e => e.s === 0)).toBe(true);
+  expect(JSON.stringify(rec.entries).length / 20).toBeLessThan(250);
+});

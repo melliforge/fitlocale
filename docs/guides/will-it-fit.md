@@ -27,7 +27,7 @@ use: {
 },
 ```
 
-Run your tests as usual. Every `check()` on a page in your source language adds a `fit` record to `results.json`. Then build the map and commit it next to your baseline:
+Run your tests as usual. Every `check()` on a page in your source language adds a `fit` record to `results.json` (about 200 bytes per message and viewport, so you may want it only in the runs that record the map). Then build the map and commit it next to your baseline:
 
 ```bash
 npx playwright test
@@ -42,7 +42,7 @@ The check needs your repository, Node, and Playwright's Chromium. It doesn't nee
 
 <<< @/../examples/github-workflow-fit.yml{yaml}
 
-`--changed-from` checks only the keys whose text changed. `--fonts public` points at the folder your app serves its font files from, so the text is measured in your own font. Fonts on a public URL, such as Google Fonts, load from that URL. See [`fitlocale fit`](/reference/cli#fitlocale-fit) for every option.
+`--changed-from` checks only the keys whose text changed. `--fonts public` points at the folder your app serves its font files from, so the text is measured in your own font. A font the map recorded with a public URL loads from that URL. A font `fit` can't load (the usual Google Fonts `<link>` hides its `@font-face` rules from the recorder) is a warning, and the keys measured without it are marked. See [`fitlocale fit`](/reference/cli#fitlocale-fit) for every option.
 
 ## What the answers mean
 

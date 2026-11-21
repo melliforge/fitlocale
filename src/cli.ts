@@ -85,6 +85,9 @@ function readJson(path: string): unknown {
   }
 }
 
+/** `fit` and `fitmap` keep 1 for "won't fit": every usage or setup error is 2. */
+const usageCode = (argv: string[]) => (argv[0] === 'fit' || argv[0] === 'fitmap' ? 2 : 1);
+
 /** Run the CLI and return its exit code. */
 export async function main(argv: string[], io: CliIO = defaultIO): Promise<number> {
   try {
@@ -176,9 +179,9 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
       return 0;
     }
     io.stderr(`${command ? `Unknown command or missing file: ${command}` : 'Unknown command'}\n\n${USAGE}`);
-    return 1;
+    return usageCode(argv);
   } catch (err) {
     io.stderr(`fitlocale: ${(err as Error).message}\n`);
-    return 1;
+    return usageCode(argv);
   }
 }
