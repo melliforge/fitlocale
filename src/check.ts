@@ -175,6 +175,8 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
   const issues: Issue[] = [];
   const screenshots: Screenshot[] = [];
   const fit: FitRecord[] = [];
+  const ran: string[] = [];
+  const pair = (mode: Mode, viewport: Viewport) => `${mode} ${viewport.width}x${viewport.height}`;
   // Without useLocale(), a page showing a pseudo locale is still checked as one.
   let locale = expectedLocale ?? options.sourceLocale;
   if (expectedLocale === null) {
@@ -258,6 +260,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
       }
       await ensureInjected(page);
       await page.evaluate(attr => (window as unknown as Api).__fitlocale.assignKeys(attr), ctx.testIdAttribute ?? 'data-testid');
+      ran.push(pair('source', viewport));
 
       // Leaks and locale persistence do not depend on the viewport: check them once.
       if (index === 0) {
@@ -355,6 +358,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
       }
 
       if (isSource && options.modes.includes('pseudo-long')) {
+        ran.push(pair('pseudo-long', viewport));
         const sourceOverflow = await page.evaluate(ig => (window as unknown as Api).__fitlocale.findOverflow(ig), options.ignore);
         try {
           await page.evaluate(([e, ig]) => (window as unknown as Api).__fitlocale.rewriteText(e, ig), [options.expansion, options.ignore] as const);
@@ -387,6 +391,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
           await page.evaluate(([ig, mi]) => (window as unknown as Api).__fitlocale.rememberBoxes(ig, mi), lists);
           await page.evaluate(([ig, ic]) => (window as unknown as Api).__fitlocale.rememberIcons(ig, ic), iconArgs);
           await page.evaluate(() => (window as unknown as Api).__fitlocale.setDir('rtl'));
+          ran.push(pair('pseudo-rtl', viewport));
           await settleHere();
           const found = [
             ...await page.evaluate(([ig, mi]) => (window as unknown as Api).__fitlocale.findNotMirrored(ig, mi), lists),
@@ -424,6 +429,8 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
     issues,
     screenshots,
     ...(fit.length ? { fit } : {}),
+    ran,
+    ...(!fontsLoad ? { incomplete: 'fonts' as const } : fellBack ? { incomplete: 'locale' as const } : {}),
     ...(options.gallery && options.screenshots ? { gallery: true as const } : {}),
   };
 }

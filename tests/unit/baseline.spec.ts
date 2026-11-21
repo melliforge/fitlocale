@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
 import { applyBaseline, buildBaseline, checkScope, failureSummary, fixedEntries, formatBaseline, issueId, markFailing, pruneBaseline, readBaseline, type BaselineFile, type IdScope } from '../../src/baseline';
 import { makeCheck, makeIssue, makeRun } from './fixtures';
+import type { CheckResult } from '../../src/types';
 
 const SCOPE: IdScope = { project: 'chromium', titlePath: ['tests/a.spec.ts', 'settings'], checkIndex: 0 };
 const ISSUE = makeIssue();
@@ -221,4 +222,35 @@ test('a hand-written entry with only id and check can be fixed without breaking 
   applyBaseline(result, SCOPE, file);
   expect(result.baseline?.fixed).toHaveLength(1);
   expect(() => renderSummary(makeRun([result]), { maxRows: 50 })).not.toThrow();
+});
+
+test.describe('fixed only where the check ran', () => {
+  const ENTRY = { id: 'e1', rule: 'overflow/clipped', test: 't', selector: '#s', mode: 'pseudo-long', locale: 'en', viewport: '1280x720' };
+  const fixedFor = (over: Partial<CheckResult>, entry: Record<string, unknown> = ENTRY) => {
+    const file = join(tmp(), 'b.json');
+    writeFileSync(file, JSON.stringify({ version: 1, issues: [{ ...entry, check: checkScope(SCOPE) }] }));
+    const result = makeCheck({ issues: [], ...over });
+    applyBaseline(result, SCOPE, file);
+    return result.baseline?.fixed?.map(e => e.id);
+  };
+  const RAN = ['source 1280x720', 'pseudo-long 1280x720'];
+
+  test('an entry at a viewport the check did not run is not fixed', () => {
+    expect(fixedFor({ ran: RAN }, { ...ENTRY, viewport: '390x844' })).toEqual([]);
+  });
+  test('an entry in a mode the check did not run is not fixed', () => {
+    expect(fixedFor({ ran: RAN }, { ...ENTRY, mode: 'pseudo-rtl' })).toEqual([]);
+  });
+  test('an incomplete check calls nothing fixed', () => {
+    expect(fixedFor({ ran: RAN, incomplete: 'locale' })).toEqual([]);
+  });
+  test('an entry the check covered is still fixed', () => {
+    expect(fixedFor({ ran: RAN })).toEqual(['e1']);
+  });
+  test('results without ran keep the old rule', () => {
+    expect(fixedFor({})).toEqual(['e1']);
+  });
+  test('a hand-written entry without mode or viewport can still be fixed', () => {
+    expect(fixedFor({ ran: RAN }, { id: 'e1' })).toEqual(['e1']);
+  });
 });

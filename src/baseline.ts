@@ -129,7 +129,10 @@ export function applyBaseline(result: CheckResult, scope: IdScope, baselinePath:
   for (const issue of result.issues) issue.baselined = accepted.has(issue.id!);
   // Accepted in this very check, and not found in it now: fixed. Entries of other checks are not this check's to judge.
   const found = new Set(result.issues.map(i => i.id));
-  result.baseline.fixed = entries.filter(e => e.check === result.scope && !found.has(e.id))
+  // Only where this check looked, and looked fully: a run with fewer viewports or modes, a font that timed out or a page
+  // in another locale cannot tell that an issue is gone.
+  const covered = (e: BaselineEntry) => !result.ran || !e.mode || !e.viewport || result.ran.includes(`${e.mode} ${e.viewport}`);
+  result.baseline.fixed = entries.filter(e => e.check === result.scope && !found.has(e.id) && !result.incomplete && covered(e))
     // Only `id` and `check` are required in the file: the rest is for people, and may be missing from a hand-written entry.
     .map(e => ({
       id: e.id, rule: String(e.rule ?? '') as RuleId, test: String(e.test ?? ''), ...(e.project ? { project: String(e.project) } : {}),

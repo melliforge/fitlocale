@@ -136,6 +136,10 @@ export interface CheckResult {
   };
   /** With `fitMap: true` on a source-locale page: each message's room, per viewport. `fitlocale fitmap` merges them. */
   fit?: FitRecord[];
+  /** The mode and viewport pairs this check ran, as `pseudo-long 1280x800`: accepted issues of other pairs are not called fixed. */
+  ran?: string[];
+  /** A web font timed out, or the page showed another locale: accepted issues it did not find are not called fixed. */
+  incomplete?: 'fonts' | 'locale';
   /** Taken with `gallery: true`: every mode and viewport has a screenshot, for the report's Gallery. */
   gallery?: true;
 }
