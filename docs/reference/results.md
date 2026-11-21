@@ -24,6 +24,7 @@ interface CheckResult {
   url: string;
   issues: Issue[];
   screenshots: Array<{ mode: string; viewport: { width: number; height: number }; path: string; size: { width: number; height: number };
+    locale?: string;                       // the page's locale, as on its issues (absent before 0.8)
     origin?: { x: number; y: number } }>;     // where the page's (0, 0) is on the image, when not at its corner (Chromium, right-to-left pages wider than the window)
   baseline?: {
     status: 'missing' | 'applied'; path: string;
@@ -31,6 +32,7 @@ interface CheckResult {
                                            // accepted issues of this check that it did not find this time
     legacy?: true;                         // the baseline has entries without `check` (written before 0.8): never called fixed; `baseline --prune` records it
   };
+  gallery?: true;                          // taken with gallery: true: every mode and viewport has a screenshot
   fit?: Array<{                            // with fitMap: true, on source-locale pages: one record per viewport
     viewport: { width: number; height: number };
     styles: Array<Record<string, string>>; // text styles, referenced by index

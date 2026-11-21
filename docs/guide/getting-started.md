@@ -87,3 +87,15 @@ Ready-made helpers: `byQueryParam()`, `byCookie()`, `byLocalStorage()` and `byPa
 Set `localeMessages: 'locales/{locale}.json'` as well, and the page also gets the overflow checks in that locale, with only the issues its translation causes.
 
 Next: the [rules](/reference/rules) fitlocale checks, and every [option](/reference/options).
+
+## Review every screen in every language
+
+Rules find what can be measured. To look at each page yourself, in English next to German, Arabic and the pseudo modes, turn on [`gallery`](/reference/options#gallery) in a job of its own:
+
+```ts
+// playwright.config.ts, in a project or a CI job for reviewers
+use: { fitlocale: { gallery: true } },
+```
+
+The HTML report then has a **Gallery**: for each page and viewport, one screenshot per locale and mode, with fitlocale's issue boxes on top. Click a screenshot to enlarge it. Every screenshot is a full-page PNG, so the report folder grows with each page, mode and viewport: keep it out of the runs that only need to pass or fail.
+

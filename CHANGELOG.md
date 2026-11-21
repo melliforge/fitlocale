@@ -7,6 +7,8 @@ Each section becomes the notes of the matching GitHub Release.
 
 ### Added
 
+- **Review gallery.** With `gallery: true`, each check takes its full-page screenshot for every mode at every viewport, also when it found nothing, and the HTML report gets a Gallery: for each page and viewport, one screenshot per locale and mode side by side (the source locale first), with the issue boxes on top. Screenshots now record their page's `locale`. It is off by default: each screenshot is a full-page PNG.
+
 - **Fixed since baseline.** Each check now records a `scope`, and `fitlocale baseline` writes it into each entry as `check`. When a check runs and no longer finds an issue its baseline accepted, the job summary, the HTML report, the reporter and the pull request comment say "N accepted issue(s) no longer occur". `fitlocale baseline --prune <results.json>...` removes exactly those entries and never accepts a new issue. Entries of checks that did not run (skipped tests, other shards) are never called fixed. Baseline files written before this release keep working: run `--prune` once with the results of every shard to record which check accepted each entry, without accepting anything new. A retry that misses an issue an earlier attempt found does not count as fixing it.
 
 ## [0.7.0] - 2026-11-21
