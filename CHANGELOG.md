@@ -5,6 +5,8 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-21
+
 ### Added
 
 - **Review gallery.** With `gallery: true`, each check takes its full-page screenshot for every mode at every viewport, also when it found nothing, and the HTML report gets a Gallery: for each page and viewport, one screenshot per locale and mode side by side (the source locale first), with the issue boxes on top. Screenshots now record their page's `locale`. It is off by default: each screenshot is a full-page PNG.
@@ -215,7 +217,8 @@ First public release.
 - CLI: `fitlocale pseudo` writes pseudo-locale message files, and `fitlocale report` re-renders a report.
 - CommonJS and ESM builds with TypeScript types.
 
-[Unreleased]: https://github.com/melliforge/fitlocale/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/melliforge/fitlocale/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/melliforge/fitlocale/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/melliforge/fitlocale/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/melliforge/fitlocale/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/melliforge/fitlocale/compare/v0.4.3...v0.5.0
