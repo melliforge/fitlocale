@@ -109,9 +109,13 @@ export const SCRIPT = String.raw`(function () {
       var row = document.getElementById(box.getAttribute('data-problem'));
       box.hidden = !!row && row.hidden;
     });
-    all('figure.shot-wrap').forEach(function (fig) {
+    all('figure.shot-wrap:not(.gallery-shot)').forEach(function (fig) {
       var inProject = !project || fig.getAttribute('data-project') === project;
       fig.hidden = !(inProject && fig.querySelector('.box:not([hidden])'));
+    });
+    // The gallery shows clean screenshots too: only the project filter applies to it.
+    all('.gallery-page').forEach(function (block) {
+      block.hidden = !!project && block.getAttribute('data-project') !== project;
     });
     all('.shots').forEach(capStrip);
     all('details.section, details.page').forEach(function (el) { el.hidden = !el.querySelector('tr.problem:not([hidden])'); });

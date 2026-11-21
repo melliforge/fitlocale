@@ -206,6 +206,13 @@ summary > h2, summary > h3 { min-width:0; }
 .fix { margin-top:4px; }
 .shots { display:flex; flex-wrap:wrap; align-items:flex-start; gap:16px; margin:0 16px; padding:16px 0; border-top:1px solid var(--divider); }
 .shot-wrap { width:240px; margin:0; } .shot-wrap.big { width:100%; }
+.gallery-page { margin:24px 0 32px; } .gallery-title { margin:0 0 8px; font-size:15px; font-weight:600; color:var(--text-1); }
+.gallery-row { margin:0 0 16px; } .gallery-vp { margin:0 0 6px; font:12px/1.4 var(--mono); color:var(--text-2); }
+.gallery-cells { display:flex; gap:12px; overflow-x:auto; padding-bottom:6px; align-items:flex-start; }
+.gallery-shot { flex:none; } .gallery-shot.big { flex:1 0 100%; }
+.gallery-shot figcaption .col { font-weight:600; color:var(--text-1); } .gallery-shot figcaption .test { color:var(--text-2); }
+details.fixed { margin:12px 0 0; padding:10px 12px; border:1px solid var(--divider); border-radius:8px; background:var(--bg-soft); color:var(--text-2); }
+details.fixed summary { cursor:pointer; color:var(--text-1); } details.fixed ul { margin:8px 0 0; padding-left:20px; }
 .shot { display:block; width:100%; padding:0; border:1px solid var(--divider); border-radius:8px; background:var(--bg-soft); cursor:default; }
 /* Cropping and zoom need the script; without it the whole screenshot stays reachable. */
 .js .shot { max-height:360px; overflow:hidden; cursor:zoom-in; transition:border-color .25s; } .js .shot:hover { border-color:var(--border); } .js .big .shot { max-height:none; cursor:zoom-out; }

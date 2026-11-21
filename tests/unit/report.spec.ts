@@ -461,3 +461,58 @@ test('report overview shows Fixed since baseline, escaped', () => {
   expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
   expect(html).not.toContain('<img src=x');
 });
+
+test.describe('gallery', () => {
+  const wide = { width: 1280, height: 800 };
+  const g = (mode: 'source' | 'pseudo-long' | 'pseudo-rtl', locale: string, viewport = wide) =>
+    ({ mode, viewport, locale, path: `g/${locale}-${mode}-${viewport.width}.png`, size: { width: 1000, height: 2000 } });
+  const galleryRun = (over: Partial<CheckResult> = {}, extra: Partial<CheckResult>[] = []) => makeRun([
+    makeCheck({ url: 'http://app/a', issues: [], gallery: true, screenshots: [g('source', 'en'), g('pseudo-long', 'en'), g('pseudo-rtl', 'en')], ...over }),
+    makeCheck({ url: 'http://app/a', issues: [], gallery: true, screenshots: [g('source', 'de')], ...over }),
+    ...extra.map(e => makeCheck({ url: 'http://app/a', gallery: true, ...e })),
+  ]);
+
+  test('gallery shows each page with its columns, source first', async ({ page }) => {
+    await page.setContent(renderReport(galleryRun()));
+    await expect(page.locator('#gallery h2')).toHaveText('Gallery');
+    await expect(page.locator('#gallery .gallery-row').first().locator('figcaption .col')).toHaveText(['en', 'en · pseudo-long', 'en · pseudo-rtl', 'de']);
+  });
+
+  test('gallery images are lazy', async ({ page }) => {
+    await page.setContent(renderReport(galleryRun()));
+    const imgs = page.locator('#gallery img');
+    await expect(imgs).toHaveCount(4);
+    for (const img of await imgs.all()) await expect(img).toHaveAttribute('loading', 'lazy');
+  });
+
+  test('gallery text is escaped', () => {
+    const evil = '<img src=x onerror=alert(1)>';
+    const html = renderReport(galleryRun({ url: `http://app/${evil}`, testTitle: evil, screenshots: [{ ...g('source', 'en'), locale: evil }] }));
+    expect(html).not.toContain('<img src=x');
+  });
+
+  test('the project filter hides other projects’ gallery blocks', async ({ page }) => {
+    const run = makeRun([
+      makeCheck({ url: 'http://app/a', project: 'chromium', gallery: true, screenshots: [g('source', 'en')] }),
+      makeCheck({ url: 'http://app/a', project: 'webkit', gallery: true, screenshots: [g('source', 'en')] }),
+    ]);
+    await page.setContent(renderReport(run));
+    await expect(page.locator('#gallery .gallery-page')).toHaveCount(2);
+    await page.locator('select[data-filter="project"]').selectOption('webkit');
+    await expect(page.locator('#gallery .gallery-page[data-project="chromium"]')).toBeHidden();
+    await expect(page.locator('#gallery .gallery-page[data-project="webkit"]')).toBeVisible();
+  });
+
+  test('clicking a gallery shot enlarges it, and clean shots stay visible', async ({ page }) => {
+    await page.setContent(renderReport(galleryRun({}, [{ issues: [makeIssue({ locale: 'fr', viewport: wide })], screenshots: [g('source', 'fr')] }])));
+    const first = page.locator('#gallery button.shot').first();
+    await expect(first).toBeVisible();
+    await first.click();
+    await expect(first).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#gallery figure.big')).toHaveCount(1);
+  });
+
+  test('no gallery section without gallery checks', () => {
+    expect(renderReport(makeRun([makeCheck()]))).not.toContain('id="gallery"');
+  });
+});
