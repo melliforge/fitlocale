@@ -74,10 +74,11 @@ test('the comment sub-action never fails the job and uses github.token', () => {
   expect(readFileSync('comment/action.yml', 'utf8')).toMatch(/\n {2}report-dirs:\n {4}description: .+\n {4}required: true/);
 });
 
-test('the docs show the permission the upload needs', () => {
+test('the docs show the permission the comment needs', () => {
   const docs = readFileSync('docs/reference/github-action.md', 'utf8');
-  expect(docs).toContain('id-token: write');
-  expect(docs).toContain('upload: true');
+  expect(docs).toContain('pull-requests: write');
+  expect(docs).toContain('comment: true');
+  expect(docs).not.toContain('id-token');
 });
 
 /** A step's script, run with a stand-in CLI that prints its arguments joined by `|`. */

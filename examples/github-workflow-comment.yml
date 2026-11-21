@@ -1,0 +1,27 @@
+# .github/workflows/e2e.yml: Playwright tests with fitlocale, and one pull request comment listing new issues.
+name: End-to-end tests
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # the comment
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      # The job summary, the report artifact, and the pull request comment.
+      - uses: melliforge/fitlocale@v0
+        if: always()
+        with:
+          comment: true

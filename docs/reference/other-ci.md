@@ -45,6 +45,6 @@ Bitbucket Pipelines, Jenkins, CircleCI, Azure DevOps and the rest need the same 
 
 To print the new issues in the job log, run [`npx fitlocale summary fitlocale-report/results.json`](/reference/cli#fitlocale-summary) in a step that also runs after failures.
 
-## fitlocale cloud
+## Pull request comments
 
-fitlocale cloud (the uploads, the pull request comment and the hosted reports) works only with GitHub for now. Outside GitHub Actions, [`fitlocale upload`](/reference/cli#fitlocale-upload) prints a notice and exits 0.
+[`fitlocale comment`](/reference/cli#fitlocale-comment) works with GitHub only. Elsewhere, keep the report directory as a build artifact and link it from your merge request.

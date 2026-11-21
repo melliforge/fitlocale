@@ -1,0 +1,46 @@
+# .github/workflows/e2e.yml: one job per browser, then one comment from a final job that reads every report.
+name: End-to-end tests
+on:
+  pull_request:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: npx playwright test --project=${{ matrix.browser }}
+      # Each job uploads its own report: an artifact name can be used once per workflow run.
+      - uses: melliforge/fitlocale@v0
+        if: always()
+        with:
+          artifact-name: fitlocale-report-${{ matrix.browser }}
+
+  comment:
+    needs: e2e
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      # Each artifact lands in its own folder, named after it.
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: fitlocale-report-*
+          path: ${{ runner.temp }}/fitlocale
+      - uses: melliforge/fitlocale/comment@v0
+        with:
+          report-dirs: |
+            ${{ runner.temp }}/fitlocale/fitlocale-report-chromium
+            ${{ runner.temp }}/fitlocale/fitlocale-report-webkit

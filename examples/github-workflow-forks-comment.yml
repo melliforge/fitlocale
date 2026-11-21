@@ -1,0 +1,27 @@
+# .github/workflows/fitlocale-comment.yml: comments after "End-to-end tests" finishes, with a token that can write.
+# It runs this file from your default branch, never the fork's code: it checks nothing out and only reads the report,
+# which it treats as untrusted text.
+name: fitlocale comment
+on:
+  workflow_run:
+    workflows: [End-to-end tests]
+    types: [completed]
+
+jobs:
+  comment:
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read # the other run's artifact
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: fitlocale-report
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/fitlocale
+      # Finds the pull request by the run's branch and commit, not by anything in the report.
+      - uses: melliforge/fitlocale/comment@v0
+        with:
+          report-dirs: ${{ runner.temp }}/fitlocale
