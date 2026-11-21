@@ -79,6 +79,18 @@ test('a comment of ours exists: updated in place, to All clear when nothing is n
   expect(JSON.parse(clear.writes[0].body).body).toContain('All clear');
 });
 
+test('creates a comment when only fixed entries are to report', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fitlocale-comment-'));
+  const fixed = [{ id: 'x1', rule: 'overflow/clipped' as const, test: 't', selector: '#s', mode: 'pseudo-long' as const, locale: 'en', viewport: '1280x720' }];
+  writeFileSync(join(dir, 'results.json'), JSON.stringify(makeRun([makeCheck({ issues: [], baseline: { status: 'applied', path: 'b.json', fixed } })])));
+  const { outcome, writes } = await post({
+    'GET /repos/o/r/issues/7/comments': { status: 200, body: [] },
+    'POST /repos/o/r/issues/7/comments': { status: 201, body: { id: 5, html_url: 'https://github.test/c/5' } },
+  }, { dirs: [dir] });
+  expect(outcome).toEqual({ status: 'created', url: 'https://github.test/c/5' });
+  expect(JSON.parse(writes[0].body).body).toContain('1 accepted issue(s) no longer occur');
+});
+
 test('nothing new and no comment: posts nothing, and says so', async () => {
   const { outcome, writes, lines } = await post({ 'GET /repos/o/r/issues/7/comments': { status: 200, body: [] } }, { dirs: [reportDir([])] });
   expect(outcome).toEqual({ status: 'none' });
