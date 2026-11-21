@@ -86,7 +86,8 @@ test('summary lists fixed entries with the prune command', () => {
   const md = renderSummary(makeRun([makeCheck({ issues: [], baseline: { status: 'applied', path: 'fitlocale-baseline.json', fixed: [fixedEntry()] } })]),
     { maxRows: 50, resultsPath: 'fitlocale-report/results.json' });
   expect(md).toContain('> 1 accepted issue(s) no longer occur. Drop them with `npx fitlocale baseline --prune fitlocale-report/results.json --out fitlocale-baseline.json`.');
-  expect(md).toContain('| `overflow/clipped` | `#save` | tests/a.spec.ts › settings | 1280x720 |');
+  expect(md).toContain('| Rule | Element | Test | Mode | Locale | Viewport |');
+  expect(md).toContain('| `overflow/clipped` | `#save` | tests/a.spec.ts › settings | pseudo-long | en | 1280x720 |');
 });
 
 test('summary hints once for a legacy baseline', () => {
@@ -100,8 +101,9 @@ test('summary hints once for a legacy baseline', () => {
 });
 
 test('fixed entries with markup stay inert in the summary', () => {
-  const md = renderSummary(makeRun([makeCheck({ issues: [], baseline: { status: 'applied', path: 'b.json', fixed: [fixedEntry({ selector: '<img src=x onerror=alert(1)>', test: 'a | b <script>' })] } })]), { maxRows: 50 });
+  const md = renderSummary(makeRun([makeCheck({ issues: [], baseline: { status: 'applied', path: 'b.json', fixed: [fixedEntry({ selector: '<img src=x onerror=alert(1)>', test: 'a | b <script>', locale: '<b>x</b>' })] } })]), { maxRows: 50 });
   const row = md.split('\n').find(l => l.includes('overflow/clipped'))!;
-  expect(unescapedPipes(row)).toBe(5);
+  expect(unescapedPipes(row)).toBe(7);
   expect(row).not.toContain('<script>');
+  expect(row).not.toContain('<b>');
 });

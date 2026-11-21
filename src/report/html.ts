@@ -197,7 +197,7 @@ function stats(model: ReportModel): string {
 /** Accepted issues that no longer occur: still in the baseline file until `fitlocale baseline --prune` drops them. */
 function fixedList(model: ReportModel): string {
   if (!model.fixed.length) return '';
-  const items = model.fixed.map(e => `<li><code>${esc(e.rule)}</code> <code>${esc(e.selector)}</code> · ${esc(e.test)}${e.project ? ` [${esc(e.project)}]` : ''} · ${esc(e.viewport)}</li>`).join('');
+  const items = model.fixed.map(e => `<li><code>${esc(e.rule)}</code> <code>${esc(e.selector)}</code> · ${esc(e.test)}${e.project ? ` [${esc(e.project)}]` : ''} · ${esc(e.mode)} · ${esc(e.locale)} · ${esc(e.viewport)}</li>`).join('');
   const path = model.fixedBaselinePath ?? 'fitlocale-baseline.json';
   return `<details class="fixed"><summary>${model.fixed.length} accepted issue(s) no longer occur. Drop them from the baseline with <code>npx fitlocale baseline --prune &lt;results.json&gt; --out ${esc(path)}</code>, using the results.json next to this report.</summary><ul>${items}</ul></details>`;
 }
