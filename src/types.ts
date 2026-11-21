@@ -121,10 +121,19 @@ export interface CheckResult {
   issues: Issue[];
   screenshots: Screenshot[];
   /** The baseline file used for this check (path relative to the working directory); absent with `baseline: false`. */
-  baseline?: { status: 'missing' | 'applied'; path: string };
+  baseline?: {
+    status: 'missing' | 'applied'; path: string;
+    /** Accepted issues of this check that it did not find this time: fixed, and still in the file. */
+    fixed?: FixedEntry[];
+    /** The file has entries written before entries knew their check: those are never called fixed. */
+    legacy?: true;
+  };
   /** With `fitMap: true` on a source-locale page: each message's room, per viewport. `fitlocale fitmap` merges them. */
   fit?: FitRecord[];
 }
+
+/** A baseline entry whose issue no longer occurs (see `CheckResult.baseline.fixed`). */
+export interface FixedEntry { id: string; rule: RuleId; test: string; project?: string; selector: string; mode: Mode; locale: string; viewport: string }
 
 export interface RunResults { version: 1; createdAt: string; checks: CheckResult[]; summary: Record<Severity, number> }
 

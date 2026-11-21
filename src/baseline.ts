@@ -37,8 +37,8 @@ export interface BaselineFile { version: 1; note: string; issues: BaselineEntry[
 
 const NOTE = 'Accepted fitlocale issues: only issues not listed here fail the tests. Regenerate with: npx fitlocale baseline <results.json>';
 
-/** The accepted issue ids, or null when the file does not exist yet. */
-export function readBaseline(file: string): Set<string> | null {
+/** The accepted entries, or null when the file does not exist yet. */
+export function readBaselineEntries(file: string): BaselineEntry[] | null {
   if (file === '' || (existsSync(file) && statSync(file).isDirectory())) {
     throw new Error(`fitlocale: baseline option must be a file path, got "${file}"`);
   }
@@ -55,7 +55,13 @@ export function readBaseline(file: string): Set<string> | null {
   }
   const issues = (data as { issues?: unknown } | null)?.issues;
   if (!Array.isArray(issues)) throw new Error(`fitlocale: baseline file ${file} has no "issues" list`);
-  return new Set(issues.map(e => String((e as { id?: unknown })?.id)));
+  return issues.map(e => ({ ...(e as BaselineEntry), id: String((e as { id?: unknown })?.id) }));
+}
+
+/** The accepted issue ids, or null when the file does not exist yet. */
+export function readBaseline(file: string): Set<string> | null {
+  const entries = readBaselineEntries(file);
+  return entries ? new Set(entries.map(e => e.id)) : null;
 }
 
 /** A baseline accepting every issue of these runs (several runs: one per shard). */
@@ -92,10 +98,16 @@ export function applyBaseline(result: CheckResult, scope: IdScope, baselinePath:
   for (const issue of result.issues) issue.id = issueId(scope, issue);
   result.scope = checkScope(scope);
   if (baselinePath === null) return { counts: () => true };
-  const accepted = readBaseline(baselinePath);
-  result.baseline = { status: accepted ? 'applied' : 'missing', path: relative(process.cwd(), baselinePath).split(sep).join('/') };
-  if (!accepted) return { counts: () => false };
+  const entries = readBaselineEntries(baselinePath);
+  result.baseline = { status: entries ? 'applied' : 'missing', path: relative(process.cwd(), baselinePath).split(sep).join('/') };
+  if (!entries) return { counts: () => false };
+  const accepted = new Set(entries.map(e => e.id));
   for (const issue of result.issues) issue.baselined = accepted.has(issue.id!);
+  // Accepted in this very check, and not found in it now: fixed. Entries of other checks are not this check's to judge.
+  const found = new Set(result.issues.map(i => i.id));
+  result.baseline.fixed = entries.filter(e => e.check === result.scope && !found.has(e.id))
+    .map(({ id, rule, test, project, selector, mode, locale, viewport }) => ({ id, rule, test, ...(project ? { project } : {}), selector, mode, locale, viewport }));
+  if (entries.some(e => !e.check)) result.baseline.legacy = true;
   return { counts: issue => !issue.baselined };
 }
 
