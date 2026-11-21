@@ -251,6 +251,7 @@ A pull request that only changes `locales/de.json` can be checked in about a sec
 npx fitlocale pseudo locales/en.json --out locales/en-XA.json   # pseudo-locale message file
 npx fitlocale report fitlocale-report/results.json              # re-render index.html
 npx fitlocale baseline fitlocale-report/results.json            # accept the current issues
+npx fitlocale baseline --prune fitlocale-report/results.json    # drop accepted issues that no longer occur
 npx fitlocale summary fitlocale-report/results.json             # Markdown summary, for CI
 npx fitlocale comment fitlocale-report                          # pull request comment, in GitHub Actions
 npx fitlocale fitmap fitlocale-report/results.json              # record where each message is shown (fitMap: true)

@@ -110,7 +110,7 @@ What fails the test: issues of severity `error`, of `warning` and up, or nothing
 
 `string | false` · default `'fitlocale-baseline.json'`
 
-The accepted-issues file, relative to `playwright.config`. Without the file, issues are reported but no test fails. With it, only new issues fail. `false` fails on every issue at or above `failOn`. See [`fitlocale baseline`](/reference/cli#fitlocale-baseline).
+The accepted-issues file, relative to `playwright.config`. Without the file, issues are reported but no test fails. With it, only new issues fail. `false` fails on every issue at or above `failOn`. Accepted issues that no longer occur are reported as fixed, and [`fitlocale baseline --prune`](/reference/cli#fitlocale-baseline) removes them from the file, so a bug that comes back fails again. See [`fitlocale baseline`](/reference/cli#fitlocale-baseline).
 
 ### `screenshots`
 
