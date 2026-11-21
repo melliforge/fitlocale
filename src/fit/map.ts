@@ -26,6 +26,14 @@ const NOTE = 'Written by `fitlocale fitmap` from test runs with fitMap: true. `f
 const half = (n: number) => Math.round(n * 2) / 2;
 const byJson = (a: unknown, b: unknown) => { const x = JSON.stringify(a), y = JSON.stringify(b); return x < y ? -1 : x > y ? 1 : 0; };
 
+/** The source locale the checks with fit records ran with: one when they agree, every one when they don't, none for old results. */
+export function recordedSourceLocale(runs: RunResults[]): { locale?: string; conflict?: string[] } {
+  const seen = new Set<string>();
+  for (const run of runs) for (const check of run.checks ?? []) if (check.fit?.length && check.sourceLocale) seen.add(check.sourceLocale);
+  if (seen.size > 1) return { conflict: [...seen].sort() };
+  return seen.size ? { locale: [...seen][0] } : {};
+}
+
 /** Merge every check's fit records: entries repeated across runs, pages and viewports are kept once. */
 export function buildFitMap(runs: RunResults[], sourceLocale: string): FitMap {
   const observations: Array<{ o: FitObservation; style: Record<string, string>; vp: string }> = [];

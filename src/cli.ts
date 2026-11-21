@@ -3,7 +3,7 @@ import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'no
 import { parseArgs } from 'node:util';
 import { buildBaseline, fixedEntries, formatBaseline, pruneBaseline, recordChecks, type BaselineFile } from './baseline';
 import { pseudoMessages, type Messages } from './pseudo';
-import { buildFitMap, formatFitMap } from './fit/map';
+import { buildFitMap, formatFitMap, recordedSourceLocale } from './fit/map';
 import { predictFit } from './fit/predict';
 import { runFit } from './fit/run';
 import { renderReport } from './report/html';
@@ -152,7 +152,12 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
       });
     }
     if (command === 'fitmap' && input) {
-      const map = buildFitMap([input, ...extra].map(path => readResults(path)), values['source-locale'] ?? 'en');
+      const runs = [input, ...extra].map(path => readResults(path));
+      const recorded = recordedSourceLocale(runs);
+      if (!values['source-locale'] && recorded.conflict) {
+        throw new Error(`these results were recorded with different sourceLocale values (${recorded.conflict.join(', ')}): pass --source-locale, or build one map per source locale`);
+      }
+      const map = buildFitMap(runs, values['source-locale'] ?? recorded.locale ?? 'en');
       const keys = Object.keys(map.keys).length;
       if (!keys) {
         throw new Error('no fit records in these results: run the tests with fitMap: true and sourceMessages set, on pages in the source locale');

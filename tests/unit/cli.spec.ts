@@ -160,6 +160,34 @@ test('fitmap writes a merged map and says how many keys', async () => {
   expect(map.sourceLocale).toBe('en');
 });
 
+const FIT_OBS = { key: 'buttons.save', text: 'Save', slots: {}, lines: 1, oneLine: true, wrapWidth: 100, roomX: 100, roomY: null, maxLines: null, measured: true, s: 0, lang: 'en', dir: 'ltr', selector: '#s' };
+const fitRun = (dir: string, name: string, sourceLocale: string) => {
+  const fit = [{ viewport: { width: 1280, height: 800 }, styles: [{ fontSize: '14px' }], entries: [FIT_OBS], fonts: [] }];
+  writeFileSync(join(dir, name), JSON.stringify(makeRun([makeCheck({ fit, sourceLocale }), makeCheck({ sourceLocale: 'zz' })])));
+  return join(dir, name);
+};
+
+test('fitmap takes the source locale the results recorded', async () => {
+  const dir = tmp(), out = join(dir, 'map.json');
+  expect(await main(['fitmap', fitRun(dir, 'de.json', 'de'), '--out', out], capture().io)).toBe(0);
+  expect(readFitMap(out).sourceLocale).toBe('de');
+});
+
+test('fitmap refuses results recorded with different source locales', async () => {
+  const dir = tmp(), out = join(dir, 'map.json');
+  const { out: o, io } = capture();
+  expect(await main(['fitmap', fitRun(dir, 'en.json', 'en'), fitRun(dir, 'de.json', 'de'), '--out', out], io)).toBe(2);
+  expect(o.stderr).toContain('different sourceLocale values (de, en)');
+  expect(o.stderr).toContain('--source-locale');
+  expect(existsSync(out)).toBe(false);
+});
+
+test('--source-locale overrides the recorded one', async () => {
+  const dir = tmp(), out = join(dir, 'map.json');
+  expect(await main(['fitmap', fitRun(dir, 'de.json', 'de'), '--source-locale', 'fr', '--out', out], capture().io)).toBe(0);
+  expect(readFitMap(out).sourceLocale).toBe('fr');
+});
+
 test('fitmap without fit records says how to turn them on', async () => {
   const dir = tmp();
   writeFileSync(join(dir, 'a.json'), JSON.stringify(makeRun([makeCheck()])));
