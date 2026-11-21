@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
-import { applyBaseline, buildBaseline, failureSummary, formatBaseline, issueId, markFailing, readBaseline, type IdScope } from '../../src/baseline';
+import { applyBaseline, buildBaseline, checkScope, failureSummary, formatBaseline, issueId, markFailing, readBaseline, type IdScope } from '../../src/baseline';
 import { makeCheck, makeIssue, makeRun } from './fixtures';
 
 const SCOPE: IdScope = { project: 'chromium', titlePath: ['tests/a.spec.ts', 'settings'], checkIndex: 0 };
@@ -160,4 +160,30 @@ test('markFailing sets fails from the baseline and failOn', () => {
   expect(issues.map(i => i.fails)).toEqual([true, true, true]);
   markFailing(issues, () => true, 'never');
   expect(issues.every(i => i.fails === false)).toBe(true);
+});
+
+test.describe('check scope', () => {
+  test('checkScope is stable and differs by project, title path and check index', () => {
+    const a = checkScope(SCOPE);
+    expect(a).toMatch(/^[0-9a-f]{12}$/);
+    expect(checkScope({ ...SCOPE, titlePath: [...SCOPE.titlePath] })).toBe(a);
+    expect(checkScope({ ...SCOPE, titlePath: ['tests\\a.spec.ts', 'settings'] })).toBe(a);
+    expect(checkScope({ ...SCOPE, project: 'webkit' })).not.toBe(a);
+    expect(checkScope({ ...SCOPE, titlePath: ['tests/a.spec.ts', 'other'] })).not.toBe(a);
+    expect(checkScope({ ...SCOPE, checkIndex: 1 })).not.toBe(a);
+  });
+
+  test('applyBaseline sets the result scope', () => {
+    const result = makeCheck();
+    applyBaseline(result, SCOPE, null);
+    expect(result.scope).toBe(checkScope(SCOPE));
+  });
+
+  test('buildBaseline writes check from the result scope; results without scope write no check', () => {
+    const scoped = makeCheck({ scope: 'abc123def456', issues: [makeIssue({ id: 'i1' })] });
+    const plain = makeCheck({ issues: [makeIssue({ id: 'i2', selector: '#other' })] });
+    const file = buildBaseline([makeRun([scoped, plain])]);
+    expect(file.issues.find(e => e.id === 'i1')?.check).toBe('abc123def456');
+    expect('check' in file.issues.find(e => e.id === 'i2')!).toBe(false);
+  });
 });

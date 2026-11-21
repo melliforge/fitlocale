@@ -115,6 +115,8 @@ export interface CheckResult {
   project?: string;
   testFile: string;
   checkIndex: number;
+  /** Which check this is (project, title path, check index), hashed: baseline entries record it as `check`. */
+  scope?: string;
   url: string;
   issues: Issue[];
   screenshots: Screenshot[];

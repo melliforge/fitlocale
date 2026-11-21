@@ -18,8 +18,19 @@ export function issueId(scope: IdScope, issue: Pick<Issue, 'rule' | 'mode' | 'lo
   return createHash('sha256').update(key).digest('hex').slice(0, 16);
 }
 
+/**
+ * Which check an issue came from (project, title path, check index), short and stable. A baseline entry keeps it, so a
+ * later run can tell "this check ran and the issue did not come back" from "this check did not run".
+ */
+export function checkScope(scope: IdScope): string {
+  const key = JSON.stringify([scope.project, scope.titlePath.map(t => t.replace(/\\/g, '/')), scope.checkIndex]);
+  return createHash('sha256').update(key).digest('hex').slice(0, 12);
+}
+
 export interface BaselineEntry {
   id: string; rule: RuleId; test: string; project?: string; selector: string; mode: Mode; locale: string; viewport: string;
+  /** The check that accepted it (`checkScope`). Files written before 0.8 have none: their entries are never called fixed. */
+  check?: string;
 }
 
 export interface BaselineFile { version: 1; note: string; issues: BaselineEntry[] }
@@ -59,6 +70,7 @@ export function buildBaseline(runs: RunResults[]): BaselineFile {
           id: issue.id, rule: issue.rule, test: `${check.testFile} › ${check.testTitle}`,
           ...(check.project ? { project: check.project } : {}),
           selector: issue.selector, mode: issue.mode, locale: issue.locale, viewport: `${issue.viewport.width}x${issue.viewport.height}`,
+          ...(check.scope ? { check: check.scope } : {}),
         });
       }
     }
@@ -78,6 +90,7 @@ export function formatBaseline(file: BaselineFile): string {
  */
 export function applyBaseline(result: CheckResult, scope: IdScope, baselinePath: string | null): { counts: (issue: Issue) => boolean } {
   for (const issue of result.issues) issue.id = issueId(scope, issue);
+  result.scope = checkScope(scope);
   if (baselinePath === null) return { counts: () => true };
   const accepted = readBaseline(baselinePath);
   result.baseline = { status: accepted ? 'applied' : 'missing', path: relative(process.cwd(), baselinePath).split(sep).join('/') };
