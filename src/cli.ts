@@ -3,6 +3,7 @@ import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'no
 import { parseArgs } from 'node:util';
 import { buildBaseline, formatBaseline } from './baseline';
 import { pseudoMessages, type Messages } from './pseudo';
+import { buildFitMap, formatFitMap } from './fit/map';
 import { renderReport } from './report/html';
 import { renderSummary } from './summary';
 import type { RunResults } from './types';
@@ -16,6 +17,7 @@ const USAGE = `Usage:
   fitlocale report <results.json> [--out <dir>]                   Re-render index.html from results.json
   fitlocale baseline <results.json>... [--out <file>]             Accept the issues found (default fitlocale-baseline.json)
   fitlocale summary <results.json> [--max-rows <n>]               Print a Markdown summary (for CI job summaries)
+  fitlocale fitmap <results.json>... [--out <file>]           Build the fit map from test runs (default fitlocale-fit.json)
   fitlocale upload <report-dir>                                   Retired: prints a notice (use fitlocale comment)
   fitlocale comment <report-dir>... [--pr <n>] [--report-url <url>]  Comment on the pull request (GitHub Actions; never fails)
   fitlocale --help
@@ -87,7 +89,7 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
       allowPositionals: true,
       options: {
         out: { type: 'string' }, expansion: { type: 'string' }, 'max-rows': { type: 'string' }, help: { type: 'boolean' },
-        endpoint: { type: 'string' }, pr: { type: 'string' }, 'report-url': { type: 'string' }, // --endpoint: accepted from old upload workflows
+        endpoint: { type: 'string' }, pr: { type: 'string' }, 'report-url': { type: 'string' }, 'source-locale': { type: 'string' }, // --endpoint: accepted from old upload workflows
       },
     });
     const [command, input, ...extra] = positionals;
@@ -110,6 +112,17 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
       const out = values.out ?? 'fitlocale-baseline.json';
       writeFileCreatingDir(out, formatBaseline(file));
       io.stdout(`fitlocale: wrote ${file.issues.length} accepted issue(s) to ${out}\n`);
+      return 0;
+    }
+    if (command === 'fitmap' && input) {
+      const map = buildFitMap([input, ...extra].map(path => readResults(path)), values['source-locale'] ?? 'en');
+      const keys = Object.keys(map.keys).length;
+      if (!keys) {
+        throw new Error('no fit records in these results: run the tests with fitMap: true and sourceMessages set, on pages in the source locale');
+      }
+      const out = values.out ?? 'fitlocale-fit.json';
+      writeFileCreatingDir(out, formatFitMap(map));
+      io.stdout(`fitlocale: wrote the fit of ${keys} key(s) to ${out}\n`);
       return 0;
     }
     if (command === 'summary' && input) {
