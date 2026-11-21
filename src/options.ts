@@ -37,6 +37,11 @@ export interface FitlocaleOptions {
   mask: string[];
   /** Use Chromium DevTools for the font-fallback check and for pointing mirroring issues at their CSS line. */
   devtools: boolean;
+  /**
+   * Record, on source-locale pages with `sourceMessages`, how much room each message's text has: `results.json` gets a
+   * `fit` record per viewport, and `fitlocale fitmap` turns those into the fit map `fitlocale fit` checks translations with.
+   */
+  fitMap: boolean;
 }
 
 export const DEFAULT_OPTIONS: FitlocaleOptions = {
@@ -53,6 +58,7 @@ export const DEFAULT_OPTIONS: FitlocaleOptions = {
   screenshots: true,
   mask: [],
   devtools: true,
+  fitMap: false,
 };
 
 export function resolveOptions(partial: Partial<FitlocaleOptions>): FitlocaleOptions {
