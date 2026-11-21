@@ -181,7 +181,8 @@ function buildGallery(checks: CheckResult[], labels: Map<string, string>, proble
   if (!withGallery.length) return [];
   // Results from before screenshots recorded their locale: the check's issues say it, else it is unknown.
   const localeOf = (c: CheckResult, s: Screenshot) => s.locale ?? c.issues[0]?.locale ?? '';
-  // pseudo-long runs only on pages in the source locale: that locale comes first. Else the most common one.
+  // Results from before 0.8.1 don't say their source locale: guess one for the run. pseudo-long runs only on pages in
+  // the source locale, so that locale comes first. Else the most common one.
   let source: string | undefined;
   const counts = new Map<string, number>();
   for (const c of withGallery) for (const s of c.screenshots ?? []) {
@@ -191,7 +192,8 @@ function buildGallery(checks: CheckResult[], labels: Map<string, string>, proble
   }
   source ??= [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
 
-  const pages = new Map<string, { page: GalleryPage; rows: Map<string, { row: GalleryRow; w: number; h: number; keys: Set<string> }> }>();
+  type Block = { page: GalleryPage; rows: Map<string, { row: GalleryRow; w: number; h: number; keys: Set<string> }>; declared?: string; pseudoLong: Set<string> };
+  const pages = new Map<string, Block>();
   for (const c of withGallery) {
     // Keyed by check position too: a test that checks a page, opens a dialog and checks again (same URL) shows both
     // states, and the same step of the tests for each locale lines up in one block.
@@ -199,9 +201,10 @@ function buildGallery(checks: CheckResult[], labels: Map<string, string>, proble
     let entry = pages.get(pageKey);
     if (!entry) {
       const label = `${labels.get(c.url) ?? c.url}${c.checkIndex ? ` · check ${c.checkIndex + 1}` : ''}`;
-      entry = { page: { id: `gallery-${pages.size + 1}`, url: c.url, label, ...(c.project ? { project: c.project } : {}), rows: [] }, rows: new Map() };
+      entry = { page: { id: `gallery-${pages.size + 1}`, url: c.url, label, ...(c.project ? { project: c.project } : {}), rows: [] }, rows: new Map(), pseudoLong: new Set() };
       pages.set(pageKey, entry);
     }
+    entry.declared ??= c.sourceLocale;
     for (const s of c.screenshots ?? []) {
       const viewport = viewportLabel(s.viewport);
       let row = entry.rows.get(viewport);
@@ -210,6 +213,7 @@ function buildGallery(checks: CheckResult[], labels: Map<string, string>, proble
         entry.rows.set(viewport, row);
       }
       const locale = localeOf(c, s);
+      if (s.mode === 'pseudo-long') entry.pseudoLong.add(locale.toLowerCase());
       const key = JSON.stringify([locale, s.mode]);
       if (row.keys.has(key)) continue; // the same page checked twice: the first one stays
       row.keys.add(key);
@@ -220,12 +224,19 @@ function buildGallery(checks: CheckResult[], labels: Map<string, string>, proble
       });
     }
   }
-  const order = (a: GalleryCell, b: GalleryCell) =>
-    Number(a.locale !== source) - Number(b.locale !== source) || compare(a.locale, b.locale) || (MODE_ORDER[a.mode] ?? 3) - (MODE_ORDER[b.mode] ?? 3);
-  return [...pages.values()].map(({ page, rows }) => ({
-    ...page,
-    rows: [...rows.values()].sort((a, b) => b.w - a.w || b.h - a.h).map(r => ({ ...r.row, cells: [...r.row.cells].sort(order) })),
-  }));
+  return [...pages.values()].map(({ page, rows, declared, pseudoLong }) => {
+    // Each block's own source comes first: the locales that got pseudo-long (which runs only on source pages) and the
+    // check's sourceLocale, compared exactly so that a pseudo locale such as en-XA is never taken for en.
+    const isSource = (locale: string) => {
+      const l = locale.toLowerCase();
+      if (pseudoLong.has(l)) return true;
+      if (declared !== undefined) return l === declared.toLowerCase();
+      return !pseudoLong.size && locale === source;
+    };
+    const order = (a: GalleryCell, b: GalleryCell) =>
+      Number(!isSource(a.locale)) - Number(!isSource(b.locale)) || compare(a.locale, b.locale) || (MODE_ORDER[a.mode] ?? 3) - (MODE_ORDER[b.mode] ?? 3);
+    return { ...page, rows: [...rows.values()].sort((a, b) => b.w - a.w || b.h - a.h).map(r => ({ ...r.row, cells: [...r.row.cells].sort(order) })) };
+  });
 }
 
 /** One shot per (check, screenshot) of the section's mode and viewports, boxing the section's issues drawn on it. */
