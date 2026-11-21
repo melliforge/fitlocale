@@ -69,7 +69,7 @@ test('hostile text stays inert', () => {
   expect(body).toContain('@​org');
   expect(body).not.toContain('](https://evil');
   expect(body).not.toContain('<details>');
-  expect(body).toContain('&#35;123');
+  expect(body).toContain('#\u200b123');
   const listed = rows(body);
   expect(listed).toHaveLength(1);
   // One cell per row: no pipe from the data splits it, and no newline breaks it.
@@ -79,6 +79,24 @@ test('hostile text stays inert', () => {
   }
   // The report link's URL cannot close the attribute or the link.
   expect(render(results([issue()]), { reportUrl: 'https://x.test/a"b)c' })).toContain('(https://x.test/a%22b%29c)');
+});
+
+// GitHub links these on decoded text, so an entity is not enough: a zero-width space or an escaped ':' / '.' breaks them.
+test('bare URLs, www addresses and issue references are not linked', () => {
+  const refs = 'see https://evil.test/x and www.evil.test, #7, owner/repo#7, GH-5, JIRA-12, $x^2$';
+  const body = render(results([issue({ message: refs, fix: refs, selector: '#save-2 https://evil.test/y www.evil.test' })]))!;
+  const listed = rows(body).join('\n');
+  // URLs autolink even inside <code>: escaped everywhere.
+  expect(listed).not.toContain('://');
+  expect(listed).not.toContain('www.');
+  // Outside <code>, references, mentions and math are broken; inside it GitHub links none, so the selector is as typed.
+  const outside = listed.replace(/<code>.*?<\/code>/g, '');
+  expect(outside).not.toMatch(/(?<!&)#\d/);
+  expect(outside).not.toMatch(/-\d/);
+  expect(outside).not.toMatch(/(^|[^\u200b])\$/);
+  expect(listed).toContain('<code>#save-2 https&#58;//evil&#46;test/y www&#46;evil&#46;test</code>');
+  // A sentence keeps its full stop as typed.
+  expect(render(results([issue({ message: 'Text is cut off.' })]))).toContain('Text is cut off.<br>');
 });
 
 test('a huge report stays under GitHub\'s limit', () => {

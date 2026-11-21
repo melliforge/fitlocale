@@ -35,7 +35,9 @@ jobs:
       pull-requests: write
     steps:
       # Each artifact lands in its own folder, named after it.
+      # A job that made no report is skipped: the next step says so in one line.
       - uses: actions/download-artifact@v8
+        continue-on-error: true
         with:
           pattern: fitlocale-report-*
           path: ${{ runner.temp }}/fitlocale

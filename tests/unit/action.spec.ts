@@ -24,10 +24,12 @@ test('action inputs reach scripts through env, never inline', () => {
   for (const script of scripts) expect(script).not.toContain('${{');
 });
 
-test('this repo\'s CI comments from one matrix job only', () => {
+// This repo's tests plant hundreds of issues on purpose: a comment would list them on every pull request.
+// The comment is dogfooded in melliforge/fitlocale-dogfood instead.
+test('this repo\'s CI does not comment', () => {
   const ci = readFileSync('.github/workflows/ci.yml', 'utf8');
-  expect(ci).toContain('comment: ${{ matrix.node == 22 }}');
-  expect(ci).toMatch(/\n {4}permissions:\n {6}contents: read\n {6}pull-requests: write/);
+  expect(ci).not.toMatch(/\n\s+comment:/);
+  expect(ci).not.toContain('pull-requests: write');
 });
 
 test('this repo\'s CI runs the action', () => {

@@ -14,11 +14,15 @@ assert.ok(JSON.parse(readFileSync('fitlocale-baseline.json', 'utf8')), 'the CLI 
 const crops = results.checks.flatMap(c => c.issues).filter(i => i.crop);
 assert.ok(crops.length > 0 && crops.every(i => existsSync(`fitlocale-report/${i.crop}`)), 'issues carry crops, copied into the report');
 
-// Outside GitHub Actions (no OIDC token), or below Node 18 (no fetch), upload is one notice and exit 0.
-const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('ACTIONS_ID_TOKEN_')));
-const upload = execFileSync('npx', ['fitlocale', 'upload', 'fitlocale-report'], { env, encoding: 'utf8' });
-const expected = typeof fetch === 'function' ? 'fitlocale upload: no GitHub OIDC token' : 'fitlocale upload needs Node 18 or newer';
-assert.ok(upload.startsWith(expected), `upload says: ${upload}`);
+// upload is retired: one notice, exit 0, on every Node.
+const upload = execFileSync('npx', ['fitlocale', 'upload', 'fitlocale-report'], { encoding: 'utf8' });
+assert.ok(upload.startsWith('fitlocale upload: fitlocale cloud has closed; nothing was sent.'), `upload says: ${upload}`);
+
+// comment without a token (and without an event, so it can never post): one notice and exit 0; below Node 18, it says so.
+const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'GITHUB_TOKEN' && k !== 'GITHUB_EVENT_PATH'));
+const comment = execFileSync('npx', ['fitlocale', 'comment', 'fitlocale-report'], { env, encoding: 'utf8' });
+const expected = typeof fetch === 'function' ? 'fitlocale comment: no GitHub token' : 'fitlocale comment needs Node 18 or newer';
+assert.ok(comment.startsWith(expected), `comment says: ${comment}`);
 
 const require = createRequire(import.meta.url);
 assert.equal(typeof require('fitlocale/playwright').test, 'function', 'require() loads the CommonJS build');

@@ -15,7 +15,9 @@ jobs:
       actions: read # the other run's artifact
       pull-requests: write
     steps:
+      # No report (tests failed before fitlocale, a cancelled run): the next step says so in one line.
       - uses: actions/download-artifact@v8
+        continue-on-error: true
         with:
           name: fitlocale-report
           run-id: ${{ github.event.workflow_run.id }}

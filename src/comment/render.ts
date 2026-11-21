@@ -9,18 +9,33 @@ export const MARKER = '<!-- fitlocale -->';
 export const MAX_LISTED = 10;
 const RANK: Record<string, number> = { error: 0, warning: 1, info: 2 };
 
-/**
- * Text from results.json is untrusted (a fork's pull request writes it): as HTML entities, it cannot open a tag, a
- * link, an image, a code span, a table cell or a mention. Newlines fold to spaces; long text is cut.
- */
-export function inert(value: unknown, max = 300): string {
+const ZWSP = '​';
+const entity = (c: string) => `&#${c.charCodeAt(0)};`;
+
+/** Newlines fold to spaces; long text is cut (before escaping, so the comment's size stays bounded). */
+function cut(value: unknown, max: number): string {
   const s = String(value ?? '').replace(/\s+/g, ' ').trim();
-  const cut = s.length > max ? `${s.slice(0, max - 1)}…` : s;
-  return cut.replace(/[&<>"'`|[\]()*_~\\#!=]/g, c => `&#${c.charCodeAt(0)};`).replace(/@/g, '@​');
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
-/** For text inside <code>: GitHub does not link `#123` there, so a selector keeps its `#`. */
-const inertCode = (value: unknown, max: number) => inert(value, max).replace(/&#35;/g, '#');
+/**
+ * Text from results.json is untrusted (a fork's pull request writes it). Checked against GitHub's own renderer:
+ * - Entities stop tags, Markdown links and images, code spans and table cells. They also stop URL autolinks: an
+ *   escaped `:` ends `https://`, and an escaped `.` before a letter ends `www.`. Both autolink even inside <code>.
+ * - GitHub links mentions and issue references on decoded text, so an entity is not enough there: a zero-width space
+ *   breaks `@org`, `#7`, `owner/repo#7` and `GH-5`, and zero-width spaces around `$` stop inline math.
+ */
+export function inert(value: unknown, max = 300): string {
+  return cut(value, max).replace(/[&<>"'`|[\]()*_~\\!=:]|\.(?=\S)|[@#]|-(?=\d)|\$/g, c =>
+    c === '@' || c === '#' || c === '-' ? c + ZWSP : c === '$' ? ZWSP + c + ZWSP : entity(c));
+}
+
+/**
+ * For text inside <code>: GitHub links no issue reference or math there, so a selector keeps its `#`, `-` and `$` as
+ * typed (and can be copied). URLs still autolink inside <code>, so `:` and `.` are escaped; `@` is broken as outside.
+ */
+const inertCode = (value: unknown, max: number) =>
+  cut(value, max).replace(/[&<>"'`|[\]()*_~\\!=:]|\.(?=\S)|@/g, c => (c === '@' ? c + ZWSP : entity(c)));
 
 /** A URL that cannot leave the Markdown link it sits in. */
 const linkUrl = (url: string) => url.replace(/[\s"()<>]/g, c => `%${c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`);

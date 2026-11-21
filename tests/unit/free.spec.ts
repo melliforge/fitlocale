@@ -34,6 +34,13 @@ test('the fork recipe never checks out pull request code and downloads to runner
   expect(tests).not.toContain('pull-requests: write');
 });
 
+// A run that made no report (tests failed before fitlocale, a cancelled run) must not turn the comment job red.
+test('the recipes\' artifact downloads never fail the comment job', () => {
+  for (const file of ['examples/github-workflow-forks-comment.yml', 'examples/github-workflow-matrix.yml']) {
+    expect(read(file), file).toMatch(/- uses: actions\/download-artifact@v8\n {8}continue-on-error: true\n/);
+  }
+});
+
 test('the matrix recipe comments from one final job', () => {
   const matrix = read('examples/github-workflow-matrix.yml');
   expect(matrix).toContain('needs:');
