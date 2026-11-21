@@ -150,3 +150,29 @@ test('the reporter copies crops and rewrites their paths', async () => {
   expect(existsSync(join(out, kept.crop!))).toBe(true);
   expect(lost).not.toHaveProperty('crop');
 });
+
+test('reporter prints the fixed line', async () => {
+  const text = await consoleOf([makeCheck({
+    screenshots: [], issues: [],
+    baseline: { status: 'applied', path: 'fitlocale-baseline.json', fixed: [{ id: 'x1', rule: 'overflow/clipped', test: 't', selector: '#s', mode: 'pseudo-long', locale: 'en', viewport: '1280x720' }] },
+  })]);
+  expect(text).toMatch(/fitlocale: 1 accepted issue\(s\) no longer occur: drop them with npx fitlocale baseline --prune \S+\/results\.json --out fitlocale-baseline\.json/);
+});
+
+// Review fix: the reporter keeps only the last attempt, so it must remember what earlier attempts found.
+test('a retry that no longer finds an issue an earlier attempt found does not call it fixed', async () => {
+  const out = join(mkdtempSync(join(tmpdir(), 'fitlocale-')), 'report');
+  const reporter = new FitlocaleReporter({ outputDir: out });
+  const x = { id: 'X', rule: 'overflow/clipped' as const, test: 't', selector: '#s', mode: 'pseudo-long' as const, locale: 'en', viewport: '1280x720' };
+  const first = makeCheck({ screenshots: [], issues: [makeIssue({ id: 'X', baselined: true })], baseline: { status: 'applied', path: 'b.json', fixed: [] } });
+  const retry = makeCheck({ screenshots: [], issues: [], baseline: { status: 'applied', path: 'b.json', fixed: [x] } });
+  reporter.onTestEnd({ id: 't1' } as TestCase, attempt(first));
+  reporter.onTestEnd({ id: 't1' } as TestCase, attempt(retry));
+  const log = console.log;
+  const lines: string[] = [];
+  console.log = (...args: unknown[]) => { lines.push(args.join(' ')); };
+  try { await reporter.onEnd(); } finally { console.log = log; }
+  const run = JSON.parse(readFileSync(join(out, 'results.json'), 'utf8')) as RunResults;
+  expect(run.checks[0].baseline?.fixed).toEqual([]);
+  expect(lines.join('\n')).not.toContain('no longer occur');
+});

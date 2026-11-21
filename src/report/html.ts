@@ -190,7 +190,16 @@ function stats(model: ReportModel): string {
   const card = (key: string, label: string, n: number) =>
     `<div class="stat" data-stat="${key}"><span class="k">${label}</span><span class="n${n ? '' : ' zero'}">${n}</span></div>`;
   return `<div class="stats">${SEVERITIES.map(s => card(s, s === 'info' ? 'Info' : `${s[0].toUpperCase()}${s.slice(1)}s`, model.bySeverity[s] ?? 0)).join('')}`
-    + `${card('accepted', 'Accepted', acceptedCount(model))}</div>`;
+    + `${card('accepted', 'Accepted', acceptedCount(model))}${card('fixed', 'Fixed since baseline', model.fixed.length)}</div>`
+    + fixedList(model);
+}
+
+/** Accepted issues that no longer occur: still in the baseline file until `fitlocale baseline --prune` drops them. */
+function fixedList(model: ReportModel): string {
+  if (!model.fixed.length) return '';
+  const items = model.fixed.map(e => `<li><code>${esc(e.rule)}</code> <code>${esc(e.selector)}</code> · ${esc(e.test)}${e.project ? ` [${esc(e.project)}]` : ''} · ${esc(e.viewport)}</li>`).join('');
+  const path = model.fixedBaselinePath ?? 'fitlocale-baseline.json';
+  return `<details class="fixed"><summary>${model.fixed.length} accepted issue(s) no longer occur. Drop them from the baseline with <code>npx fitlocale baseline --prune &lt;results.json&gt; --out ${esc(path)}</code>, using the results.json next to this report.</summary><ul>${items}</ul></details>`;
 }
 
 /** The overview: stat cards, then problems by rule and by locale × project. */
@@ -313,6 +322,7 @@ ${panel(model)}`
 <h1>Overview</h1>
 ${meta}
 <p class="empty">No localization layout issues found.</p>
+${model.fixed.length ? stats(model) : ''}
 </div></main>`;
   return `<!doctype html>
 <html lang="en"${model.problems ? '' : ' class="no-side"'}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">

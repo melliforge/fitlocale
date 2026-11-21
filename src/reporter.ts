@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import type { Reporter, TestCase, TestResult } from '@playwright/test/reporter';
+import { fixedEntries } from './fixed';
 import { renderReport } from './report/html';
 import type { CheckResult, RunResults, Severity } from './types';
 
@@ -20,6 +21,8 @@ export default class FitlocaleReporter implements Reporter {
   private readonly outputDir: string;
   /** Checks per test; a retry replaces the earlier attempt's checks. */
   private readonly byTest = new Map<string, CheckResult[]>();
+  /** Issue ids earlier attempts of each test found: a retry that misses one did not fix it. */
+  private readonly foundBefore = new Map<string, Set<string>>();
   private anonymous = 0;
 
   constructor(options: FitlocaleReporterOptions = {}) {
@@ -39,7 +42,14 @@ export default class FitlocaleReporter implements Reporter {
       if (project) check.project = project;
       checks.push(check);
     }
-    this.byTest.set(test.id ?? `anonymous-${this.anonymous++}`, checks);
+    const key = test.id ?? `anonymous-${this.anonymous++}`;
+    const found = this.foundBefore.get(key) ?? new Set<string>();
+    for (const earlier of this.byTest.get(key) ?? []) for (const issue of earlier.issues) if (issue.id) found.add(issue.id);
+    this.foundBefore.set(key, found);
+    for (const check of checks) {
+      if (check.baseline?.fixed && found.size) check.baseline.fixed = check.baseline.fixed.filter(e => !found.has(e.id));
+    }
+    this.byTest.set(key, checks);
   }
 
   async onEnd(): Promise<void> {
@@ -80,6 +90,11 @@ export default class FitlocaleReporter implements Reporter {
     const accepted = checks.reduce((n, c) => n + c.issues.filter(i => i.baselined).length, 0);
     const acceptedNote = accepted ? ` (${accepted} accepted in the baseline)` : '';
     console.log(`fitlocale: ${summary.error} errors, ${summary.warning} warnings, ${summary.info} info${acceptedNote} → ${rel(join(this.outputDir, 'index.html'))}`);
+    const fixed = fixedEntries([{ checks }]);
+    if (fixed.length) {
+      const path = checks.find(c => c.baseline?.fixed?.length)?.baseline?.path ?? 'fitlocale-baseline.json';
+      console.log(`fitlocale: ${fixed.length} accepted issue(s) no longer occur: drop them with npx fitlocale baseline --prune ${rel(join(this.outputDir, 'results.json'))} --out ${path}`);
+    }
     const missing = checks.find(c => c.baseline?.status === 'missing')?.baseline;
     if (missing) {
       console.log(`fitlocale: no baseline file yet (${missing.path}), so no test failed. Accept the current issues with: `

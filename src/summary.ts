@@ -1,3 +1,4 @@
+import { fixedEntries } from './fixed';
 import type { Issue, RunResults, Severity } from './types';
 
 const ORDER: Record<Severity, number> = { error: 0, warning: 1, info: 2 };
@@ -41,6 +42,19 @@ export function renderSummary(results: RunResults, opts: { maxRows: number; resu
     // --out: the tests look for the file relative to playwright.config, not where this command runs.
     const command = `npx fitlocale baseline ${opts.resultsPath ?? '<path to results.json>'} --out ${missing.path}`;
     lines.push('', `> No baseline file yet, so no test failed. Accept these issues with \`${command}\` and commit the file.`);
+  }
+  const fixed = fixedEntries([results]);
+  if (fixed.length) {
+    const path = results.checks.find(c => c.baseline?.fixed?.length)?.baseline?.path ?? 'fitlocale-baseline.json';
+    const command = `npx fitlocale baseline --prune ${opts.resultsPath ?? '<path to results.json>'} --out ${path}`;
+    lines.push('', `> ${fixed.length} accepted issue(s) no longer occur. Drop them with \`${command}\`.`, '', '| Rule | Element | Test | Viewport |', '|---|---|---|---|');
+    for (const e of fixed.slice(0, opts.maxRows)) lines.push(`| ${code(e.rule)} | ${code(e.selector)} | ${cell(`${e.test}${e.project ? ` [${e.project}]` : ''}`)} | ${cell(e.viewport)} |`);
+    if (fixed.length > opts.maxRows) lines.push('', `…and ${fixed.length - opts.maxRows} more.`);
+  }
+  const legacy = results.checks.find(c => c.baseline?.legacy)?.baseline;
+  if (legacy) {
+    const command = `npx fitlocale baseline --prune ${opts.resultsPath ?? '<path to results.json>'} --out ${legacy.path}`;
+    lines.push('', `> Fixed issues can't be told apart with this baseline file yet. Run \`${command}\` once, with the results of every shard: it records which check accepted each entry, and accepts nothing new.`);
   }
   if (rows.length) {
     lines.push('', `| Severity | Rule | Element | Test | Locale | Mode | Viewport |${marked ? ' Fails |' : ''}`, `|---|---|---|---|---|---|---|${marked ? '---|' : ''}`);

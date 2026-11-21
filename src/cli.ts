@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
 import { parseArgs } from 'node:util';
-import { buildBaseline, formatBaseline } from './baseline';
+import { buildBaseline, fixedEntries, formatBaseline, pruneBaseline, recordChecks, type BaselineFile } from './baseline';
 import { pseudoMessages, type Messages } from './pseudo';
 import { buildFitMap, formatFitMap } from './fit/map';
 import { predictFit } from './fit/predict';
@@ -18,6 +18,7 @@ const USAGE = `Usage:
   fitlocale pseudo <input.json> [--out <file>] [--expansion <n>]   Write a pseudo-locale message file
   fitlocale report <results.json> [--out <dir>]                   Re-render index.html from results.json
   fitlocale baseline <results.json>... [--out <file>]             Accept the issues found (default fitlocale-baseline.json)
+  fitlocale baseline --prune <results.json>... [--out <file>]     Remove accepted issues that no longer occur
   fitlocale summary <results.json> [--max-rows <n>]               Print a Markdown summary (for CI job summaries)
   fitlocale fitmap <results.json>... [--out <file>]           Build the fit map from test runs (default fitlocale-fit.json)
   fitlocale fit <messages.json>... [--map <file>] [--fonts <dir>] [--changed-from <ref>] [--locale <code>] [--report-only] [--json <file>]
@@ -98,7 +99,7 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
         out: { type: 'string' }, expansion: { type: 'string' }, 'max-rows': { type: 'string' }, help: { type: 'boolean' },
         endpoint: { type: 'string' }, pr: { type: 'string' }, 'report-url': { type: 'string' }, 'source-locale': { type: 'string' },
         map: { type: 'string' }, fonts: { type: 'string' }, 'changed-from': { type: 'string' }, locale: { type: 'string' },
-        'report-only': { type: 'boolean' }, json: { type: 'string' }, // --endpoint: accepted from old upload workflows
+        'report-only': { type: 'boolean' }, json: { type: 'string' }, prune: { type: 'boolean' }, // --endpoint: accepted from old upload workflows
       },
     });
     const [command, input, ...extra] = positionals;
@@ -114,6 +115,23 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
       if (values.out) writeFileCreatingDir(values.out, json);
       else io.stdout(json);
       return 0;
+    }
+    if (command === 'baseline' && input && values.prune) {
+      const out = values.out ?? 'fitlocale-baseline.json';
+      if (!existsSync(out)) throw new Error(`no baseline file at ${out} to prune (pass --out with its path)`);
+      const current = readJsonObject(out) as unknown as BaselineFile;
+      if (!Array.isArray(current.issues)) throw new Error(`${out} is not a fitlocale baseline file (no "issues" list)`);
+      const runs = [input, ...extra].map(path => readResults(path));
+      const pruned = pruneBaseline(current, fixedEntries(runs));
+      const { file, recorded, without } = recordChecks(pruned.file, runs);
+      writeFileCreatingDir(out, formatBaseline(file));
+      const upgrade = recorded || without
+        ? `; recorded the check of ${recorded} older entry(ies); ${without} still without one (fixed, or its test did not run)` : '';
+      io.stdout(`fitlocale: removed ${pruned.removed} fixed issue(s) from ${out}; ${file.issues.length} remain${upgrade}\n`);
+      return 0;
+    }
+    if (command === 'baseline' && values.prune) {
+      throw new Error('baseline --prune needs the results.json of the run(s) to compare with: npx fitlocale baseline --prune <results.json>... --out <baseline file>');
     }
     if (command === 'baseline' && input) {
       const runs = [input, ...extra].map(path => readResults(path));

@@ -20,11 +20,24 @@ interface CheckResult {
   testFile: string;                        // relative to the working directory
   project?: string;                        // Playwright project name
   checkIndex: number;                      // nth localeCheck() in the test
+  scope?: string;                          // which check this is (project, title path, check index), hashed: baseline entries record it as `check`
   url: string;
   issues: Issue[];
   screenshots: Array<{ mode: string; viewport: { width: number; height: number }; path: string; size: { width: number; height: number };
     origin?: { x: number; y: number } }>;     // where the page's (0, 0) is on the image, when not at its corner (Chromium, right-to-left pages wider than the window)
-  baseline?: { status: 'missing' | 'applied'; path: string };
+  baseline?: {
+    status: 'missing' | 'applied'; path: string;
+    fixed?: Array<{ id: string; rule: string; test: string; project?: string; selector: string; mode: string; locale: string; viewport: string }>;
+                                           // accepted issues of this check that it did not find this time
+    legacy?: true;                         // the baseline has entries without `check` (written before 0.8): never called fixed; `baseline --prune` records it
+  };
+  fit?: Array<{                            // with fitMap: true, on source-locale pages: one record per viewport
+    viewport: { width: number; height: number };
+    styles: Array<Record<string, string>>; // text styles, referenced by index
+    entries: Array<{ key: string; text: string; slots: Record<string, string>; lines: number; oneLine: boolean; wrapWidth: number;
+      roomX: number | null; roomY: number | null; maxLines: number | null; measured: boolean; s: number; lang: string; dir: string; selector: string }>;
+    fonts: Array<{ family: string; weight: string; style: string; src: string }>;
+  }>;
 }
 
 interface Issue {
@@ -64,9 +77,9 @@ An issue's `id` hashes its project, test title path, check position, rule, mode,
   "note": "Accepted fitlocale issues: only issues not listed here fail the tests. …",
   "issues": [
     { "id": "3f2a…", "rule": "overflow/clipped", "test": "tests/settings.spec.ts › settings",
-      "selector": "#save", "mode": "pseudo-long", "locale": "en", "viewport": "1280x800" }
+      "selector": "#save", "mode": "pseudo-long", "locale": "en", "viewport": "1280x800", "check": "9c1e…" }
   ]
 }
 ```
 
-Only `id` is matched. The other fields are there for people reviewing the file.
+Only `id` is matched. `check` names the check that accepted the issue: when that check runs and no longer finds it, the issue is reported as fixed, and [`fitlocale baseline --prune`](/reference/cli#fitlocale-baseline) removes it. The other fields are there for people reviewing the file.
