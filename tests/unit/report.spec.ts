@@ -516,3 +516,17 @@ test.describe('gallery', () => {
     expect(renderReport(makeRun([makeCheck()]))).not.toContain('id="gallery"');
   });
 });
+
+test('a gallery-only report opens its filters on a narrow window', async ({ page }) => {
+  const g = { mode: 'source' as const, viewport: { width: 1280, height: 800 }, locale: 'en', path: 'g/a.png', size: { width: 1000, height: 2000 } };
+  const run = makeRun([
+    makeCheck({ url: 'http://app/a', project: 'chromium', issues: [], gallery: true, screenshots: [g] }),
+    makeCheck({ url: 'http://app/a', project: 'webkit', issues: [], gallery: true, screenshots: [g] }),
+  ]);
+  await page.setViewportSize({ width: 700, height: 900 });
+  await page.setContent(renderReport(run));
+  const toggle = page.locator('[data-drawer]');
+  await expect(toggle).toBeVisible();
+  await toggle.click();
+  await expect(page.locator('select[data-filter="project"]')).toBeVisible();
+});

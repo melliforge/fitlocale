@@ -26,7 +26,7 @@ export interface Page { id: string; url: string; label: string; tests: string[];
 /** One screenshot of the Gallery: a page in one locale and mode. `column` is its label, e.g. `de` or `en · pseudo-long`. */
 export interface GalleryCell { column: string; locale: string; mode: string; shot: Shot }
 export interface GalleryRow { viewport: string; cells: GalleryCell[] }
-/** A page (and project) of the Gallery: one row per viewport, widest first. */
+/** A page (and project, and check position) of the Gallery: one row per viewport, widest first. */
 export interface GalleryPage { id: string; url: string; label: string; project?: string; rows: GalleryRow[] }
 export interface RuleRow { rule: string; severity: string; problems: number; occurrences: number; sections: Array<{ id: string; label: string }> }
 export interface ReportModel {
@@ -193,10 +193,13 @@ function buildGallery(checks: CheckResult[], labels: Map<string, string>, proble
 
   const pages = new Map<string, { page: GalleryPage; rows: Map<string, { row: GalleryRow; w: number; h: number; keys: Set<string> }> }>();
   for (const c of withGallery) {
-    const pageKey = JSON.stringify([c.url, c.project ?? '']);
+    // Keyed by check position too: a test that checks a page, opens a dialog and checks again (same URL) shows both
+    // states, and the same step of the tests for each locale lines up in one block.
+    const pageKey = JSON.stringify([c.url, c.project ?? '', c.checkIndex ?? 0]);
     let entry = pages.get(pageKey);
     if (!entry) {
-      entry = { page: { id: `gallery-${pages.size + 1}`, url: c.url, label: labels.get(c.url) ?? c.url, ...(c.project ? { project: c.project } : {}), rows: [] }, rows: new Map() };
+      const label = `${labels.get(c.url) ?? c.url}${c.checkIndex ? ` · check ${c.checkIndex + 1}` : ''}`;
+      entry = { page: { id: `gallery-${pages.size + 1}`, url: c.url, label, ...(c.project ? { project: c.project } : {}), rows: [] }, rows: new Map() };
       pages.set(pageKey, entry);
     }
     for (const s of c.screenshots ?? []) {

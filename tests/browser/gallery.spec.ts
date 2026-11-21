@@ -75,3 +75,23 @@ test.describe('mask', () => {
     expect(r > 200 && g < 60 && b < 60).toBe(false);
   });
 });
+
+// Review fix: gallery shots are taken before the pseudo modes on every page; the issues found must not change.
+const ISSUE_PAGE = `${CLEAN}<button id=s style="width:120px;overflow:hidden;white-space:nowrap">Save changes</button>`;
+const issueList = async (localeCheck: () => Promise<{ issues: Array<{ rule: string; selector: string; mode: string; viewport: { width: number } }> }>) =>
+  (await localeCheck()).issues.map(i => `${i.rule} ${i.selector} ${i.mode} ${i.viewport.width}`).sort();
+const EXPECTED = ['overflow/clipped #s pseudo-long 1280', 'overflow/clipped #s pseudo-long 390'];
+test.describe('issues with gallery on', () => {
+  test.use({ fitlocale: { viewports: VIEWPORTS, gallery: true, failOn: 'never', baseline: false } });
+  test('gallery does not change the issues found (on)', async ({ page, localeCheck }) => {
+    await page.setContent(ISSUE_PAGE);
+    expect(await issueList(localeCheck)).toEqual(EXPECTED);
+  });
+});
+test.describe('issues with gallery off', () => {
+  test.use({ fitlocale: { viewports: VIEWPORTS, failOn: 'never', baseline: false } });
+  test('gallery does not change the issues found (off)', async ({ page, localeCheck }) => {
+    await page.setContent(ISSUE_PAGE);
+    expect(await issueList(localeCheck)).toEqual(EXPECTED);
+  });
+});

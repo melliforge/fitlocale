@@ -309,15 +309,18 @@ function runDate(createdAt: unknown): string {
   return m ? `${m[1]} ${m[2]} UTC` : String(createdAt ?? '');
 }
 
-function topBar(hasProblems: boolean, date: string, createdAt: unknown): string {
+function topBar(hasProblems: boolean, hasSidebar: boolean, date: string, createdAt: unknown): string {
+  // The drawer button opens the sidebar on narrow windows: a gallery-only report has a sidebar (project filter, Gallery link) too.
+  const drawerBtn = hasSidebar
+    ? `<button type="button" class="icon-btn drawer-btn" data-drawer aria-controls="sidebar" aria-expanded="false">${ICONS.filters}<span>Filters</span></button>\n`
+    : '';
   const tools = hasProblems
-    ? `<button type="button" class="icon-btn drawer-btn" data-drawer aria-controls="sidebar" aria-expanded="false">${ICONS.filters}<span>Filters</span></button>
-<label class="search">${ICONS.search}<span class="sr">Search problems</span><input type="search" data-search placeholder="Search problems" aria-describedby="search-help" autocomplete="off" spellcheck="false"><span class="hint" aria-hidden="true"><kbd>rule:</kbd><kbd>locale:</kbd><kbd>is:new</kbd></span></label>
+    ? `<label class="search">${ICONS.search}<span class="sr">Search problems</span><input type="search" data-search placeholder="Search problems" aria-describedby="search-help" autocomplete="off" spellcheck="false"><span class="hint" aria-hidden="true"><kbd>rule:</kbd><kbd>locale:</kbd><kbd>is:new</kbd></span></label>
 <span class="sr" id="search-help">Free text, or tokens: rule:, locale:, project:, sev:, is:new, is:accepted.</span>`
     : '';
   return `<header class="bar">
 <div class="brand"><span class="logo" aria-hidden="true">fl</span><span class="name">fitlocale</span><span class="kind">report</span></div>
-<div class="bar-main">${tools}<span class="spacer"></span>${date ? `<time class="date" datetime="${esc(createdAt)}">${esc(date)}</time>` : ''}
+<div class="bar-main">${drawerBtn}${tools}<span class="spacer"></span>${date ? `<time class="date" datetime="${esc(createdAt)}">${esc(date)}</time>` : ''}
 ${hasProblems ? `<button type="button" class="icon-btn keys-btn" data-keys-toggle aria-expanded="false" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)"><kbd>?</kbd></button>` : ''}
 <button type="button" class="icon-btn theme" data-theme-toggle aria-label="Theme">${ICONS.auto}${ICONS.light}${ICONS.dark}</button></div>
 ${hasProblems ? KEYS_HELP : ''}
@@ -354,7 +357,7 @@ ${model.fixed.length ? stats(model) : ''}
 <script>${HEAD_SCRIPT}</script>
 <style>${STYLES}</style></head>
 <body>
-${topBar(model.problems > 0, date, results.createdAt)}
+${topBar(model.problems > 0, model.problems > 0 || model.gallery.length > 0, date, results.createdAt)}
 <div class="layout">
 ${body}
 </div>

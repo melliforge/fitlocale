@@ -291,3 +291,18 @@ test.describe('gallery', () => {
     expect(buildModel(makeRun([makeCheck()])).gallery).toEqual([]);
   });
 });
+
+test.describe('gallery: several states of one URL', () => {
+  const wide = { width: 1280, height: 800 };
+  const g = (locale: string): Screenshot => ({ mode: 'source', viewport: wide, path: `g/${locale}.png`, size: { width: 1000, height: 2000 }, locale });
+  test('two checks of one URL in one test are separate blocks; the same step lines up across tests', () => {
+    const model = buildModel(makeRun([
+      makeCheck({ url: 'http://app/a', testTitle: 'en', checkIndex: 0, issues: [], gallery: true, screenshots: [g('en')] }),
+      makeCheck({ url: 'http://app/a', testTitle: 'en', checkIndex: 1, issues: [], gallery: true, screenshots: [{ ...g('en'), path: 'g/en-dialog.png' }] }),
+      makeCheck({ url: 'http://app/a', testTitle: 'de', checkIndex: 0, issues: [], gallery: true, screenshots: [g('de')] }),
+      makeCheck({ url: 'http://app/a', testTitle: 'de', checkIndex: 1, issues: [], gallery: true, screenshots: [{ ...g('de'), path: 'g/de-dialog.png' }] }),
+    ]));
+    expect(model.gallery.map(p => p.label)).toEqual(['/a', '/a · check 2']);
+    expect(model.gallery.map(p => p.rows[0].cells.map(c => c.shot.screenshot.path))).toEqual([['g/en.png', 'g/de.png'], ['g/en-dialog.png', 'g/de-dialog.png']]);
+  });
+});

@@ -90,12 +90,16 @@ Next: the [rules](/reference/rules) fitlocale checks, and every [option](/refere
 
 ## Review every screen in every language
 
-Rules find what can be measured. To look at each page yourself, in English next to German, Arabic and the pseudo modes, turn on [`gallery`](/reference/options#gallery) in a job of its own:
+Rules find what can be measured. To look at each page yourself, in English next to German, Arabic and the pseudo modes, turn on [`gallery`](/reference/options#gallery) in a job of its own. Switch it where your other fitlocale options are, so `mask` and the rest still apply:
 
 ```ts
-// playwright.config.ts, in a project or a CI job for reviewers
-use: { fitlocale: { gallery: true } },
+// playwright.config.ts
+use: {
+  fitlocale: { sourceMessages: 'locales/en.json', mask: ['.customer-email'], gallery: !!process.env.FITLOCALE_GALLERY },
+},
 ```
+
+Then run `FITLOCALE_GALLERY=1 npx playwright test` in the reviewers' job. Don't put `fitlocale: { gallery: true }` in a Playwright project of its own: a project's `fitlocale` replaces the top-level one instead of merging with it, so its screenshots would lose your `mask`.
 
 The HTML report then has a **Gallery**: for each page and viewport, one screenshot per locale and mode, with fitlocale's issue boxes on top. Click a screenshot to enlarge it. Every screenshot is a full-page PNG, so the report folder grows with each page, mode and viewport: keep it out of the runs that only need to pass or fail.
 
