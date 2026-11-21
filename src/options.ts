@@ -42,6 +42,11 @@ export interface FitlocaleOptions {
    * `fit` record per viewport, and `fitlocale fitmap` turns those into the fit map `fitlocale fit` checks translations with.
    */
   fitMap: boolean;
+  /**
+   * Screenshot every mode at every viewport, also when nothing was found, so the HTML report can show each page in each
+   * locale side by side (its Gallery). One full-page PNG per mode, viewport and check: use it in a review job.
+   */
+  gallery: boolean;
 }
 
 export const DEFAULT_OPTIONS: FitlocaleOptions = {
@@ -59,6 +64,7 @@ export const DEFAULT_OPTIONS: FitlocaleOptions = {
   mask: [],
   devtools: true,
   fitMap: false,
+  gallery: false,
 };
 
 export function resolveOptions(partial: Partial<FitlocaleOptions>): FitlocaleOptions {

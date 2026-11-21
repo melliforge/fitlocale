@@ -134,6 +134,18 @@ fitlocale: { mask: ['.customer-email', '[data-private]'] }
 
 Use Chromium DevTools for the fallback-font check and to point mirroring issues at their CSS line. On Firefox and WebKit these two are skipped, and mirroring issues keep the generic fix. Turn it off to save time on very large pages.
 
+### `gallery`
+
+`boolean` · default `false`
+
+Take the full-page screenshot of every mode at every viewport, also when nothing was found, so the HTML report can show each page in each locale side by side in its Gallery. Each screenshot records the locale of the page it shows. `mask` applies, and `screenshots: false` turns it off.
+
+It costs one full-page PNG per mode, viewport and check, so the report folder grows quickly. Use it in a job of its own for reviewers, rather than in every CI run.
+
+```ts
+fitlocale: { gallery: true }
+```
+
 ### `fitMap`
 
 `boolean` · default `false`

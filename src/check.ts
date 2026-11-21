@@ -198,13 +198,13 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
   /** A full-page screenshot of this mode and viewport, once, when it found issues. Crops are cut from it after the baseline. */
   const shoot = async (mode: Mode, viewport: Viewport, found: Issue[]) => {
     const id = `${mode}-${viewport.width}x${viewport.height}`;
-    if (!options.screenshots || !found.length || shot.has(id)) return;
+    if (!options.screenshots || (!found.length && !options.gallery) || shot.has(id)) return;
     shot.add(id);
     const path = testInfo.outputPath(`fitlocale-${checkIndex}-${mode}-${viewport.width}x${viewport.height}.png`);
     const size = await page.evaluate(() => (window as unknown as Api).__fitlocale.documentSize());
     await page.screenshot({ fullPage: true, path, mask });
     const origin = await screenshotOrigin(page, testInfo.project.use.browserName);
-    screenshots.push({ mode, viewport, path, size, ...(origin ? { origin } : {}) });
+    screenshots.push({ mode, viewport, path, size, locale, ...(origin ? { origin } : {}) });
   };
 
   // Checked first: a pseudo locale such as en-XA shares its language with the source.
@@ -339,6 +339,10 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
         issues.push(...found);
       }
 
+      // The gallery wants the page as it is at every viewport (the source pass shoots only the first, and only on issues).
+      // Before any pseudo mode rewrites the text; the shot set skips one already taken.
+      if (options.gallery) await shoot('source', viewport, []);
+
       if (!isSource && !isPseudo) continue;
 
       if (isPseudo) {
@@ -418,5 +422,6 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
     issues,
     screenshots,
     ...(fit.length ? { fit } : {}),
+    ...(options.gallery && options.screenshots ? { gallery: true as const } : {}),
   };
 }

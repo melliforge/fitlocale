@@ -78,6 +78,8 @@ export interface Issue extends RawIssue {
 
 export interface Screenshot {
   mode: Mode; viewport: Viewport; path: string; size: { width: number; height: number };
+  /** The page's locale (as on its issues). Absent in results written before 0.8. */
+  locale?: string;
   /** Where the document's (0, 0) is on the image, when not at its corner: Chromium starts a right-to-left page at its leftmost overflow. */
   origin?: { x: number; y: number };
 }
@@ -130,6 +132,8 @@ export interface CheckResult {
   };
   /** With `fitMap: true` on a source-locale page: each message's room, per viewport. `fitlocale fitmap` merges them. */
   fit?: FitRecord[];
+  /** Taken with `gallery: true`: every mode and viewport has a screenshot, for the report's Gallery. */
+  gallery?: true;
 }
 
 /** A baseline entry whose issue no longer occurs (see `CheckResult.baseline.fixed`). */

@@ -65,3 +65,12 @@ test('the fit example only reads', () => {
   expect(wf).toContain('npx fitlocale fit');
   expect(wf).not.toContain('playwright test');
 });
+
+// Review fix: a Playwright project's `fitlocale` replaces the top-level one (one-level merge), so a project recipe
+// would silently drop `mask` from every full-page screenshot. The guide switches the option, keeping the others.
+test('the gallery recipe keeps the other fitlocale options', () => {
+  const guide = read('docs/guide/getting-started.md');
+  expect(guide).toContain('FITLOCALE_GALLERY');
+  expect(guide).not.toMatch(/use: \{ fitlocale: \{ gallery: true \} \}/);
+  expect(guide).toMatch(/replaces the top-level one/);
+});

@@ -3,7 +3,7 @@ import { elementLabel } from './label';
 import { buildModel } from './model';
 import { HEAD_SCRIPT, SCRIPT } from './script';
 import { STYLES } from './styles';
-import type { Page, Problem, ReportModel, Section, Shot } from './model';
+import type { GalleryCell, GalleryPage, Page, Problem, ReportModel, Section, Shot } from './model';
 
 /** What `fitlocale/report` renders: the shape of results.json. */
 export type { RunResults } from '../types';
@@ -250,6 +250,28 @@ const navLink = (id: string, label: string, count: number) =>
   `<a href="#${esc(id)}" data-nav="${esc(id)}" title="${esc(label)}"><span class="t" dir="auto">${esc(label)}</span><span class="n">${count}</span></a>`;
 
 /** Filters, then navigation: the overview and a page → section tree. Static content without the script. */
+/* ---------- Gallery: each page in each locale and mode, side by side (gallery: true) ---------- */
+
+function galleryFigure(page: GalleryPage, cell: GalleryCell): string {
+  const s = cell.shot.screenshot;
+  const boxes = cell.shot.boxes.map(({ problem, issue }) =>
+    `<span class="box ${esc(issue.severity)}${acceptedClass(issue.baselined)}" data-problem="${esc(problem)}" title="${esc(`${issue.rule} · ${labelOf(issue).label}`)}" style="${boxStyle(issue, s)}"></span>`,
+  ).join('');
+  // shot-wrap for the enlarge toggle; gallery-shot so the issue filters never hide a clean screenshot.
+  return `<figure class="shot-wrap gallery-shot"><button type="button" class="shot" aria-expanded="false"><span class="frame">`
+    + `<img src="${esc(s.path)}"${imageSize(s)} loading="lazy" decoding="async" alt="Screenshot, ${esc(page.label)} · ${esc(cell.column)} · ${esc(cell.shot.viewport)}">${boxes}</span></button>`
+    + `<figcaption><span class="col">${esc(cell.column)}</span> <span class="test">${esc(cell.shot.testTitle)}</span></figcaption></figure>`;
+}
+
+function gallery(model: ReportModel): string {
+  if (!model.gallery.length) return '';
+  const blocks = model.gallery.map(p => `<div class="gallery-page" id="${esc(p.id)}" data-project="${esc(p.project ?? '')}">`
+    + `<h3 class="gallery-title" dir="auto">${esc(p.label)}${p.project ? ` <span class="tag">${esc(p.project)}</span>` : ''}</h3>`
+    + p.rows.map(r => `<div class="gallery-row"><p class="gallery-vp">${esc(r.viewport)}</p><div class="gallery-cells">${r.cells.map(c => galleryFigure(p, c)).join('')}</div></div>`).join('')
+    + '</div>').join('\n');
+  return `<section class="gallery block" id="gallery"><h2 class="kicker">Gallery</h2><p class="meta">Each page in each locale and mode, at each viewport. Boxes mark the issues found on that screenshot.</p>\n${blocks}</section>`;
+}
+
 function sidebar(model: ReportModel): string {
   const accepted = acceptedCount(model);
   const toggles = SEVERITIES.map(s => {
@@ -267,6 +289,7 @@ function sidebar(model: ReportModel): string {
 <div class="group js-only"><div class="group-head"><p class="group-title">Filters</p><button type="button" class="link-btn" data-clear>Clear filters</button></div>${filters}<p class="status" data-status></p></div>
 <div class="group"><div class="group-head"><p class="group-title">Pages</p><span class="fold js-only"><button type="button" class="link-btn" data-fold="open">Expand all</button><button type="button" class="link-btn" data-fold="close">Collapse all</button></span></div>
 <ul class="tree"><li class="pg"><a href="#summary">Overview</a></li>
+${model.gallery.length ? '<li class="pg"><a href="#gallery">Gallery</a></li>' : ''}
 ${tree}
 </ul></div>
 </nav>`;
@@ -286,15 +309,18 @@ function runDate(createdAt: unknown): string {
   return m ? `${m[1]} ${m[2]} UTC` : String(createdAt ?? '');
 }
 
-function topBar(hasProblems: boolean, date: string, createdAt: unknown): string {
+function topBar(hasProblems: boolean, hasSidebar: boolean, date: string, createdAt: unknown): string {
+  // The drawer button opens the sidebar on narrow windows: a gallery-only report has a sidebar (project filter, Gallery link) too.
+  const drawerBtn = hasSidebar
+    ? `<button type="button" class="icon-btn drawer-btn" data-drawer aria-controls="sidebar" aria-expanded="false">${ICONS.filters}<span>Filters</span></button>\n`
+    : '';
   const tools = hasProblems
-    ? `<button type="button" class="icon-btn drawer-btn" data-drawer aria-controls="sidebar" aria-expanded="false">${ICONS.filters}<span>Filters</span></button>
-<label class="search">${ICONS.search}<span class="sr">Search problems</span><input type="search" data-search placeholder="Search problems" aria-describedby="search-help" autocomplete="off" spellcheck="false"><span class="hint" aria-hidden="true"><kbd>rule:</kbd><kbd>locale:</kbd><kbd>is:new</kbd></span></label>
+    ? `<label class="search">${ICONS.search}<span class="sr">Search problems</span><input type="search" data-search placeholder="Search problems" aria-describedby="search-help" autocomplete="off" spellcheck="false"><span class="hint" aria-hidden="true"><kbd>rule:</kbd><kbd>locale:</kbd><kbd>is:new</kbd></span></label>
 <span class="sr" id="search-help">Free text, or tokens: rule:, locale:, project:, sev:, is:new, is:accepted.</span>`
     : '';
   return `<header class="bar">
 <div class="brand"><span class="logo" aria-hidden="true">fl</span><span class="name">fitlocale</span><span class="kind">report</span></div>
-<div class="bar-main">${tools}<span class="spacer"></span>${date ? `<time class="date" datetime="${esc(createdAt)}">${esc(date)}</time>` : ''}
+<div class="bar-main">${drawerBtn}${tools}<span class="spacer"></span>${date ? `<time class="date" datetime="${esc(createdAt)}">${esc(date)}</time>` : ''}
 ${hasProblems ? `<button type="button" class="icon-btn keys-btn" data-keys-toggle aria-expanded="false" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)"><kbd>?</kbd></button>` : ''}
 <button type="button" class="icon-btn theme" data-theme-toggle aria-label="Theme">${ICONS.auto}${ICONS.light}${ICONS.dark}</button></div>
 ${hasProblems ? KEYS_HELP : ''}
@@ -310,11 +336,12 @@ export function renderReport(results: RunResults): string {
   const date = runDate(results.createdAt);
   const when = date ? `<span class="when"> · ${esc(date)}</span>` : '';
   const meta = `<p class="meta">${model.problems} problem(s) · ${esc(total)} issue(s)${counts}${when}</p>`;
-  const body = model.problems
+  const body = model.problems || model.gallery.length
     ? `${sidebar(model)}
 <div class="scrim" data-scrim hidden></div>
 <main id="main"><div class="content">
-${overview(model, meta)}<div class="problems">
+${model.problems ? overview(model, meta) : `<section id="summary"><h1>Overview</h1>\n${meta}\n<p class="empty">No localization layout issues found.</p>\n${model.fixed.length ? stats(model) : ''}</section>`}
+${gallery(model)}<div class="problems">
 ${model.pages.map(page).join('')}</div>
 </div></main>
 ${panel(model)}`
@@ -325,12 +352,12 @@ ${meta}
 ${model.fixed.length ? stats(model) : ''}
 </div></main>`;
   return `<!doctype html>
-<html lang="en"${model.problems ? '' : ' class="no-side"'}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="en"${model.problems || model.gallery.length ? '' : ' class="no-side"'}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>fitlocale report</title>
 <script>${HEAD_SCRIPT}</script>
 <style>${STYLES}</style></head>
 <body>
-${topBar(model.problems > 0, date, results.createdAt)}
+${topBar(model.problems > 0, model.problems > 0 || model.gallery.length > 0, date, results.createdAt)}
 <div class="layout">
 ${body}
 </div>
