@@ -5,6 +5,13 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+### Added
+
+- **Will it fit?**: check translations without running the app.
+  - `fitMap: true` makes each `check()` on a source-locale page (with `sourceMessages`) record, per viewport, the box each message is shown in, its text styles, the edge that would stop a longer text, and the page's fonts. They go into `results.json` as `fit`.
+  - `fitlocale fitmap <results.json>...` merges them into `fitlocale-fit.json`.
+  - `fitlocale fit <messages.json>...` measures each translation in its recorded boxes, in a blank Chromium page with the app's fonts (`--fonts <dir>`). It reports what won't fit (with the px needed and the px available), what grows, where the English already overflows, and which changed keys no test showed. It exits 1 when something won't fit, and writes a job summary in GitHub Actions. `--changed-from <ref>` checks only changed keys.
+
 ## [0.6.0] - 2026-11-20
 
 fitlocale is now free, with no hosted service: fitlocale cloud has closed.

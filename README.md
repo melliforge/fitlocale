@@ -241,6 +241,10 @@ The step never fails the job. Your test step already did, if there were new issu
 
 Add `with: { comment: true }` and `permissions: pull-requests: write` to also get one pull request comment listing the new issues, updated on every push. It uses the job's own token, and nothing leaves GitHub. Matrix builds and pull requests from forks have their own recipes in the [Action reference](https://melliforge.github.io/fitlocale/reference/github-action#comment).
 
+## Will it fit?
+
+A pull request that only changes `locales/de.json` can be checked in about a second, without building or running the app. With `fitMap: true`, your tests record where each message is shown and how much room it has. `npx fitlocale fit` then measures the new strings in those boxes and fails when one won't fit: `settings.save needs 148 px, has 120 px`. See [Check translations before they merge](https://melliforge.github.io/fitlocale/guides/will-it-fit).
+
 ## CLI
 
 ```bash
@@ -249,6 +253,8 @@ npx fitlocale report fitlocale-report/results.json              # re-render inde
 npx fitlocale baseline fitlocale-report/results.json            # accept the current issues
 npx fitlocale summary fitlocale-report/results.json             # Markdown summary, for CI
 npx fitlocale comment fitlocale-report                          # pull request comment, in GitHub Actions
+npx fitlocale fitmap fitlocale-report/results.json              # record where each message is shown (fitMap: true)
+npx fitlocale fit locales/de.json --changed-from origin/main    # check new translations without running the app
 ```
 
 ## Limitations

@@ -53,3 +53,15 @@ test('the package makes no network calls except GitHub\'s API in comment', () =>
   const calling = sources('src').filter(path => /\bfetch\(/.test(read(path)));
   expect(calling).toEqual([join('src', 'comment', 'github.ts')]);
 });
+
+// A translation pull request may come from a fork: the fit check runs its files with a token that can do nothing.
+test('the fit example only reads', () => {
+  const wf = read('examples/github-workflow-fit.yml');
+  const perms = /\npermissions:\n((?: {2}.+\n)+)/.exec(wf)?.[1] ?? '';
+  expect(perms.trim().split('\n').map(l => l.trim())).toEqual(['contents: read']);
+  expect(wf).toContain('pull_request:');
+  expect(wf).toContain("paths: ['locales/**']");
+  expect(wf).toContain('fetch-depth: 0');
+  expect(wf).toContain('npx fitlocale fit');
+  expect(wf).not.toContain('playwright test');
+});
