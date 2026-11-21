@@ -82,6 +82,33 @@ export interface Screenshot {
   origin?: { x: number; y: number };
 }
 
+/** A `@font-face` the page loaded: what `fitlocale fit` needs to measure text in the app's own font. */
+export interface FitFont { family: string; weight: string; style: string; src: string }
+
+/** One element showing one message, measured in the source locale (`fitMap: true`). Sizes are CSS px. */
+export interface FitObservation {
+  key: string;
+  /** The rendered text, and the values its slots had. */
+  text: string; slots: Record<string, string>;
+  lines: number;
+  /** The text stays on one line (`white-space: nowrap`): a longer text needs more width, not more lines. */
+  oneLine: boolean;
+  /** The line width the text wraps at. */
+  wrapWidth: number;
+  /** Room from where the text starts to the first edge that stops it, per axis; null when nothing stops it. */
+  roomX: number | null; roomY: number | null;
+  /** `-webkit-line-clamp`, when set. */
+  maxLines: number | null;
+  /** The room was measured: false when the text is split across child elements, so lengthening it was not safe. */
+  measured: boolean;
+  /** Index into the record's `styles`. */
+  s: number;
+  lang: string; dir: string; selector: string;
+}
+
+/** One check at one viewport. Text styles are stored once per record and referenced by index: pages repeat a few. */
+export interface FitRecord { viewport: Viewport; styles: Array<Record<string, string>>; entries: FitObservation[]; fonts: FitFont[] }
+
 export interface CheckResult {
   testTitle: string;
   /** Playwright project name, when the run has projects (set by the reporter). */
@@ -93,6 +120,8 @@ export interface CheckResult {
   screenshots: Screenshot[];
   /** The baseline file used for this check (path relative to the working directory); absent with `baseline: false`. */
   baseline?: { status: 'missing' | 'applied'; path: string };
+  /** With `fitMap: true` on a source-locale page: each message's room, per viewport. `fitlocale fitmap` merges them. */
+  fit?: FitRecord[];
 }
 
 export interface RunResults { version: 1; createdAt: string; checks: CheckResult[]; summary: Record<Severity, number> }

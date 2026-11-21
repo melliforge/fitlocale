@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
 import { main } from '../../src/cli';
+import { readFitMap } from '../../src/fit/map';
 import { makeCheck, makeIssue, makeRun } from './fixtures';
 
 function capture() {
@@ -142,4 +143,29 @@ test.describe('baseline and summary', () => {
     expect(await main(['summary', results(dir, 'r.json', ['a1']), '--max-rows', '0'], io)).toBe(1);
     expect(out.stderr).toContain('--max-rows must be a whole number ≥ 1');
   });
+});
+
+test('fitmap writes a merged map and says how many keys', async () => {
+  const dir = tmp();
+  const obs = { key: 'buttons.save', text: 'Save', slots: {}, lines: 1, oneLine: true, wrapWidth: 100, roomX: 100, roomY: null, maxLines: null, measured: true, s: 0, lang: 'en', dir: 'ltr', selector: '#s' };
+  const fit = (key: string) => [{ viewport: { width: 1280, height: 800 }, styles: [{ fontSize: '14px' }], entries: [{ ...obs, key }], fonts: [] }];
+  writeFileSync(join(dir, 'a.json'), JSON.stringify(makeRun([makeCheck({ fit: fit('buttons.save') })])));
+  writeFileSync(join(dir, 'b.json'), JSON.stringify(makeRun([makeCheck({ fit: fit('buttons.load') })])));
+  const out = join(dir, 'fit', 'fitlocale-fit.json');
+  const { out: o, io } = capture();
+  expect(await main(['fitmap', join(dir, 'a.json'), join(dir, 'b.json'), '--out', out], io)).toBe(0);
+  expect(o.stdout).toBe(`fitlocale: wrote the fit of 2 key(s) to ${out}\n`);
+  const map = readFitMap(out);
+  expect(Object.keys(map.keys)).toEqual(['buttons.load', 'buttons.save']);
+  expect(map.sourceLocale).toBe('en');
+});
+
+test('fitmap without fit records says how to turn them on', async () => {
+  const dir = tmp();
+  writeFileSync(join(dir, 'a.json'), JSON.stringify(makeRun([makeCheck()])));
+  const { out, io } = capture();
+  expect(await main(['fitmap', join(dir, 'a.json'), '--out', join(dir, 'x.json')], io)).toBe(2);
+  expect(out.stderr).toContain('fitMap: true');
+  expect(out.stderr).toContain('sourceMessages');
+  expect(existsSync(join(dir, 'x.json'))).toBe(false);
 });

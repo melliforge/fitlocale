@@ -2,7 +2,7 @@ import { dirname, relative, resolve } from 'node:path';
 import type { Frame, FullConfig, Locator, Page, TestInfo } from '@playwright/test';
 import { ensureInjected } from './inject';
 import type { FitlocaleOptions } from './options';
-import { flattenKeys, flattenValues } from './pseudo';
+import { flattenEntries, flattenKeys, flattenValues } from './pseudo';
 import { backTranslatorFor, readMessages } from './messages';
 import { findConcatenated, findHardcoded, hasPseudoMarkers } from './rules/i18n';
 import { isRtlLocale } from './rules/icons';
@@ -13,7 +13,7 @@ import { subtractSource } from './rules/noise';
 import { nameIssues, resolveSelectors } from './selectors';
 import { findUntranslated, sourceMatcher, type SourceMatcher } from './rules/untranslated';
 import {
-  FIXES, LOCALE_NOT_REFLECTED_MESSAGE, MESSAGES, SEVERITY, type CheckResult, type Issue, type Mode, type RawIssue, type Screenshot, type Viewport,
+  FIXES, LOCALE_NOT_REFLECTED_MESSAGE, MESSAGES, SEVERITY, type CheckResult, type FitRecord, type Issue, type Mode, type RawIssue, type Screenshot, type Viewport,
 } from './types';
 import type { FitlocaleBrowserApi } from './browser/api';
 
@@ -32,18 +32,21 @@ export interface CheckContext {
 type Api = { __fitlocale: FitlocaleBrowserApi };
 
 /** Parsed `sourceMessages` files, keyed by absolute path. */
-const messagesCache = new Map<string, { keys: string[]; values: string[] }>();
+const messagesCache = new Map<string, { keys: string[]; values: string[]; entries: Array<{ key: string; text: string }> }>();
 
 /** Relative option paths resolve against the directory of the Playwright config, like Playwright's own. */
 export function configDirOf(config: Pick<FullConfig, 'configFile'>): string {
   return config.configFile ? dirname(config.configFile) : process.cwd();
 }
 
-function loadMessages(path: string, baseDir: string): { keys: string[]; values: string[] } {
+function loadMessages(path: string, baseDir: string): { keys: string[]; values: string[]; entries: Array<{ key: string; text: string }> } {
   const file = resolve(baseDir, path);
   if (!messagesCache.has(file)) {
     const messages = readMessages(file, 'sourceMessages');
-    messagesCache.set(file, { keys: flattenKeys(messages), values: flattenValues(messages) });
+    messagesCache.set(file, {
+      keys: flattenKeys(messages), values: flattenValues(messages),
+      entries: flattenEntries(messages).map(([key, text]) => ({ key, text })),
+    });
   }
   return messagesCache.get(file)!;
 }
@@ -51,6 +54,11 @@ function loadMessages(path: string, baseDir: string): { keys: string[]; values: 
 /** Dotted keys of the `sourceMessages` file, resolved against `baseDir`. */
 export function knownKeys(path: string | undefined, baseDir: string): string[] {
   return path ? loadMessages(path, baseDir).keys : [];
+}
+
+/** Key and text of every string of the `sourceMessages` file, resolved against `baseDir`. */
+export function sourceEntries(path: string | undefined, baseDir: string): Array<{ key: string; text: string }> {
+  return path ? loadMessages(path, baseDir).entries : [];
 }
 
 /** Every string of the `sourceMessages` file, resolved against `baseDir`. */
@@ -166,6 +174,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
   const keys = knownKeys(options.sourceMessages, baseDir);
   const issues: Issue[] = [];
   const screenshots: Screenshot[] = [];
+  const fit: FitRecord[] = [];
   // Without useLocale(), a page showing a pseudo locale is still checked as one.
   let locale = expectedLocale ?? options.sourceLocale;
   if (expectedLocale === null) {
@@ -301,6 +310,15 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
         issues.push(...sourceIssues);
       }
 
+      // Every viewport, before any pseudo mode rewrites the text: each message's room as the source locale shows it.
+      if (isSource && options.fitMap && options.sourceMessages) {
+        const recorded = await page.evaluate(
+          ([m, ig]) => (window as unknown as Api).__fitlocale.recordFit(m, ig),
+          [sourceEntries(options.sourceMessages, baseDir), options.ignore] as const,
+        );
+        fit.push({ viewport, styles: recorded.styles, entries: recorded.entries, fonts: recorded.fonts });
+      }
+
       // A page that fell back to another locale has no translation to compare: the persistence error says it all.
       if (toSource && !fellBack) {
         // The page is translated: compare it with the source text put back wherever the messages say what it was.
@@ -399,5 +417,6 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
     url: page.url(),
     issues,
     screenshots,
+    ...(fit.length ? { fit } : {}),
   };
 }

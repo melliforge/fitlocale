@@ -6,6 +6,7 @@ import { findOverflow } from './overflow';
 import { collectTextBlocks } from './blocks';
 import { findBidiOrder } from './bidi';
 import { findClippedMarks } from './marks';
+import { recordFit } from './fit';
 import { addFontProbes, removeFontProbes } from './probes';
 import { compareIcons, snapshotIcons, type IconRecord } from './icons';
 import { findNotMirrored } from '../rules/mirror';
@@ -16,6 +17,8 @@ let rememberedIcons: IconRecord[] | null = null;
 
 const api: FitlocaleBrowserApi = {
   version: '0.1.0',
+  // Lengthens text while it measures, so no layout cache: every read must see the change.
+  recordFit,
   assignKeys,
   keyFor: keyOf,
   namesFor: keys => keys.map(k => {

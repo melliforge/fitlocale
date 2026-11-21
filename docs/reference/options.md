@@ -133,3 +133,15 @@ fitlocale: { mask: ['.customer-email', '[data-private]'] }
 `boolean` · default `true`
 
 Use Chromium DevTools for the fallback-font check and to point mirroring issues at their CSS line. On Firefox and WebKit these two are skipped, and mirroring issues keep the generic fix. Turn it off to save time on very large pages.
+
+### `fitMap`
+
+`boolean` · default `false`
+
+Record, on pages in the source locale, how much room each message's text has. It needs `sourceMessages`, which says which text is which message. Each `check()` adds a `fit` record per viewport to `results.json`: the element showing the message, its font, and the edge that would stop a longer text. [`fitlocale fitmap`](/reference/cli#fitlocale-fitmap) turns those records into the fit map that [`fitlocale fit`](/reference/cli#fitlocale-fit) checks translations with. See [Check translations before they merge](/guides/will-it-fit).
+
+It costs one extra pass per viewport: each message's text is made longer for a moment, measured, and put back. Each message on screen adds about 200 bytes per viewport to `results.json`. Turn it on in the runs that record the map, not in every CI run of a large suite.
+
+```ts
+fitlocale: { sourceMessages: 'locales/en.json', fitMap: true }
+```

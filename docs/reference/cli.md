@@ -40,6 +40,39 @@ npx fitlocale summary fitlocale-report/results.json --max-rows 50 >> "$GITHUB_ST
 
 Prints a Markdown summary of the new issues: counts, a note when there is no baseline yet, and a table of at most `--max-rows` issues (default 50), errors first.
 
+## `fitlocale fitmap`
+
+```bash
+npx fitlocale fitmap fitlocale-report/results.json --out fitlocale-fit.json
+```
+
+Builds the fit map from test runs made with [`fitMap: true`](/reference/options#fitmap). It merges the `fit` records of every `results.json` given (shards, projects, several runs): for each message key, each distinct box it was shown in, at each viewport, with that box's room and text styles, and the fonts the pages loaded. Commit the file, and record it again when the UI changes. [`fitlocale fit`](#fitlocale-fit) checks translations against it.
+
+- `--out <file>`: where to write it; default `fitlocale-fit.json`.
+- `--source-locale <code>`: the source locale the map was recorded in; default `en`.
+- No `fit` records in the results is an error (exit 2) that says how to turn them on.
+
+## `fitlocale fit`
+
+```bash
+npx fitlocale fit locales/de.json --changed-from origin/main --fonts public
+```
+
+Checks translations against the [fit map](#fitlocale-fitmap), without building or running the app: one blank Chromium page, the app's fonts, and one box per message the map recorded, with that box's room. For each key it says:
+
+- **won't fit** (an error): the text needs more room than its box has, for example `settings.save needs 148 px, has 120 px (390×844, #save)`.
+- **grows**: the text takes more lines than the English one, and the layout moves.
+- **English already overflows**: the box is too small for the source text too.
+- **not checked**: no test showed this key, so nothing is known about its box. It is listed, never counted as fitting.
+
+It exits 1 when something won't fit, 0 otherwise or with `--report-only`, and 2 on a usage or setup error (no map, no Playwright or its Chromium, an unknown option). In GitHub Actions it writes a summary to the job summary. It needs `@playwright/test` and its Chromium (`npx playwright install chromium`).
+
+- `--map <file>`: the fit map; default `fitlocale-fit.json`.
+- `--fonts <dir>`: where the app's font files are, such as its `public/` folder. The map records each font's URL; a file found under this folder by that path, or by its file name, is used first, then a public URL as it is. A font found nowhere is a warning, and the keys measured without it are marked: their verdict may be wrong.
+- `--changed-from <ref>`: check only keys whose text differs from that git ref (new files: every key). Without it, every key.
+- `--locale <code>`: the locale of the files; default the file name (`de-DE.json` → `de-DE`).
+- `--json <file>`: every verdict, as JSON.
+
 ## `fitlocale comment`
 
 ```bash

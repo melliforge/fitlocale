@@ -3,6 +3,9 @@ import { dirname, isAbsolute, join, normalize, relative, resolve, sep } from 'no
 import { parseArgs } from 'node:util';
 import { buildBaseline, formatBaseline } from './baseline';
 import { pseudoMessages, type Messages } from './pseudo';
+import { buildFitMap, formatFitMap } from './fit/map';
+import { predictFit } from './fit/predict';
+import { runFit } from './fit/run';
 import { renderReport } from './report/html';
 import { renderSummary } from './summary';
 import type { RunResults } from './types';
@@ -16,6 +19,9 @@ const USAGE = `Usage:
   fitlocale report <results.json> [--out <dir>]                   Re-render index.html from results.json
   fitlocale baseline <results.json>... [--out <file>]             Accept the issues found (default fitlocale-baseline.json)
   fitlocale summary <results.json> [--max-rows <n>]               Print a Markdown summary (for CI job summaries)
+  fitlocale fitmap <results.json>... [--out <file>]           Build the fit map from test runs (default fitlocale-fit.json)
+  fitlocale fit <messages.json>... [--map <file>] [--fonts <dir>] [--changed-from <ref>] [--locale <code>] [--report-only] [--json <file>]
+                                                                  Check translations against the fit map, without running the app
   fitlocale upload <report-dir>                                   Retired: prints a notice (use fitlocale comment)
   fitlocale comment <report-dir>... [--pr <n>] [--report-url <url>]  Comment on the pull request (GitHub Actions; never fails)
   fitlocale --help
@@ -79,6 +85,9 @@ function readJson(path: string): unknown {
   }
 }
 
+/** `fit` and `fitmap` keep 1 for "won't fit": every usage or setup error is 2. */
+const usageCode = (argv: string[]) => (argv[0] === 'fit' || argv[0] === 'fitmap' ? 2 : 1);
+
 /** Run the CLI and return its exit code. */
 export async function main(argv: string[], io: CliIO = defaultIO): Promise<number> {
   try {
@@ -87,7 +96,9 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
       allowPositionals: true,
       options: {
         out: { type: 'string' }, expansion: { type: 'string' }, 'max-rows': { type: 'string' }, help: { type: 'boolean' },
-        endpoint: { type: 'string' }, pr: { type: 'string' }, 'report-url': { type: 'string' }, // --endpoint: accepted from old upload workflows
+        endpoint: { type: 'string' }, pr: { type: 'string' }, 'report-url': { type: 'string' }, 'source-locale': { type: 'string' },
+        map: { type: 'string' }, fonts: { type: 'string' }, 'changed-from': { type: 'string' }, locale: { type: 'string' },
+        'report-only': { type: 'boolean' }, json: { type: 'string' }, // --endpoint: accepted from old upload workflows
       },
     });
     const [command, input, ...extra] = positionals;
@@ -110,6 +121,27 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
       const out = values.out ?? 'fitlocale-baseline.json';
       writeFileCreatingDir(out, formatBaseline(file));
       io.stdout(`fitlocale: wrote ${file.issues.length} accepted issue(s) to ${out}\n`);
+      return 0;
+    }
+    if (command === 'fit' && input) {
+      return await runFit({
+        files: [input, ...extra], map: values.map, fonts: values.fonts, changedFrom: values['changed-from'], locale: values.locale,
+        reportOnly: values['report-only'], json: values.json,
+      }, io, {
+        cwd: process.cwd(), env: process.env, predict: predictFit,
+        // Imported only here: every other command works without Playwright.
+        loadChromium: async () => (await import('@playwright/test')).chromium,
+      });
+    }
+    if (command === 'fitmap' && input) {
+      const map = buildFitMap([input, ...extra].map(path => readResults(path)), values['source-locale'] ?? 'en');
+      const keys = Object.keys(map.keys).length;
+      if (!keys) {
+        throw new Error('no fit records in these results: run the tests with fitMap: true and sourceMessages set, on pages in the source locale');
+      }
+      const out = values.out ?? 'fitlocale-fit.json';
+      writeFileCreatingDir(out, formatFitMap(map));
+      io.stdout(`fitlocale: wrote the fit of ${keys} key(s) to ${out}\n`);
       return 0;
     }
     if (command === 'summary' && input) {
@@ -147,9 +179,9 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
       return 0;
     }
     io.stderr(`${command ? `Unknown command or missing file: ${command}` : 'Unknown command'}\n\n${USAGE}`);
-    return 1;
+    return usageCode(argv);
   } catch (err) {
     io.stderr(`fitlocale: ${(err as Error).message}\n`);
-    return 1;
+    return usageCode(argv);
   }
 }

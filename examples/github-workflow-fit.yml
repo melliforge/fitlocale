@@ -1,0 +1,28 @@
+# .github/workflows/translations.yml: on a pull request that changes translations, check that the new strings fit,
+# without building or running the app. It reads the committed fit map (fitlocale-fit.json) and the app's fonts.
+name: Translations fit
+on:
+  pull_request:
+    paths: ['locales/**']
+
+# Translation pull requests often come from forks or translation services: this job can only read.
+permissions:
+  contents: read
+
+jobs:
+  fit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # --changed-from compares with the base branch
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # Fails the job when a changed string won't fit its box; the job summary lists each one with the px it needs.
+      - run: npx fitlocale fit locales/*.json --changed-from "origin/$BASE_REF" --fonts public
+        env:
+          BASE_REF: ${{ github.base_ref }}
