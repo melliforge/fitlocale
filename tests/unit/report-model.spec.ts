@@ -234,3 +234,60 @@ test('an empty run', () => {
   expect(model).toMatchObject({ pages: [], rules: [], locales: [], projects: [], problems: 0, occurrences: 0, bySeverity: {} });
   expect(model.matrix.size).toBe(0);
 });
+
+test.describe('gallery', () => {
+  const wide = { width: 1280, height: 800 };
+  const g = (mode: Screenshot['mode'], locale: string, viewport = wide): Screenshot => ({ ...shot(mode, viewport, `g/${locale}-${mode}-${viewport.width}.png`), locale });
+  const check = (url: string, screenshots: Screenshot[], over: Record<string, unknown> = {}) =>
+    makeCheck({ url, issues: [], screenshots, gallery: true, ...over });
+  const columns = (row: { cells: Array<{ column: string }> }) => row.cells.map(c => c.column);
+
+  test('gallery groups by page and project, rows by viewport (widest first), columns source first', () => {
+    const en = check('http://app/a', [g('source', 'en', small), g('pseudo-rtl', 'en'), g('source', 'en'), g('pseudo-long', 'en')]);
+    const de = check('http://app/a', [g('source', 'de'), g('source', 'de', small)]);
+    const ar = check('http://app/a', [g('source', 'ar')]);
+    const model = buildModel(makeRun([de, en, ar]));
+    expect(model.gallery).toHaveLength(1);
+    const [pageG] = model.gallery;
+    expect(pageG.rows.map(r => r.viewport)).toEqual(['1280×800', '390×844']);
+    expect(columns(pageG.rows[0])).toEqual(['en', 'en · pseudo-long', 'en · pseudo-rtl', 'ar', 'de']);
+    expect(columns(pageG.rows[1])).toEqual(['en', 'de']);
+  });
+
+  test('a missing locale leaves a gap, and the other columns keep their keys', () => {
+    const model = buildModel(makeRun([check('http://app/a', [g('source', 'en'), g('pseudo-long', 'en')]), check('http://app/a', [g('source', 'ar')])]));
+    expect(model.gallery[0].rows[0].cells.map(c => [c.locale, c.mode])).toEqual([['en', 'source'], ['en', 'pseudo-long'], ['ar', 'source']]);
+  });
+
+  test('repeated checks of the same page do not duplicate columns', () => {
+    const one = check('http://app/a', [g('source', 'en')], { testTitle: 'first' });
+    const two = check('http://app/a', [g('source', 'en')], { testTitle: 'second' });
+    const cells = buildModel(makeRun([one, two])).gallery[0].rows[0].cells;
+    expect(cells).toHaveLength(1);
+    expect(cells[0].shot.testTitle).toBe('first');
+  });
+
+  test('projects get their own blocks', () => {
+    const model = buildModel(makeRun([check('http://app/a', [g('source', 'en')], { project: 'chromium' }), check('http://app/a', [g('source', 'en')], { project: 'webkit' })]));
+    expect(model.gallery.map(p => p.project)).toEqual(['chromium', 'webkit']);
+  });
+
+  test('a pseudo locale is its own column', () => {
+    const model = buildModel(makeRun([check('http://app/a', [g('source', 'en'), g('pseudo-long', 'en')]), check('http://app/a', [g('source', 'en-XA'), g('pseudo-rtl', 'en-XA')])]));
+    expect(columns(model.gallery[0].rows[0])).toEqual(['en', 'en · pseudo-long', 'en-XA', 'en-XA · pseudo-rtl']);
+  });
+
+  test('boxes are the issues of that shot, with their problem ids', () => {
+    const issue = makeIssue({ mode: 'pseudo-long', locale: 'en', viewport: wide });
+    const model = buildModel(makeRun([check('http://app/a', [g('source', 'en'), g('pseudo-long', 'en')], { issues: [issue] })]));
+    const cells = model.gallery[0].rows[0].cells;
+    expect(cells.find(c => c.mode === 'source')!.shot.boxes).toEqual([]);
+    const long = cells.find(c => c.mode === 'pseudo-long')!;
+    expect(long.shot.boxes).toHaveLength(1);
+    expect(long.shot.boxes[0].problem).toBe(model.pages[0].sections[0].problems[0].id);
+  });
+
+  test('empty without gallery checks', () => {
+    expect(buildModel(makeRun([makeCheck()])).gallery).toEqual([]);
+  });
+});

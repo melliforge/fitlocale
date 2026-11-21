@@ -23,6 +23,11 @@ export interface ShotBox { problem: string; issue: Issue }
 export interface Shot { screenshot: Screenshot; project?: string; testTitle: string; viewport: string; boxes: ShotBox[] }
 export interface Section { id: string; label: string; locale: string; mode: string; problems: Problem[]; shots: Shot[] }
 export interface Page { id: string; url: string; label: string; tests: string[]; sections: Section[] }
+/** One screenshot of the Gallery: a page in one locale and mode. `column` is its label, e.g. `de` or `en · pseudo-long`. */
+export interface GalleryCell { column: string; locale: string; mode: string; shot: Shot }
+export interface GalleryRow { viewport: string; cells: GalleryCell[] }
+/** A page (and project) of the Gallery: one row per viewport, widest first. */
+export interface GalleryPage { id: string; url: string; label: string; project?: string; rows: GalleryRow[] }
 export interface RuleRow { rule: string; severity: string; problems: number; occurrences: number; sections: Array<{ id: string; label: string }> }
 export interface ReportModel {
   pages: Page[]; rules: RuleRow[]; locales: string[]; projects: string[];
@@ -31,6 +36,8 @@ export interface ReportModel {
   problems: number; occurrences: number;
   /** Problems per severity. */
   bySeverity: Record<string, number>;
+  /** Each page in each locale and mode, side by side; empty unless some check ran with `gallery: true`. */
+  gallery: GalleryPage[];
   /** Accepted issues that no longer occur, and the baseline file they are in. */
   fixed: FixedEntry[];
   fixedBaselinePath?: string;
@@ -150,9 +157,72 @@ export function buildModel(results: RunResults): ReportModel {
   return {
     pages, rules: ruleRows(pages), locales, projects, matrix,
     problems: all.length, occurrences: all.reduce((n, p) => n + p.occurrences.length, 0), bySeverity,
+    gallery: buildGallery(checks, labels, problemOf(pages)),
     fixed: fixedEntries([results]),
     fixedBaselinePath: checks.find(c => c.baseline?.fixed?.length)?.baseline?.path,
   };
+}
+
+/** The problem id of each issue object the pages list. */
+function problemOf(pages: Page[]): Map<Issue, string> {
+  const ids = new Map<Issue, string>();
+  for (const page of pages) for (const section of page.sections) for (const problem of section.problems) for (const o of problem.occurrences) ids.set(o.issue, problem.id);
+  return ids;
+}
+
+const MODE_ORDER: Record<string, number> = { source: 0, 'pseudo-long': 1, 'pseudo-rtl': 2 };
+
+/**
+ * The Gallery: every screenshot of the checks run with `gallery: true`, by page and project, then viewport, then
+ * locale and mode. Columns are keyed, not positional: a locale whose check did not run leaves a gap.
+ */
+function buildGallery(checks: CheckResult[], labels: Map<string, string>, problems: Map<Issue, string>): GalleryPage[] {
+  const withGallery = checks.filter(c => c.gallery);
+  if (!withGallery.length) return [];
+  // Results from before screenshots recorded their locale: the check's issues say it, else it is unknown.
+  const localeOf = (c: CheckResult, s: Screenshot) => s.locale ?? c.issues[0]?.locale ?? '';
+  // pseudo-long runs only on pages in the source locale: that locale comes first. Else the most common one.
+  let source: string | undefined;
+  const counts = new Map<string, number>();
+  for (const c of withGallery) for (const s of c.screenshots ?? []) {
+    const l = localeOf(c, s);
+    if (s.mode === 'pseudo-long' && source === undefined) source = l;
+    counts.set(l, (counts.get(l) ?? 0) + 1);
+  }
+  source ??= [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
+
+  const pages = new Map<string, { page: GalleryPage; rows: Map<string, { row: GalleryRow; w: number; h: number; keys: Set<string> }> }>();
+  for (const c of withGallery) {
+    const pageKey = JSON.stringify([c.url, c.project ?? '']);
+    let entry = pages.get(pageKey);
+    if (!entry) {
+      entry = { page: { id: `gallery-${pages.size + 1}`, url: c.url, label: labels.get(c.url) ?? c.url, ...(c.project ? { project: c.project } : {}), rows: [] }, rows: new Map() };
+      pages.set(pageKey, entry);
+    }
+    for (const s of c.screenshots ?? []) {
+      const viewport = viewportLabel(s.viewport);
+      let row = entry.rows.get(viewport);
+      if (!row) {
+        row = { row: { viewport, cells: [] }, w: s.viewport.width, h: s.viewport.height, keys: new Set() };
+        entry.rows.set(viewport, row);
+      }
+      const locale = localeOf(c, s);
+      const key = JSON.stringify([locale, s.mode]);
+      if (row.keys.has(key)) continue; // the same page checked twice: the first one stays
+      row.keys.add(key);
+      const boxes = (c.issues ?? []).filter(i => sameShot(s, i) && (i.locale ?? '') === locale).map(issue => ({ problem: problems.get(issue) ?? '', issue }));
+      row.row.cells.push({
+        column: s.mode === 'source' ? locale : `${locale} · ${s.mode}`, locale, mode: s.mode,
+        shot: { screenshot: s, project: c.project, testTitle: c.testTitle, viewport, boxes },
+      });
+    }
+  }
+  const order = (a: GalleryCell, b: GalleryCell) =>
+    Number(a.locale !== source) - Number(b.locale !== source) || compare(a.locale, b.locale) || (MODE_ORDER[a.mode] ?? 3) - (MODE_ORDER[b.mode] ?? 3);
+  return [...pages.values()].map(({ page, rows }) => ({
+    ...page,
+    rows: [...rows.values()].sort((a, b) => b.w - a.w || b.h - a.h).map(r => ({ ...r.row, cells: [...r.row.cells].sort(order) })),
+  }));
 }
 
 /** One shot per (check, screenshot) of the section's mode and viewports, boxing the section's issues drawn on it. */
