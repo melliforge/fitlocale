@@ -5,6 +5,8 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-21
+
 ### Fixed
 
 - **The Gallery's source column.** Each page's block now puts its own source locale first. Before, one source locale was guessed for the whole run, so with several projects using different source locales, or pages where the pseudo modes did not run, a translated locale could come first. Results written by earlier versions keep the old guess.
@@ -231,7 +233,8 @@ First public release.
 - CLI: `fitlocale pseudo` writes pseudo-locale message files, and `fitlocale report` re-renders a report.
 - CommonJS and ESM builds with TypeScript types.
 
-[Unreleased]: https://github.com/melliforge/fitlocale/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/melliforge/fitlocale/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/melliforge/fitlocale/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/melliforge/fitlocale/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/melliforge/fitlocale/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/melliforge/fitlocale/compare/v0.5.0...v0.6.0
