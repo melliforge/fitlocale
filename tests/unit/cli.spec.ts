@@ -169,3 +169,41 @@ test('fitmap without fit records says how to turn them on', async () => {
   expect(out.stderr).toContain('sourceMessages');
   expect(existsSync(join(dir, 'x.json'))).toBe(false);
 });
+
+test.describe('baseline --prune', () => {
+  const entry = (id: string, check: string) => ({ id, rule: 'overflow/clipped', test: 't', selector: `#${id}`, mode: 'pseudo-long', locale: 'en', viewport: '1280x720', check });
+  /** A baseline with a (check c1) and b (check c2); results where a no longer occurs and a new issue n appeared. */
+  function setupPrune() {
+    const dir = tmp();
+    const base = join(dir, 'fitlocale-baseline.json');
+    writeFileSync(base, JSON.stringify({ version: 1, note: 'n', issues: [entry('a', 'c1'), entry('b', 'c2')] }, null, 2) + '\n');
+    const check = makeCheck({ scope: 'c1', issues: [makeIssue({ id: 'n', selector: '#new' })], baseline: { status: 'applied', path: base, fixed: [{ ...entry('a', 'c1'), rule: 'overflow/clipped', mode: 'pseudo-long' }] } });
+    writeFileSync(join(dir, 'results.json'), JSON.stringify(makeRun([check])));
+    return { dir, base };
+  }
+
+  test('removes, reports counts, and never adds a new issue', async () => {
+    const { dir, base } = setupPrune();
+    const { out, io } = capture();
+    expect(await main(['baseline', '--prune', join(dir, 'results.json'), '--out', base], io)).toBe(0);
+    expect(out.stdout).toBe(`fitlocale: removed 1 fixed issue(s) from ${base}; 1 remain\n`);
+    const ids = JSON.parse(readFileSync(base, 'utf8')).issues.map((e: { id: string }) => e.id);
+    expect(ids).toEqual(['b']);
+  });
+
+  test('with given shards it keeps entries of checks not in them', async () => {
+    // b belongs to check c2, which ran in another shard (not given): it stays.
+    const { dir, base } = setupPrune();
+    const { io } = capture();
+    await main(['baseline', '--prune', join(dir, 'results.json'), '--out', base], io);
+    expect(JSON.parse(readFileSync(base, 'utf8')).issues.map((e: { id: string }) => e.id)).toContain('b');
+  });
+
+  test('without a baseline file it fails naming it', async () => {
+    const { dir } = setupPrune();
+    const missing = join(dir, 'nope.json');
+    const { out, io } = capture();
+    expect(await main(['baseline', '--prune', join(dir, 'results.json'), '--out', missing], io)).toBe(1);
+    expect(out.stderr).toContain(missing);
+  });
+});

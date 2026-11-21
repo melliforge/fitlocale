@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
-import { applyBaseline, buildBaseline, checkScope, failureSummary, formatBaseline, issueId, markFailing, readBaseline, type IdScope } from '../../src/baseline';
+import { applyBaseline, buildBaseline, checkScope, failureSummary, fixedEntries, formatBaseline, issueId, markFailing, pruneBaseline, readBaseline, type BaselineFile, type IdScope } from '../../src/baseline';
 import { makeCheck, makeIssue, makeRun } from './fixtures';
 
 const SCOPE: IdScope = { project: 'chromium', titlePath: ['tests/a.spec.ts', 'settings'], checkIndex: 0 };
@@ -185,5 +185,29 @@ test.describe('check scope', () => {
     const file = buildBaseline([makeRun([scoped, plain])]);
     expect(file.issues.find(e => e.id === 'i1')?.check).toBe('abc123def456');
     expect('check' in file.issues.find(e => e.id === 'i2')!).toBe(false);
+  });
+});
+
+const entry = (id: string, check = 'c1') => ({ id, rule: 'overflow/clipped' as const, test: 't', selector: `#${id}`, mode: 'pseudo-long' as const, locale: 'en', viewport: '1280x720', check });
+const fixedIn = (ids: string[], found: string[] = []) => makeCheck({
+  issues: found.map(id => makeIssue({ id })), baseline: { status: 'applied', path: 'b.json', fixed: ids.map(id => { const { check: _, ...e } = entry(id); return e; }) },
+});
+
+test.describe('fixed since baseline', () => {
+  test('fixedEntries: found anywhere in the runs means not fixed', () => {
+    // --repeat-each or a retry: one run of the check did not find X, another did.
+    expect(fixedEntries([makeRun([fixedIn(['x']), fixedIn([], ['x'])])])).toEqual([]);
+  });
+
+  test('fixedEntries merges shards and dedupes', () => {
+    const got = fixedEntries([makeRun([fixedIn(['b', 'a'])]), makeRun([fixedIn(['a'])])]);
+    expect(got.map(e => e.id)).toEqual(['a', 'b']);
+  });
+
+  test('prune removes only the fixed entries and keeps the rest byte-identical', () => {
+    const file: BaselineFile = { version: 1, note: 'n', issues: [entry('a'), entry('b'), entry('c')] };
+    const { file: pruned, removed } = pruneBaseline(file, [{ ...entry('b') }]);
+    expect(removed).toBe(1);
+    expect(formatBaseline(pruned)).toBe(formatBaseline({ ...file, issues: [entry('a'), entry('c')] }));
   });
 });
