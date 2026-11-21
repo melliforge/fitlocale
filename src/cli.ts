@@ -120,10 +120,23 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
       const out = values.out ?? 'fitlocale-baseline.json';
       if (!existsSync(out)) throw new Error(`no baseline file at ${out} to prune (pass --out with its path)`);
       const current = readJsonObject(out) as unknown as BaselineFile;
+      if (current.version !== undefined && current.version !== 1) {
+        throw new Error(`${out} has version ${String(current.version)}; this fitlocale reads version 1`);
+      }
       if (!Array.isArray(current.issues)) throw new Error(`${out} is not a fitlocale baseline file (no "issues" list)`);
       const runs = [input, ...extra].map(path => readResults(path));
+      // Pruning another file removes nothing: say so, rather than "removed 0".
+      const norm = (p: string) => relative(process.cwd(), resolve(p)).split(sep).join('/');
+      const used = [...new Set(runs.flatMap(r => (r.checks ?? []).flatMap(c => (c.baseline?.path ? [norm(c.baseline.path)] : []))))];
+      if (used.length && !used.includes(norm(out))) {
+        io.stderr(`fitlocale: these results were checked against ${used.join(', ')}, not ${norm(out)}; nothing of theirs is in it. Pass --out with the baseline file the tests used.\n`);
+      }
       const pruned = pruneBaseline(current, fixedEntries(runs));
       const { file, recorded, without } = recordChecks(pruned.file, runs);
+      if (!pruned.removed && !recorded) {
+        io.stdout(`fitlocale: nothing to prune in ${out}; ${file.issues.length} remain\n`);
+        return 0;
+      }
       writeFileCreatingDir(out, formatBaseline(file));
       const upgrade = recorded || without
         ? `; recorded the check of ${recorded} older entry(ies); ${without} still without one (fixed, or its test did not run)` : '';

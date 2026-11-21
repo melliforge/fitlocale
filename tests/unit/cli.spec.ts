@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { test, expect } from '@playwright/test';
 import { main } from '../../src/cli';
 import { readFitMap } from '../../src/fit/map';
@@ -225,6 +225,39 @@ test.describe('baseline --prune', () => {
     const { io } = capture();
     await main(['baseline', '--prune', join(dir, 'results.json'), '--out', base], io);
     expect(JSON.parse(readFileSync(base, 'utf8')).issues.map((e: { id: string }) => e.id)).toContain('b');
+  });
+
+  test('prune refuses a baseline file of another version', async () => {
+    const { dir, base } = setupPrune();
+    const text = JSON.stringify({ version: 2, note: 'n', issues: [entry('a', 'c1')] });
+    writeFileSync(base, text);
+    const { out, io } = capture();
+    expect(await main(['baseline', '--prune', join(dir, 'results.json'), '--out', base], io)).toBe(1);
+    expect(out.stderr).toContain('version 2');
+    expect(readFileSync(base, 'utf8')).toBe(text);
+  });
+
+  test('prune warns when the results used another baseline file', async () => {
+    const { dir, base } = setupPrune();
+    const other = join(dir, 'b.json');
+    writeFileSync(other, JSON.stringify({ version: 1, note: 'n', issues: [entry('z', 'c9')] }));
+    const { out, io } = capture();
+    expect(await main(['baseline', '--prune', join(dir, 'results.json'), '--out', other], io)).toBe(0);
+    expect(out.stderr).toContain(`checked against ${relative(process.cwd(), base)}, not ${relative(process.cwd(), other)}`);
+  });
+
+  test('prune leaves an unchanged file alone', async () => {
+    const dir = tmp();
+    const base = join(dir, 'b.json');
+    const text = JSON.stringify({ version: 1, note: 'n', issues: [entry('a', 'c1')] }); // unindented: a rewrite would show
+    writeFileSync(base, text);
+    const before = statSync(base).mtimeMs;
+    writeFileSync(join(dir, 'results.json'), JSON.stringify(makeRun([makeCheck({ scope: 'c1', issues: [makeIssue({ id: 'a' })], baseline: { status: 'applied', path: base, fixed: [] } })])));
+    const { out, io } = capture();
+    expect(await main(['baseline', '--prune', join(dir, 'results.json'), '--out', base], io)).toBe(0);
+    expect(out.stdout).toBe(`fitlocale: nothing to prune in ${base}; 1 remain\n`);
+    expect(readFileSync(base, 'utf8')).toBe(text);
+    expect(statSync(base).mtimeMs).toBe(before);
   });
 
   test('without a baseline file it fails naming it', async () => {
