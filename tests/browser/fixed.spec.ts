@@ -50,3 +50,37 @@ test('a baseline without check fields: nothing fixed, legacy flagged', async ({ 
   expect(result.baseline?.fixed).toEqual([]);
   expect(result.baseline?.legacy).toBe(true);
 });
+
+test('a check records the mode and viewport pairs it ran', async ({ page, localeCheck }) => {
+  accept([]);
+  await page.setContent(WIDE);
+  expect((await localeCheck()).ran).toEqual(['source 1280x720', 'pseudo-long 1280x720']);
+});
+
+test('an entry at a viewport not run this time is not fixed', async ({ page, localeCheck }, testInfo) => {
+  accept([entryFor(testInfo, { id: 'e'.repeat(16), viewport: '390x844' })]);
+  await page.setContent(WIDE);
+  expect((await localeCheck()).baseline?.fixed).toEqual([]);
+});
+
+test.describe('pseudo-rtl on a right-to-left page', () => {
+  test.use({ fitlocale: { viewports: 'current', modes: ['pseudo-rtl'], baseline: BASE, failOn: 'never' } });
+  test('pseudo-rtl on a page that is already right-to-left is not run', async ({ page, localeCheck }) => {
+    accept([]);
+    await page.setContent('<!doctype html><html lang=en dir=rtl><p>Hello there</p>');
+    expect((await localeCheck()).ran).toEqual(['source 1280x720']);
+  });
+});
+
+test('a font that times out makes the check incomplete, and nothing is fixed', async ({ page, localeCheck }, testInfo) => {
+  accept([entryFor(testInfo)]);
+  await page.route('http://fonts.test/stuck.woff2', () => {});
+  await page.route('http://app.test/', route => route.fulfill({
+    contentType: 'text/html',
+    body: `<style>@font-face{font-family:Stuck;src:url(http://fonts.test/stuck.woff2)}</style><p style="font-family:Stuck">Later</p>${WIDE}`,
+  }));
+  await page.goto('http://app.test/', { waitUntil: 'domcontentloaded' });
+  const result = await localeCheck();
+  expect(result.incomplete).toBe('fonts');
+  expect(result.baseline?.fixed).toEqual([]);
+});

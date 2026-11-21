@@ -28,7 +28,7 @@ On GitLab CI or another CI system, run the tests and save the report directory y
 
 ## `comment`
 
-`comment: true` posts one comment on the pull request, listing the new issues: those not in your [baseline](/reference/options#baseline), errors first, at most 10, each with its rule, locale, element, message and fix. The comment links the report artifact, where the screenshots and crops are. Every push updates the same comment, and it turns into "All clear" once nothing new is left. A pull request that never had a new issue gets no comment.
+`comment: true` posts one comment on the pull request, listing the new issues: those not in your [baseline](/reference/options#baseline), errors first, at most 10, each with its rule, locale, element, message and fix. The comment links the report artifact, where the screenshots and crops are. Every push updates the same comment, and it turns into "All clear" once nothing new is left. A pull request that never had a new issue gets no comment, unless accepted issues no longer occur: then the comment says so, with the command that drops them from the baseline. Until the baseline on your default branch is pruned, every pull request gets that note, so prune in the pull request that fixed them.
 
 The job needs `permissions: pull-requests: write`, and nothing else. The Action uses the job's own `github.token`: no secret, and nothing leaves GitHub.
 

@@ -47,8 +47,8 @@ export function renderSummary(results: RunResults, opts: { maxRows: number; resu
   if (fixed.length) {
     const path = results.checks.find(c => c.baseline?.fixed?.length)?.baseline?.path ?? 'fitlocale-baseline.json';
     const command = `npx fitlocale baseline --prune ${opts.resultsPath ?? '<path to results.json>'} --out ${path}`;
-    lines.push('', `> ${fixed.length} accepted issue(s) no longer occur. Drop them with \`${command}\`.`, '', '| Rule | Element | Test | Viewport |', '|---|---|---|---|');
-    for (const e of fixed.slice(0, opts.maxRows)) lines.push(`| ${code(e.rule)} | ${code(e.selector)} | ${cell(`${e.test}${e.project ? ` [${e.project}]` : ''}`)} | ${cell(e.viewport)} |`);
+    lines.push('', `> ${fixed.length} accepted issue(s) no longer occur. Drop them with \`${command}\`.`, '', '| Rule | Element | Test | Mode | Locale | Viewport |', '|---|---|---|---|---|---|');
+    for (const e of fixed.slice(0, opts.maxRows)) lines.push(`| ${code(e.rule)} | ${code(e.selector)} | ${cell(`${e.test}${e.project ? ` [${e.project}]` : ''}`)} | ${cell(e.mode)} | ${cell(e.locale)} | ${cell(e.viewport)} |`);
     if (fixed.length > opts.maxRows) lines.push('', `…and ${fixed.length - opts.maxRows} more.`);
   }
   const legacy = results.checks.find(c => c.baseline?.legacy)?.baseline;

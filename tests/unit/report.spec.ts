@@ -462,6 +462,13 @@ test('report overview shows Fixed since baseline, escaped', () => {
   expect(html).not.toContain('<img src=x');
 });
 
+test('the fixed list shows mode and locale', () => {
+  const html = renderReport(makeRun([makeCheck({
+    issues: [], baseline: { status: 'applied', path: 'b.json', fixed: [{ id: 'x1', rule: 'overflow/clipped', test: 't', selector: '#s', mode: 'pseudo-long', locale: '<i>de</i>', viewport: '1280x720' }] },
+  })]));
+  expect(html).toContain('· pseudo-long · &lt;i&gt;de&lt;/i&gt; · 1280x720</li>');
+});
+
 test.describe('gallery', () => {
   const wide = { width: 1280, height: 800 };
   const g = (mode: 'source' | 'pseudo-long' | 'pseudo-rtl', locale: string, viewport = wide) =>

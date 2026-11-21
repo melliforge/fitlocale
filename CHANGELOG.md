@@ -9,10 +9,15 @@ Each section becomes the notes of the matching GitHub Release.
 
 - **The Gallery's source column.** Each page's block now puts its own source locale first. Before, one source locale was guessed for the whole run, so with several projects using different source locales, or pages where the pseudo modes did not run, a translated locale could come first. Results written by earlier versions keep the old guess.
 - **`fitlocale fitmap` without `--source-locale`** now writes the source locale the tests ran with instead of always `en`. When the results were recorded with different source locales, it stops and asks for `--source-locale` (exit code 2).
+- **Fixed since baseline only where the check looked.** An accepted issue counts as fixed only when its check ran its mode at its viewport this time, and ran fully. A run with fewer viewports or modes, a web font that timed out, or a page that showed another locale no longer calls entries fixed, so `--prune` no longer drops them for the next full run to fail as new.
+- **`fitlocale baseline --prune`** refuses a baseline file of another version, warns when the results were checked against a different baseline file than `--out`, and leaves the file untouched when there is nothing to prune.
 
 ### Added
 
 - `CheckResult.sourceLocale` and `CheckResult.sourcePage` in results.json: the `sourceLocale` option each check ran with, and whether its page was in the source language.
+- `CheckResult.ran` and `CheckResult.incomplete` in results.json: the mode and viewport pairs each check ran, and why it ran only partly.
+- The fixed table in the job summary and the fixed list in the HTML report show each entry's mode and locale.
+- The pull request comment is posted when accepted issues no longer occur, also when nothing is new, with the command that drops them from the baseline.
 
 ## [0.8.0] - 2026-11-21
 

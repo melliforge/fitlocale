@@ -74,7 +74,7 @@ export async function postComment(o: PostOptions): Promise<CommentOutcome> {
         return { status: 'updated', url: updated.url };
       }
     }
-    // No comment (or someone deleted ours): post only when there is something new.
+    // No comment (or someone deleted ours): post only when there is something new, or accepted issues are gone.
     const body = render(false);
     if (body === null) {
       log('no new issues and no earlier comment; nothing posted');

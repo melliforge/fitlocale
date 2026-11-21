@@ -119,6 +119,18 @@ test('"All clear" when nothing is new but there was a previous comment', () => {
   expect(body).toContain('All clear: no new issues since the last run.');
 });
 
+test('a comment is posted for fixed entries alone', () => {
+  const body = render(results([]), { previous: false, fixed: 2, baselinePath: 'b.json' });
+  expect(body).not.toBeNull();
+  expect(body).toContain('**fitlocale:** No new issues.');
+  expect(body).toContain('2 accepted issue(s) no longer occur');
+  expect(body).not.toContain('All clear');
+});
+
+test('still silent with nothing new and nothing fixed', () => {
+  expect(render(results([]), { previous: false, fixed: 0 })).toBeNull();
+});
+
 test('comment mentions fixed entries, also in All clear', () => {
   // A command that runs as printed: the results file and the baseline file are named.
   expect(render(results([issue()]), { fixed: 2, baselinePath: 'e2e/fitlocale-baseline.json' }))

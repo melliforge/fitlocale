@@ -81,13 +81,14 @@ export interface CommentOptions {
   baselinePath?: string;
 }
 
-/** The pull request comment, or null when there is nothing to say (nothing new, and no comment to update). */
+/** The pull request comment, or null when there is nothing to say (nothing new, nothing fixed, and no comment to update). */
 export function renderComment(results: Pick<RunResults, 'checks'>, o: CommentOptions): string | null {
   const listed = newIssues(results);
-  if (!listed.length && !o.previous) return null;
+  // Accepted issues that are gone are worth a comment of their own: the baseline should drop them.
+  if (!listed.length && !o.previous && !o.fixed) return null;
   const lines = [MARKER];
   if (!listed.length) {
-    lines.push('**fitlocale:** All clear: no new issues since the last run.');
+    lines.push(o.previous ? '**fitlocale:** All clear: no new issues since the last run.' : '**fitlocale:** No new issues.');
   } else {
     lines.push(`**fitlocale:** ${counts(listed)}`, '', '| Issue |', '|---|');
     for (const l of listed.slice(0, MAX_LISTED)) {

@@ -34,6 +34,8 @@ interface CheckResult {
                                            // accepted issues of this check that it did not find this time
     legacy?: true;                         // the baseline has entries without `check` (written before 0.8): never called fixed; `baseline --prune` records it
   };
+  ran?: string[];                          // the mode and viewport pairs this check ran, as "pseudo-long 1280x800"
+  incomplete?: 'fonts' | 'locale';         // a web font timed out, or the page showed another locale
   gallery?: true;                          // taken with gallery: true: every mode that ran has a screenshot at every viewport
   fit?: Array<{                            // with fitMap: true, on source-locale pages: one record per viewport
     viewport: { width: number; height: number };
