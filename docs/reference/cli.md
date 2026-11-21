@@ -40,15 +40,19 @@ npx fitlocale summary fitlocale-report/results.json --max-rows 50 >> "$GITHUB_ST
 
 Prints a Markdown summary of the new issues: counts, a note when there is no baseline yet, and a table of at most `--max-rows` issues (default 50), errors first.
 
-## `fitlocale upload`
+## `fitlocale comment`
 
 ```bash
-npx fitlocale upload fitlocale-report --pr "$PR_NUMBER"
+npx fitlocale comment fitlocale-report
 ```
 
-Sends a finished report to fitlocale cloud, which comments on the pull request and hosts the report. It runs in GitHub Actions; the [Action's `upload` input](/reference/github-action#upload) calls it for you.
+Posts or updates the pull request's one fitlocale comment, listing the new issues of one or more report directories. It runs in GitHub Actions. The [Action's `comment` input](/reference/github-action#comment) and `melliforge/fitlocale/comment` call it for you.
 
-- **What it sends:** `results.json` and the screenshots and crops it points at, and nothing outside the report directory. With them goes the pull request's head commit, read from the Actions event, so the comment names the commit you pushed rather than GitHub's temporary merge commit. The [`mask` option](/reference/options#mask) paints over customer data in the images. `results.json` still holds each issue's text, selector and URL, so use [`ignore`](/reference/options#ignore) for elements whose text must not leave CI.
-- **How it signs in:** with the job's GitHub OIDC token, so the repository needs no secret. The job needs `permissions: id-token: write`. Pull requests from forks get no token, and are not uploaded.
-- **It never fails the job:** if there is no token or plan, or the service doesn't answer within 30 seconds, it prints one `fitlocale upload:` line and exits 0. It needs Node 18 or newer, and on older Node it says so and exits 0.
-- **Options:** `--pr <n>` is the pull request number. When it's empty, the number is read from `GITHUB_REF`. `--endpoint <url>` (or `FITLOCALE_CLOUD_URL`) changes the service address, which defaults to `https://cloud.fitlocale.dev`.
+- **Which pull request:** under `pull_request`, the event's pull request. Under `workflow_run` (the [fork recipe](/reference/github-action#forks)), the one open pull request whose head is the run's branch and commit. A run of an older commit than the pull request's newest leaves the comment alone.
+- **Token:** `GITHUB_TOKEN`, which the Actions set to the job's `github.token`. The job needs `permissions: pull-requests: write`. The comment is found again by its first line, `<!-- fitlocale -->`, and its author, `github-actions[bot]`. With any other token, each run would post a new comment.
+- **It never fails the job:** without results, a token or a pull request, when the token cannot write, or when GitHub doesn't answer within 30 seconds, it prints one `fitlocale comment:` line and exits 0. It needs Node 18 or newer, and on older Node it says so and exits 0.
+- **Options:** `--pr <n>` names the pull request. `--report-url <url>` is the link for the full report; the default is the workflow run.
+
+## `fitlocale upload`
+
+Retired, since fitlocale no longer has a hosted service. It prints one notice, sends nothing, and exits 0. Use [`fitlocale comment`](#fitlocale-comment).

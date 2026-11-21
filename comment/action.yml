@@ -1,0 +1,48 @@
+name: 'fitlocale comment'
+description: 'One pull request comment from several fitlocale reports: a matrix or shards, or a fork pull request through workflow_run.'
+author: 'melliforge'
+
+# Run it in a job that has the reports (actions/download-artifact) and `permissions: pull-requests: write`.
+# It never fails the job: every problem is one line in the log.
+inputs:
+  report-dirs:
+    description: 'Report directories (each with a results.json), one per line.'
+    required: true
+  report-url:
+    description: 'Link for the full report. Default: the workflow run that made the reports.'
+    default: ''
+  fitlocale-command:
+    description: "Command that runs the fitlocale CLI. Default: the project's node_modules/.bin/fitlocale, else npx fitlocale at this Action's major version."
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Comment on the pull request
+      continue-on-error: true
+      shell: bash
+      env:
+        # Always the job's own token: a later run finds the comment again by its author, github-actions[bot].
+        GITHUB_TOKEN: ${{ github.token }}
+        REPORT_DIRS: ${{ inputs.report-dirs }}
+        REPORT_URL: ${{ inputs.report-url }}
+        FITLOCALE_COMMAND: ${{ inputs.fitlocale-command }}
+        ACTION_REF: ${{ github.action_ref }}
+      run: |
+        # Without a local install, use the CLI of this Action's major version: @v0 → fitlocale@0, a branch → latest.
+        MAJOR=$(printf '%s' "$ACTION_REF" | sed -nE 's/^v([0-9]+).*/\1/p')
+        [ -n "$MAJOR" ] || MAJOR=latest
+        fl() {
+          # $FITLOCALE_COMMAND is unquoted on purpose: it may be a command with arguments.
+          if [ -n "$FITLOCALE_COMMAND" ]; then $FITLOCALE_COMMAND "$@"
+          elif [ -x node_modules/.bin/fitlocale ]; then node_modules/.bin/fitlocale "$@"
+          else npx --yes "fitlocale@${MAJOR}" "$@"; fi
+        }
+        # One directory per line; surrounding spaces and blank lines are dropped, spaces inside a name are kept.
+        args=()
+        while IFS= read -r line; do
+          line="${line#"${line%%[![:space:]]*}"}"; line="${line%"${line##*[![:space:]]}"}"
+          [ -n "$line" ] && args+=("$line")
+        done <<< "$REPORT_DIRS"
+        [ -n "$REPORT_URL" ] && args+=(--report-url "$REPORT_URL")
+        fl comment "${args[@]}"

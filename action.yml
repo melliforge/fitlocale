@@ -1,5 +1,5 @@
 name: 'fitlocale report'
-description: 'Summarise fitlocale localization layout issues in the job summary and upload the HTML report.'
+description: 'Summarise fitlocale localization layout issues in the job summary, upload the HTML report, and optionally comment on the pull request.'
 author: 'melliforge'
 branding:
   icon: 'globe'
@@ -20,11 +20,14 @@ inputs:
   fitlocale-command:
     description: "Command that runs the fitlocale CLI. Default: the project's node_modules/.bin/fitlocale, else npx fitlocale at this Action's major version (fitlocale@0 for @v0)."
     default: ''
+  comment:
+    description: 'Post one pull request comment listing new issues, updated on every push. Needs permissions: pull-requests: write. In a matrix, set it on one job only, or use melliforge/fitlocale/comment in a final job.'
+    default: 'false'
   upload:
-    description: "Send the report to fitlocale cloud, for a pull request comment and a hosted report. Needs a fitlocale plan and `permissions: id-token: write`."
+    description: 'Retired: fitlocale cloud has closed, and this does nothing. Use comment.'
     default: 'false'
   upload-url:
-    description: 'fitlocale cloud address. Default: https://cloud.fitlocale.dev.'
+    description: 'Retired with upload.'
     default: ''
 
 runs:
@@ -59,6 +62,7 @@ runs:
         fi
 
     - name: Upload the fitlocale report
+      id: artifact
       uses: actions/upload-artifact@v7
       # A second artifact with the same name in one run (matrix, shards) is an error: never fail the job for it.
       continue-on-error: true
@@ -70,15 +74,22 @@ runs:
 
     - name: Upload to fitlocale cloud
       if: inputs.upload == 'true'
-      # The upload prints a notice and exits 0 on every problem; this covers an older CLI without the command.
+      shell: bash
+      run: |
+        echo "::warning::fitlocale cloud has closed; upload does nothing. Use comment: true (https://melliforge.github.io/fitlocale/reference/github-action#comment)."
+
+    - name: Comment on the pull request
+      if: inputs.comment == 'true'
+      # The comment prints a notice and exits 0 on every problem; this covers an older CLI without the command.
       continue-on-error: true
       shell: bash
       env:
+        # Always the job's own token: a later run finds the comment again by its author, github-actions[bot].
+        GITHUB_TOKEN: ${{ github.token }}
         REPORT_DIR: ${{ inputs.report-dir }}
+        REPORT_URL: ${{ steps.artifact.outputs.artifact-url }}
         FITLOCALE_COMMAND: ${{ inputs.fitlocale-command }}
         ACTION_REF: ${{ github.action_ref }}
-        PR_NUMBER: ${{ github.event.pull_request.number }}
-        UPLOAD_URL: ${{ inputs.upload-url }}
       run: |
         # Without a local install, use the CLI of this Action's major version: @v0 → fitlocale@0, a branch → latest.
         MAJOR=$(printf '%s' "$ACTION_REF" | sed -nE 's/^v([0-9]+).*/\1/p')
@@ -90,10 +101,5 @@ runs:
           else npx --yes "fitlocale@${MAJOR}" "$@"; fi
         }
         args=("$REPORT_DIR")
-        # Only a pull request's merge ref carries the PR: under pull_request_target the job runs on the base branch,
-        # and its token would not match the PR number.
-        case "$GITHUB_REF" in
-          refs/pull/*/merge) [ -n "$PR_NUMBER" ] && args+=(--pr "$PR_NUMBER") ;;
-        esac
-        [ -n "$UPLOAD_URL" ] && args+=(--endpoint "$UPLOAD_URL")
-        fl upload "${args[@]}"
+        [ -n "$REPORT_URL" ] && args+=(--report-url "$REPORT_URL")
+        fl comment "${args[@]}"

@@ -235,10 +235,11 @@ jobs:
 | `artifact-name` | `fitlocale-report` | Name of the uploaded report |
 | `max-rows` | `50` | Most issues listed in the job summary |
 | `fitlocale-command` | your `node_modules/.bin/fitlocale` | Command that runs the fitlocale CLI |
+| `comment` | `false` | One pull request comment listing new issues |
 
 The step never fails the job. Your test step already did, if there were new issues. In a matrix or with shards, give each job its own `artifact-name` (for example `fitlocale-report-${{ matrix.shardIndex }}`): an artifact name can be used once per workflow run.
 
-With a fitlocale cloud plan, `with: { upload: true }` also posts one pull request comment with a crop of each new issue, and links a hosted report. It needs `permissions: id-token: write` and no secret. Screenshots, crops and `results.json` are uploaded: `mask` paints over customer data in the images, and `ignore` keeps an element's text out of the results. See the [Action reference](https://melliforge.github.io/fitlocale/reference/github-action#upload).
+Add `with: { comment: true }` and `permissions: pull-requests: write` to also get one pull request comment listing the new issues, updated on every push. It uses the job's own token, and nothing leaves GitHub. Matrix builds and pull requests from forks have their own recipes in the [Action reference](https://melliforge.github.io/fitlocale/reference/github-action#comment).
 
 ## CLI
 
@@ -247,6 +248,7 @@ npx fitlocale pseudo locales/en.json --out locales/en-XA.json   # pseudo-locale 
 npx fitlocale report fitlocale-report/results.json              # re-render index.html
 npx fitlocale baseline fitlocale-report/results.json            # accept the current issues
 npx fitlocale summary fitlocale-report/results.json             # Markdown summary, for CI
+npx fitlocale comment fitlocale-report                          # pull request comment, in GitHub Actions
 ```
 
 ## Limitations

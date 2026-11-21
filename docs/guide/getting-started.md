@@ -15,6 +15,8 @@ npm install -D fitlocale
 
 It needs Node 16.17+ and `@playwright/test` 1.40+, and runs on Chromium, Firefox and WebKit.
 
+fitlocale is free and has no service. It sends nothing anywhere: the only network call it makes is the pull request comment, to GitHub's API, when you turn it on.
+
 ## Add the reporter
 
 In `playwright.config.ts`, add the fitlocale reporter. It writes an HTML report with every problem boxed on a screenshot, and a `results.json` for tools:

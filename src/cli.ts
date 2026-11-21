@@ -6,7 +6,8 @@ import { pseudoMessages, type Messages } from './pseudo';
 import { renderReport } from './report/html';
 import { renderSummary } from './summary';
 import type { RunResults } from './types';
-import { DEFAULT_CLOUD_URL, prFromRef, uploadReport } from './upload';
+import { postComment } from './comment/post';
+import { UPLOAD_RETIRED } from './upload';
 
 export interface CliIO { stdout: (s: string) => void; stderr: (s: string) => void }
 
@@ -15,7 +16,8 @@ const USAGE = `Usage:
   fitlocale report <results.json> [--out <dir>]                   Re-render index.html from results.json
   fitlocale baseline <results.json>... [--out <file>]             Accept the issues found (default fitlocale-baseline.json)
   fitlocale summary <results.json> [--max-rows <n>]               Print a Markdown summary (for CI job summaries)
-  fitlocale upload <report-dir> [--endpoint <url>] [--pr <n>]     Send the report to fitlocale cloud (GitHub Actions; never fails)
+  fitlocale upload <report-dir>                                   Retired: prints a notice (use fitlocale comment)
+  fitlocale comment <report-dir>... [--pr <n>] [--report-url <url>]  Comment on the pull request (GitHub Actions; never fails)
   fitlocale --help
 `;
 
@@ -85,7 +87,7 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
       allowPositionals: true,
       options: {
         out: { type: 'string' }, expansion: { type: 'string' }, 'max-rows': { type: 'string' }, help: { type: 'boolean' },
-        endpoint: { type: 'string' }, pr: { type: 'string' },
+        endpoint: { type: 'string' }, pr: { type: 'string' }, 'report-url': { type: 'string' }, // --endpoint: accepted from old upload workflows
       },
     });
     const [command, input, ...extra] = positionals;
@@ -117,18 +119,21 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
       return 0;
     }
     if (command === 'upload' && input) {
-      // Never fails the job: every problem below is one line on stdout and exit 0.
+      // fitlocale cloud has closed. Old workflows keep passing --pr and --endpoint: accepted, and nothing is sent.
+      io.stdout(UPLOAD_RETIRED + '\n');
+      return 0;
+    }
+    if (command === 'comment' && input) {
+      // Never fails the job: every problem is one line on stdout and exit 0.
       const log = (line: string) => io.stdout(line + '\n');
       if (typeof fetch !== 'function') {
-        log('fitlocale upload needs Node 18 or newer');
+        log('fitlocale comment needs Node 18 or newer');
         return 0;
       }
       const pr = values.pr?.trim() ? Number(values.pr) : NaN;
-      await uploadReport({
-        dir: input,
-        endpoint: values.endpoint || process.env.FITLOCALE_CLOUD_URL || DEFAULT_CLOUD_URL,
-        prNumber: Number.isInteger(pr) && pr > 0 ? pr : prFromRef(process.env.GITHUB_REF),
-        env: process.env, fetch, log,
+      await postComment({
+        dirs: [input, ...extra], prNumber: Number.isInteger(pr) && pr > 0 ? pr : null,
+        reportUrl: values['report-url']?.trim() || null, env: process.env, fetch, log,
       });
       return 0;
     }
