@@ -150,3 +150,11 @@ test('the reporter copies crops and rewrites their paths', async () => {
   expect(existsSync(join(out, kept.crop!))).toBe(true);
   expect(lost).not.toHaveProperty('crop');
 });
+
+test('reporter prints the fixed line', async () => {
+  const text = await consoleOf([makeCheck({
+    screenshots: [], issues: [],
+    baseline: { status: 'applied', path: 'fitlocale-baseline.json', fixed: [{ id: 'x1', rule: 'overflow/clipped', test: 't', selector: '#s', mode: 'pseudo-long', locale: 'en', viewport: '1280x720' }] },
+  })]);
+  expect(text).toMatch(/fitlocale: 1 accepted issue\(s\) no longer occur: drop them with npx fitlocale baseline --prune \S+\/results\.json --out fitlocale-baseline\.json/);
+});

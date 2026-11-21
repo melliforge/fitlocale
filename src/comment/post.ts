@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { RunResults } from '../types';
+import { fixedEntries } from '../fixed';
 import { createGitHub, GitHubError } from './github';
 import { renderComment } from './render';
 import { resolveTarget } from './target';
@@ -63,7 +64,8 @@ export async function postComment(o: PostOptions): Promise<CommentOutcome> {
     }
     const existing = await gh.findComment(target.repo, target.pr);
     const report = o.reportUrl ? { reportUrl: o.reportUrl, reportLabel: 'the report artifact' } : { reportUrl: target.runUrl, reportLabel: 'the workflow run' };
-    const render = (previous: boolean) => renderComment({ checks }, { ...report, sha: target.headSha, previous });
+    const fixed = fixedEntries([{ checks }]).length;
+    const render = (previous: boolean) => renderComment({ checks }, { ...report, sha: target.headSha, previous, fixed });
     if (existing !== null) {
       const updated = await gh.updateComment(target.repo, existing, render(true)!);
       if (updated !== 'gone') {

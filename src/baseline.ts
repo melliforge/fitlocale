@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { relative, sep } from 'node:path';
 import type { CheckResult, FixedEntry, Issue, Mode, RuleId, RunResults, Severity } from './types';
+export { fixedEntries } from './fixed';
 
 /** Where an issue was found: Playwright project, test title path and the check's position in the test. */
 export interface IdScope { project: string; titlePath: string[]; checkIndex: number }
@@ -83,22 +84,6 @@ export function buildBaseline(runs: RunResults[]): BaselineFile {
   }
   const issues = [...byId.values()].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return { version: 1, note: NOTE, issues };
-}
-
-/**
- * Accepted issues that no longer occur, across runs (shards, retries, --repeat-each): listed as fixed by the check that
- * accepted them, and found by no check of any run. Sorted by id.
- */
-export function fixedEntries(runs: Array<Pick<RunResults, 'checks'>>): FixedEntry[] {
-  const found = new Set<string>();
-  const fixed = new Map<string, FixedEntry>();
-  for (const run of runs) {
-    for (const check of run.checks ?? []) {
-      for (const issue of check.issues ?? []) if (issue.id) found.add(issue.id);
-      for (const e of check.baseline?.fixed ?? []) fixed.set(e.id, e);
-    }
-  }
-  return [...fixed.values()].filter(e => !found.has(e.id)).sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 /** The file without the fixed entries; every other entry is kept as it is, in its order. Nothing is added. */

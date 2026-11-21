@@ -265,7 +265,8 @@ test('the overview shows stat cards', async ({ page }) => {
   await expect(stat('warning')).toHaveText('1');
   await expect(stat('info')).toHaveText('3');
   await expect(stat('accepted')).toHaveText('1');
-  await expect(page.locator('.stat')).toHaveCount(4);
+  await expect(stat('fixed')).toHaveText('0');
+  await expect(page.locator('.stat')).toHaveCount(5);
 });
 
 test('styles and script come from their modules', () => {
@@ -448,4 +449,14 @@ test('the "no locale" and "no project" matrix cells are not buttons, since no fi
   expect(none[0]).toContain('>1<');
   // Nothing in the matrix sets a filter to "All".
   expect(matrix).not.toMatch(/data-pick-(locale|project)=""/);
+});
+
+test('report overview shows Fixed since baseline, escaped', () => {
+  const html = renderReport(makeRun([makeCheck({
+    issues: [], baseline: { status: 'applied', path: 'b.json', fixed: [{ id: 'x1', rule: 'overflow/clipped', test: 'a <b>t</b>', selector: '<img src=x onerror=alert(1)>', mode: 'pseudo-long', locale: 'en', viewport: '1280x720' }] },
+  })]));
+  expect(html).toContain('data-stat="fixed"');
+  expect(html).toContain('Fixed since baseline');
+  expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+  expect(html).not.toContain('<img src=x');
 });

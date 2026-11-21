@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { MARKER, renderComment } from '../../src/comment/render';
+import { MARKER, renderComment, type CommentOptions } from '../../src/comment/render';
 import type { Issue } from '../../src/types';
 import { makeCheck, makeIssue, makeRun } from './fixtures';
 
@@ -7,7 +7,7 @@ const issue = (over: Partial<Issue> = {}) =>
   makeIssue({ locale: 'de', viewport: { width: 390, height: 844 }, fix: 'Let the box grow.', ...over });
 const results = (issues: Issue[], project = 'chromium') => makeRun([makeCheck({ issues, project })]);
 const opts = { reportUrl: 'https://github.test/o/r/actions/runs/1/artifacts/2', reportLabel: 'the report artifact', sha: '0123456789abcdef', previous: false };
-const render = (r: ReturnType<typeof results>, o: Partial<typeof opts> = {}) => renderComment(r, { ...opts, ...o });
+const render = (r: ReturnType<typeof results>, o: Partial<CommentOptions> = {}) => renderComment(r, { ...opts, ...o });
 const rows = (body: string) => body.split('\n').filter(l => l.startsWith('| ') && l !== '| Issue |');
 
 test('starts with the marker and says how many issues are new', () => {
@@ -117,4 +117,12 @@ test('"All clear" when nothing is new but there was a previous comment', () => {
   const body = render(results([]), { previous: true })!;
   expect(body.startsWith(MARKER)).toBe(true);
   expect(body).toContain('All clear: no new issues since the last run.');
+});
+
+test('comment mentions fixed entries, also in All clear', () => {
+  expect(render(results([issue()]), { fixed: 2 })).toContain('2 accepted issue(s) no longer occur: run `npx fitlocale baseline --prune` to drop them.');
+  const clear = render(results([]), { previous: true, fixed: 1 })!;
+  expect(clear).toContain('All clear');
+  expect(clear).toContain('1 accepted issue(s) no longer occur');
+  expect(render(results([issue()]))).not.toContain('no longer occur');
 });

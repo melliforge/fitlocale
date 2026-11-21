@@ -76,6 +76,8 @@ export interface CommentOptions {
   sha: string;
   /** A comment of ours already exists on the pull request. */
   previous: boolean;
+  /** Accepted issues that no longer occur. */
+  fixed?: number;
 }
 
 /** The pull request comment, or null when there is nothing to say (nothing new, and no comment to update). */
@@ -95,6 +97,7 @@ export function renderComment(results: Pick<RunResults, 'checks'>, o: CommentOpt
     }
     if (listed.length > MAX_LISTED) lines.push('', `…and ${listed.length - MAX_LISTED} more in the full report.`);
   }
+  if (o.fixed) lines.push('', `${o.fixed} accepted issue(s) no longer occur: run \`npx fitlocale baseline --prune\` to drop them.`);
   const sha = inert(o.sha.slice(0, 7), 7);
   lines.push('', `Full report: [${inert(o.reportLabel, 60)}](${linkUrl(o.reportUrl)})`, '', sha ? `<sub>fitlocale · commit <code>${sha}</code></sub>` : '<sub>fitlocale</sub>');
   return lines.join('\n');
