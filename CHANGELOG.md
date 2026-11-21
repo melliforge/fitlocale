@@ -5,6 +5,22 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+fitlocale is now free, with no hosted service: fitlocale cloud has closed.
+
+### Added
+
+- `fitlocale comment <report-dir>...`: posts one pull request comment listing the new issues, or updates it, from GitHub Actions with the job's own token. It shows at most 10 issues, errors first, and links the report. It turns into "All clear" when nothing new is left, and stays silent on a pull request that never had a new issue. A run of an older commit leaves the comment alone. It never fails the job: every problem is one `fitlocale comment:` line and exit 0.
+- The Action's `comment` input (`comment: true`, with `permissions: pull-requests: write`).
+- `melliforge/fitlocale/comment`: one comment from several reports (a matrix or shards), and for pull requests from forks through `workflow_run`. The [Action reference](https://melliforge.github.io/fitlocale/reference/github-action#comment) has both recipes.
+
+### Breaking
+
+- `fitlocale upload` and the Action's `upload` and `upload-url` inputs are retired: they print a notice, send nothing, and never fail the job. Use `comment: true`.
+
+### Changed
+
+- The docs no longer describe a hosted service, and `mask` is described for screenshots you share.
+
 ## [0.5.0] - 2026-10-22
 
 ### Added

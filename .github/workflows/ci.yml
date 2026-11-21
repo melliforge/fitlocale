@@ -12,6 +12,9 @@ jobs:
   test:
     name: Node ${{ matrix.node }} · typecheck and tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # the fitlocale comment, from the Node 22 job only
     # Playwright's image has the three browsers and pinned fonts: layout results match a local Docker run.
     # Firefox needs the runner's user (1001), not root. Keep the tag in step with @playwright/test.
     container:
@@ -43,6 +46,8 @@ jobs:
           report-dir: test-results/fitlocale-report
           artifact-name: fitlocale-report-node-${{ matrix.node }}
           fitlocale-command: node dist/cli.js
+          # One matrix job comments: parallel jobs would overwrite each other's comment.
+          comment: ${{ matrix.node == 22 }}
       - name: Upload test report
         if: failure()
         uses: actions/upload-artifact@v7

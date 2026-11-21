@@ -24,6 +24,12 @@ test('action inputs reach scripts through env, never inline', () => {
   for (const script of scripts) expect(script).not.toContain('${{');
 });
 
+test('this repo\'s CI comments from one matrix job only', () => {
+  const ci = readFileSync('.github/workflows/ci.yml', 'utf8');
+  expect(ci).toContain('comment: ${{ matrix.node == 22 }}');
+  expect(ci).toMatch(/\n {4}permissions:\n {6}contents: read\n {6}pull-requests: write/);
+});
+
 test('this repo\'s CI runs the action', () => {
   expect(readFileSync('.github/workflows/ci.yml', 'utf8')).toContain('uses: ./');
 });
