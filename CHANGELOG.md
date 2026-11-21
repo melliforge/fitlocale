@@ -5,6 +5,15 @@ Each section becomes the notes of the matching GitHub Release.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Gallery's source column.** Each page's block now puts its own source locale first. Before, one source locale was guessed for the whole run, so with several projects using different source locales, or pages where the pseudo modes did not run, a translated locale could come first. Results written by earlier versions keep the old guess.
+- **`fitlocale fitmap` without `--source-locale`** now writes the source locale the tests ran with instead of always `en`. When the results were recorded with different source locales, it stops and asks for `--source-locale` (exit code 2).
+
+### Added
+
+- `CheckResult.sourceLocale` in results.json: the `sourceLocale` option each check ran with.
+
 ## [0.8.0] - 2026-11-21
 
 ### Added
