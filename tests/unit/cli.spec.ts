@@ -246,6 +246,18 @@ test.describe('baseline --prune', () => {
     expect(out.stderr).toContain(`checked against ${relative(process.cwd(), base)}, not ${relative(process.cwd(), other)}`);
   });
 
+  test('prune does not warn when the paths differ but the entries are in the file', async () => {
+    // Tests run from web/, the CLI from the repo root: the stored path is relative to another directory.
+    const { dir, base } = setupPrune();
+    const r = JSON.parse(readFileSync(join(dir, 'results.json'), 'utf8'));
+    r.checks[0].baseline.path = 'fitlocale-baseline.json';
+    writeFileSync(join(dir, 'results.json'), JSON.stringify(r));
+    const { out, io } = capture();
+    expect(await main(['baseline', '--prune', join(dir, 'results.json'), '--out', base], io)).toBe(0);
+    expect(out.stderr).toBe('');
+    expect(out.stdout).toContain('removed 1 fixed issue(s)');
+  });
+
   test('prune leaves an unchanged file alone', async () => {
     const dir = tmp();
     const base = join(dir, 'b.json');

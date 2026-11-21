@@ -125,13 +125,16 @@ export async function main(argv: string[], io: CliIO = defaultIO): Promise<numbe
       }
       if (!Array.isArray(current.issues)) throw new Error(`${out} is not a fitlocale baseline file (no "issues" list)`);
       const runs = [input, ...extra].map(path => readResults(path));
-      // Pruning another file removes nothing: say so, rather than "removed 0".
+      const fixed = fixedEntries(runs);
+      // Pruning another file removes nothing: say so, rather than "removed 0". Judged by the entries, not by the path:
+      // results store it relative to where the tests ran, which may not be where this command runs.
+      const inFile = new Set(current.issues.map(e => String(e?.id)));
       const norm = (p: string) => relative(process.cwd(), resolve(p)).split(sep).join('/');
       const used = [...new Set(runs.flatMap(r => (r.checks ?? []).flatMap(c => (c.baseline?.path ? [norm(c.baseline.path)] : []))))];
-      if (used.length && !used.includes(norm(out))) {
+      if (fixed.length && !fixed.some(e => inFile.has(e.id)) && used.length && !used.includes(norm(out))) {
         io.stderr(`fitlocale: these results were checked against ${used.join(', ')}, not ${norm(out)}; nothing of theirs is in it. Pass --out with the baseline file the tests used.\n`);
       }
-      const pruned = pruneBaseline(current, fixedEntries(runs));
+      const pruned = pruneBaseline(current, fixed);
       const { file, recorded, without } = recordChecks(pruned.file, runs);
       if (!pruned.removed && !recorded) {
         io.stdout(`fitlocale: nothing to prune in ${out}; ${file.issues.length} remain\n`);
