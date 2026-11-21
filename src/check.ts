@@ -418,6 +418,7 @@ async function check(ctx: CheckContext): Promise<CheckResult> {
     testTitle: testInfo.title,
     testFile: relative(process.cwd(), testInfo.file),
     checkIndex,
+    sourceLocale: options.sourceLocale,
     url: page.url(),
     issues,
     screenshots,

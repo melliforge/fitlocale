@@ -117,6 +117,8 @@ export interface CheckResult {
   project?: string;
   testFile: string;
   checkIndex: number;
+  /** The `sourceLocale` option this check ran with. Absent in results written before 0.8.1. */
+  sourceLocale?: string;
   /** Which check this is (project, title path, check index), hashed: baseline entries record it as `check`. */
   scope?: string;
   url: string;

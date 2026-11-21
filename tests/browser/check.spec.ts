@@ -660,3 +660,20 @@ test.describe('crops', () => {
     });
   });
 });
+
+test.describe('sourceLocale on the result', () => {
+  test.describe('by default', () => {
+    test.use({ fitlocale: { viewports: 'current', failOn: 'never', baseline: false } });
+    test('a check records its sourceLocale (default en)', async ({ page, localeCheck }) => {
+      await page.setContent('<!doctype html><html lang=en><p>Hello there</p>');
+      expect((await localeCheck()).sourceLocale).toBe('en');
+    });
+  });
+  test.describe('configured', () => {
+    test.use({ fitlocale: { viewports: 'current', sourceLocale: 'fr', failOn: 'never', baseline: false } });
+    test('a check records a configured sourceLocale', async ({ page, localeCheck }) => {
+      await page.setContent('<!doctype html><html lang=fr><p>Bonjour à tous</p>');
+      expect((await localeCheck()).sourceLocale).toBe('fr');
+    });
+  });
+});
